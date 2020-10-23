@@ -1,0 +1,151 @@
+version: "2"
+
+volumes:
+  orderer.lab805.com:
+  orderer2.lab805.com:
+  peer0.org1.lab805.com:
+  peer1.org1.lab805.com:
+  peer0.org2.lab805.com:
+  peer1.org2.lab805.com:
+
+networks:
+  default:
+
+services:
+  orderer.lab805.com:
+    container_name: orderer.lab805.com
+    extends:
+      file: docker-compose-peer-base.yaml
+      service: orderer-base
+    volumes:
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer.lab805.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer.lab805.com/tls:/var/hyperledger/orderer/tls
+      - orderer.lab805.com:/var/hyperledger/production/orderer
+    ports:
+      - 7050:7050
+    networks:
+      - default
+    
+  orderer2.lab805.com:
+    container_name: orderer2.lab805.com
+    extends:
+      file: docker-compose-peer-base.yaml
+      service: orderer-base
+    volumes:
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/tls:/var/hyperledger/orderer/tls
+      - orderer2.lab805.com:/var/hyperledger/production/orderer
+    ports:
+      - 8050:7050
+    networks:
+      - default
+  
+  peer0.org1.lab805.com:
+    container_name: peer0.org1.lab805.com
+    extends:
+      file: docker-compose-peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer0.org1.lab805.com
+      - CORE_PEER_ADDRESS=peer0.org1.lab805.com:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.org1.lab805.com:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org1.lab805.com:7051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.org1.lab805.com:8051
+      - CORE_PEER_LOCALMSPID=Org1MSP
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./crypto-config/peerOrganizations/org1.lab805.com/peers/peer0.org1.lab805.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/org1.lab805.com/peers/peer0.org1.lab805.com/tls:/etc/hyperledger/fabric/tls
+      - peer0.org1.lab805.com:/var/hyperledger/production
+    ports:
+      - 7051:7051
+    depends_on:
+      - orderer.lab805.com
+      - orderer2.lab805.com
+    networks:
+      - default
+  
+  peer1.org1.lab805.com:
+    container_name: peer1.org1.lab805.com
+    extends:
+      file: docker-compose-peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer1.org1.lab805.com
+      - CORE_PEER_ADDRESS=peer1.org1.lab805.com:8051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:8051
+      - CORE_PEER_CHAINCODEADDRESS=peer1.org1.lab805.com:8052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:8052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org1.lab805.com:8051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org1.lab805.com:7051
+      - CORE_PEER_LOCALMSPID=Org1MSP
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./crypto-config/peerOrganizations/org1.lab805.com/peers/peer1.org1.lab805.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/org1.lab805.com/peers/peer1.org1.lab805.com/tls:/etc/hyperledger/fabric/tls
+      - peer1.org1.lab805.com:/var/hyperledger/production
+    ports:
+      - 8051:8051
+    depends_on:
+      - orderer.lab805.com
+      - orderer2.lab805.com
+    networks:
+      - default
+
+  peer0.org2.lab805.com:
+    container_name: peer0.org2.lab805.com
+    extends:
+      file: docker-compose-peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer0.org2.lab805.com
+      - CORE_PEER_ADDRESS=peer0.org2.lab805.com:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.org2.lab805.com:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org2.lab805.com:9051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.org2.lab805.com:10051
+      - CORE_PEER_LOCALMSPID=Org2MSP
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./crypto-config/peerOrganizations/org2.lab805.com/peers/peer0.org2.lab805.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/org2.lab805.com/peers/peer0.org2.lab805.com/tls:/etc/hyperledger/fabric/tls
+      - peer0.org2.lab805.com:/var/hyperledger/production
+    ports:
+      - 9051:9051
+    depends_on:
+      - orderer.lab805.com
+      - orderer2.lab805.com
+    networks:
+      - default
+
+  peer1.org2.lab805.com:
+    container_name: peer1.org2.lab805.com
+    extends:
+      file: docker-compose-peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer1.org2.lab805.com
+      - CORE_PEER_ADDRESS=peer1.org2.lab805.com:10051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:10051
+      - CORE_PEER_CHAINCODEADDRESS=peer1.org2.lab805.com:10052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:10052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org2.lab805.com:10051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.org2.lab805.com:9051
+      - CORE_PEER_LOCALMSPID=Org2MSP
+    volumes:
+      - /var/run/:/host/var/run/
+      - ./crypto-config/peerOrganizations/org2.lab805.com/peers/peer1.org2.lab805.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/org2.lab805.com/peers/peer1.org2.lab805.com/tls:/etc/hyperledger/fabric/tls
+      - peer1.org2.lab805.com:/var/hyperledger/production
+    ports:
+      - 10051:10051
+    depends_on:
+      - orderer.lab805.com
+      - orderer2.lab805.com
+    networks:
+      - default

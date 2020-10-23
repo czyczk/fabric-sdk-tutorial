@@ -1,0 +1,164 @@
+name: "lab-805-network"
+version: 1.0.0
+
+channels: # 指定通道信息（如果由要通过应用程序来创建通道则需要，否则可以不写）
+  mychannel:
+    peers:
+      peer0.org1.lab805.com:
+        endorsingPeer: true # [可选] 是否为背书节点，默认为 true
+        chaincodeQuery: true # [可选] 如节点会用于接收查询请求，则设为 true，默认为 true。
+        ledgerQuery: true # [可选] 如节点会用于接收不需要链码的查询请求，如 queryBlock(), queryTransaction() 等。默认为 true。
+        eventSource: true # [可选] 若节点是 SDK 监听器注册的目标，则设为 true。所有节点都会产生事件，但应用通常只需连接一个节点来监听事件。默认为 true
+      peer1.org1.lab805.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+      peer0.org2.lab805.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+      peer1.org2.lab805.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+    policies:
+      queryChannelConfig: # [可选] 有关于接收通道配置区块的选项
+        minResponses: 1 # [可选] 成功（从目标/节点接收到的）回应的最小值
+        maxTargets: 1 # [可选] 将接收通道配置的随机节点的数量
+        retryOpts: # [可选] 与查询配置区块相关的重试选项
+          attempts: 5 # [可选] 重试尝试次数
+          initialBackoff: 500ms # [可选] 第一次重试的冷却时间
+          maxBackoff: 5s # [可选] 任一次重试的最大冷却时间
+          backoffFactor: 2.0 # [可选] 重试冷却时间按此数指数型增长
+      discovery: # [可选] 接收“发现信息”相关的选项
+        maxTargets: 2 # [可选] 将接收发现信息的随机目标的数量
+        retryOpts:
+          attempts: 4
+          initialBackoff: 500ms
+          maxBackoff: 5s
+          backoffFactor: 2.0
+      eventService: # [可选] 事件服务的相关选项
+        # [可选] 指定在连接节点时使用的节点解析器策略
+        # 可能取值：[PreferOrg（默认）, MinBlockHeight, Balanced]
+        # PreferOrg:
+        #   基于区块高度滞后（block height lag）阈值，且会优先选择自己组织中的节点。
+        #   若当前组织中没有满足的节点，才会从其他组织中选择。
+        # MinBlockHeight:
+        #   基于区块高度滞后阈值选择。首先选出有最高区块高度的节点，
+        #   没达到最高高度但在“滞后”阈值之上的节点用于负载均衡。
+        # Balanced:
+        #   按配置的平衡器来选择节点。
+        resolverStrategy: PreferOrg
+        # [可选] 在选择要连接的节点时使用的平衡器
+        # 可能取值：[Random（默认）, RoundRobin]
+        balancer: Random
+        # [可选] 设置区块高度滞后的阈值，该值会影响要连接的节点。
+        # 设为 0 时只有最保持更新的节点会被考虑。
+        # 设为 -1 时则无视这个阈值，所有节点都纳入考虑。
+        # 默认：5
+        blockHeightLagThreshold: 5
+        # [可选] > 0 时，若节点区块高度落后于指定高度差，事件客户端将从节点断开连接，
+        # 并重连至一个状态更好的节点。
+        # 设为 0 时禁用该功能。
+        # 默认值：10
+        # （peerMonitorPeriod 需要 > 0 来启用此特性）
+        reconnectBlockHeightLagThreshold: 10
+        # [可选] 已连接的节点接受监视的时间段。在此时间段内事件客户端会根据情况与其断连并连接至其他节点。
+        # 默认值：0（禁用）
+        peerMonitorPeriod: 5s
+organizations: # 这个网络中的参与组织
+  Org1:
+    mspid: Org1MSP
+    cryptoPath: peerOrganizations/org1.lab805.com/users/{userName}@org1.lab805.com/msp
+    peers:
+      - peer0.org1.lab805.com
+      - peer1.org1.lab805.com
+    # [可选] 证书授权机构（Certifacte Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
+    # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
+    certificateAuthorities:
+      - ca.org1.lab805.com
+  Org2:
+  mspid: Org2MSP
+  cryptoPath: peerOrganizations/org2.lab805.com/users/{userName}@org2.lab805.com/msp
+  peers:
+    - peer0.org2.lab805.com
+    - peer1.org2.lab805.com
+  # [可选] 证书授权机构（Certifacte Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
+  # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
+  certificateAuthorities:
+    - ca.org2.lab805.com
+orderers: # SDK 将交易和通道创建与更新请求发到这些排序节点。只需要一个，如果定义了多个排序节点，用哪个由具体实现决定。
+  orderer.lab805.com:
+    url: localhost:7050
+    grpcOptions: # gRPC 库所用的标准参数，会直接传递给应用中的 gRPC 部分
+      ssl-target-name-override: orderer.lab805.com
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      allow-insecure: false
+    tlsCACerts:
+      path: fixtures/crypto-config/ordererOrganizations/lab805.com/orderers/orderer.lab805.com/msp/tlscacerts/tlsca.lab805.com-cert.pem
+  orderer2.lab805.com:
+    url: localhost:8050
+    grpcOptions: # gRPC 库所用的标准参数，会直接传递给应用中的 gRPC 部分
+      ssl-target-name-override: orderer2.lab805.com
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      allow-insecure: false
+    tlsCACerts:
+      path: fixtures/crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/msp/tlscacerts/tlsca.lab805.com-cert.pem
+peers:
+  peer0.org1.lab805.com:
+    url: localhost:7051 # 用于发送背书和查询请求的 URL
+    eventUrl: localhost:7053 # 仅使用 eventhub 时有用（默认是 delivery service）
+    grpcOptions:
+      ssl-target-name-override: peer0.org1.lab805.com
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      allow-insecure: false
+    tlsCACerts:
+      path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/peers/peer0.org1.lab805.com/tlsca/tlsca.org1.lab805.com-cert.pem
+  peer1.org1.lab805.com:
+    url: localhost:8051
+    eventUrl: localhost:8053
+    grpcOptions:
+      ssl-target-name-override: peer1.org1.lab805.com
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      allow-insecure: false
+    tlsCACerts:
+      path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/peers/peer1.org1.lab805.com/tlsca/tlsca.org1.lab805.com-cert.pem
+  peer0.org2.lab805.com:
+    url: localhost:9051
+    eventUrl: localhost:9053
+    grpcOptions:
+      ssl-target-name-override: peer0.org2.lab805.com
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      allow-insecure: false
+    tlsCACerts:
+      path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/peers/peer0.org2.lab805.com/tlsca/tlsca.org2.lab805.com-cert.pem
+  peer1.org2.lab805.com:
+    url: localhost:10051
+    eventUrl: localhost:10053
+    grpcOptions:
+      ssl-target-name-override: peer1.org2.lab805.com
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      allow-insecure: false
+    tlsCACerts:
+      path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/peers/peer1.org2.lab805.com/tlsca/tlsca.org2.lab805.com-cert.pem

@@ -1,0 +1,25 @@
+client: # SDK 使用的客户端部分
+  organization: Org1 # 应用程序实例所属的 Org 组织名称
+  logging:
+    level: info
+  cryptoconfig: # 指定带有密钥与证书的 MSP 根目录
+    path: fixtures/crypto-config
+  credentialStore: # 指定存储证书的所在目录
+    path: /tmp/lab805-network/credential-store/org1
+    cryptoStore: # [可选] 指定密钥存储库
+      path: /tmp/lab805-network/crypto-store/org1
+  BCCSP: # 为客户端配置 BCCSP
+    security:
+      enabled: true
+      default:
+        provider: "SW"
+      hashAlgorithm: "SHA2"
+      softVerify: true
+      level: 256
+  tlsCerts:
+    systemCertPool: false # 是否使用系统证书池
+    client: # [可选] 客户端密钥与证书路径
+      key:
+        path:
+      cert:
+        path:
