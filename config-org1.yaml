@@ -1,3 +1,6 @@
+name: "org1-client"
+version: 1.0.0
+
 client: # SDK 使用的客户端部分
   organization: Org1 # 应用程序实例所属的 Org 组织名称
   logging:
