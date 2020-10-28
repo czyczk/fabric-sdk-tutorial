@@ -81,15 +81,15 @@ organizations: # 这个网络中的参与组织
     certificateAuthorities:
       - ca.org1.lab805.com
   Org2:
-  mspid: Org2MSP
-  cryptoPath: peerOrganizations/org2.lab805.com/users/{userName}@org2.lab805.com/msp
-  peers:
-    - peer0.org2.lab805.com
-    - peer1.org2.lab805.com
-  # [可选] 证书授权机构（Certifacte Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
-  # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
-  certificateAuthorities:
-    - ca.org2.lab805.com
+    mspid: Org2MSP
+    cryptoPath: peerOrganizations/org2.lab805.com/users/{userName}@org2.lab805.com/msp
+    peers:
+      - peer0.org2.lab805.com
+      - peer1.org2.lab805.com
+    # [可选] 证书授权机构（Certifacte Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
+    # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
+    certificateAuthorities:
+      - ca.org2.lab805.com
 orderers: # SDK 将交易和通道创建与更新请求发到这些排序节点。只需要一个，如果定义了多个排序节点，用哪个由具体实现决定。
   orderer.lab805.com:
     url: localhost:7050
