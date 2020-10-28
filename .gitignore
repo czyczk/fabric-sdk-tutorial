@@ -6,6 +6,7 @@
 *.dylib
 bin/
 fixtures/bin/
+./fabric-sdk-tutorial
 
 # Test binary, built with `go test -c`
 *.test
