@@ -31,6 +31,7 @@ func main() {
 
 	// Init the app
 	initApp(clientInitInfo)
+	defer global.SDKInstance.Close()
 
 	// Create a channel
 	if err = appinit.CreateChannel(channelInitInfo, clientInitInfo,
@@ -53,8 +54,6 @@ func initApp(clientInitInfo *appinit.ClientInitInfo) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	defer global.SDKInstance.Close()
 
 	// Instantiate clients
 	err = appinit.InstantiateResMgmtClients(clientInitInfo)

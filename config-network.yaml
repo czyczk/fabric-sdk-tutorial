@@ -3,6 +3,9 @@ version: 1.0.0
 
 channels: # 指定通道信息（如果由要通过应用程序来创建通道则需要，否则可以不写）
   mychannel:
+    orderers:
+      - orderer.lab805.com
+      - orderer2.lab805.com
     peers:
       peer0.org1.lab805.com:
         endorsingPeer: true # [可选] 是否为背书节点，默认为 true
@@ -72,24 +75,31 @@ channels: # 指定通道信息（如果由要通过应用程序来创建通道�
 organizations: # 这个网络中的参与组织
   Org1:
     mspid: Org1MSP
-    cryptoPath: peerOrganizations/org1.lab805.com/users/{userName}@org1.lab805.com/msp
+    cryptoPath: peerOrganizations/org1.lab805.com/users/Admin@org1.lab805.com/msp
     peers:
       - peer0.org1.lab805.com
       - peer1.org1.lab805.com
-    # [可选] 证书授权机构（Certifacte Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
+    users:
+      Admin:
+        key:
+          path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/Admin@org1.lab805.com/msp/keystore/b26dc4f26507b0e37a36ed655a232e8f9621e43925f02b7bf5394bad81dcd2ca_sk
+        cert:
+          path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/Admin@org1.lab805.com/msp/signcerts/cert.pem
+
+    # [可选] 证书授权机构（Certificate Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
     # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
-    certificateAuthorities:
-      - ca.org1.lab805.com
+#    certificateAuthorities:
+#      - ca.org1.lab805.com
   Org2:
     mspid: Org2MSP
-    cryptoPath: peerOrganizations/org2.lab805.com/users/{userName}@org2.lab805.com/msp
+    cryptoPath: peerOrganizations/org2.lab805.com/users/Admin@org2.lab805.com/msp
     peers:
       - peer0.org2.lab805.com
       - peer1.org2.lab805.com
-    # [可选] 证书授权机构（Certifacte Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
+    # [可选] 证书授权机构（Certificate Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
     # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
-    certificateAuthorities:
-      - ca.org2.lab805.com
+#    certificateAuthorities:
+#      - ca.org2.lab805.com
 orderers: # SDK 将交易和通道创建与更新请求发到这些排序节点。只需要一个，如果定义了多个排序节点，用哪个由具体实现决定。
   orderer.lab805.com:
     url: localhost:7050
@@ -125,7 +135,7 @@ peers:
       fail-fast: false
       allow-insecure: false
     tlsCACerts:
-      path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/peers/peer0.org1.lab805.com/tlsca/tlsca.org1.lab805.com-cert.pem
+      path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/peers/peer0.org1.lab805.com/msp/tlscacerts/tlsca.org1.lab805.com-cert.pem
   peer1.org1.lab805.com:
     url: localhost:8051
     eventUrl: localhost:8053
@@ -137,7 +147,7 @@ peers:
       fail-fast: false
       allow-insecure: false
     tlsCACerts:
-      path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/peers/peer1.org1.lab805.com/tlsca/tlsca.org1.lab805.com-cert.pem
+      path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/peers/peer1.org1.lab805.com/msp/tlscacerts/tlsca.org1.lab805.com-cert.pem
   peer0.org2.lab805.com:
     url: localhost:9051
     eventUrl: localhost:9053
@@ -149,7 +159,7 @@ peers:
       fail-fast: false
       allow-insecure: false
     tlsCACerts:
-      path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/peers/peer0.org2.lab805.com/tlsca/tlsca.org2.lab805.com-cert.pem
+      path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/peers/peer0.org2.lab805.com/msp/tlscacerts/tlsca.org2.lab805.com-cert.pem
   peer1.org2.lab805.com:
     url: localhost:10051
     eventUrl: localhost:10053
@@ -161,4 +171,62 @@ peers:
       fail-fast: false
       allow-insecure: false
     tlsCACerts:
-      path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/peers/peer1.org2.lab805.com/tlsca/tlsca.org2.lab805.com-cert.pem
+      path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/peers/peer1.org2.lab805.com/msp/tlscacerts/tlsca.org2.lab805.com-cert.pem
+#certificateAuthorities:
+#  ca.org1.lab805.com:
+#    url: https://localhost:7054
+#    tlsCACerts:
+#      path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/msp/cacerts/localhost-7054-ca-org1.pem
+#    registrar:
+#      enrollId: admin
+#      enrollSecret: adminpw
+#    caName: ca.org1.lab805.com
+#  ca.org2.lab805.com:
+#    url: https://localhost:8054
+#    tlsCACerts:
+#      path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/msp/cacerts/localhost-8054-ca-org2.pem
+#  ca.orderer.lab805.com:
+#    url: https://localhost:9054
+#    tlsCACerts:
+#      path: fixtures/crypto-config/ordererOrganizations/lab805.com/msp/cacerts/localhost-9054-ca-orderer.pem
+entityMatchers:
+  peer:
+    - pattern: (\w*)peer0.org1.lab805.com(\w*)
+      urlSubstitutionExp: localhost:7051
+      eventUrlSubstitutionExp: localhost:7053
+      sslTargetOverrideUrlSubstitutionExp: peer0.org1.lab805.com
+      mappedHost: peer0.org1.lab805.com
+    - pattern: (\w*)peer1.org1.lab805.com(\w*)
+      urlSubstitutionExp: localhost:8051
+      eventUrlSubstitutionExp: localhost:8053
+      sslTargetOverrideUrlSubstitutionExp: peer1.org1.lab805.com
+      mappedHost: peer1.org1.lab805.com
+    - pattern: (\w*)peer0.org2.lab805.com(\w*)
+      urlSubstitutionExp: localhost:9051
+      eventUrlSubstitutionExp: localhost:9053
+      sslTargetOverrideUrlSubtitutionExp: peer0.org2.lab805.com
+      mappedHost: peer0.org2.lab805.com
+    - pattern: (\w*)peer1.org2.lab805.com(\w*)
+      urlSubstitutionExp: localhost:10051
+      eventUrlSubstitutionExp: localhost:10053
+      sslTargetOverrideUrlSubstitutionExp: peer1.org2.lab805.com
+      mappedHost: peer1.org2.lab805.com
+  orderer:
+    - pattern: (\w*)orderer.lab805.com(\w*)
+      urlSubstitutionExp: localhost:7050
+      sslTargetOverrideUrlSubstitutionExp: orderer.lab805.com
+      mappedHost: orderer.lab805.com
+    - pattern: (\w*)orderer2.lab805.com(\w*)
+      urlSubstitutionExp: localhost:8050
+      sslTargetOverrideUrlSubstitutionExp: orderer2.lab805.com
+      mappedHost: orderer2.lab805.com
+  certificateAuthorities:
+    - pattern: (\w*)ca.org1.lab805.com(\w*)
+      urlSubstitutionExp: https://localhost:7054
+      mappedHost: ca.org1.lab805.com
+    - pattern: (\w*)ca.org2.lab805.com(\w*)
+      urlSubstitutionExp: https://localhost:8054
+      mappedHost: ca.org2.lab805.com
+    - pattern: (\w*)ca.orderer.lab805.com(\w*)
+      urlSubstitutionExp: https://localhost:9054
+      mappedHost: ca.orderer.lab805.com

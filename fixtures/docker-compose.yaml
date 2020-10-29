@@ -1,12 +1,12 @@
 version: "2"
 
-volumes:
-  orderer.lab805.com:
-  orderer2.lab805.com:
-  peer0.org1.lab805.com:
-  peer1.org1.lab805.com:
-  peer0.org2.lab805.com:
-  peer1.org2.lab805.com:
+#volumes:
+#  orderer.lab805.com:
+#  orderer2.lab805.com:
+#  peer0.org1.lab805.com:
+#  peer1.org1.lab805.com:
+#  peer0.org2.lab805.com:
+#  peer1.org2.lab805.com:
 
 networks:
   default:
@@ -21,7 +21,7 @@ services:
       - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
       - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer.lab805.com/msp:/var/hyperledger/orderer/msp
       - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer.lab805.com/tls:/var/hyperledger/orderer/tls
-      - orderer.lab805.com:/var/hyperledger/production/orderer
+#      - orderer.lab805.com:/var/hyperledger/production/orderer
     ports:
       - 7050:7050
     networks:
@@ -36,7 +36,7 @@ services:
       - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
       - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/msp:/var/hyperledger/orderer/msp
       - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/tls:/var/hyperledger/orderer/tls
-      - orderer2.lab805.com:/var/hyperledger/production/orderer
+#      - orderer2.lab805.com:/var/hyperledger/production/orderer
     ports:
       - 8050:7050
     networks:
@@ -60,7 +60,7 @@ services:
       - /var/run/:/host/var/run/
       - ./crypto-config/peerOrganizations/org1.lab805.com/peers/peer0.org1.lab805.com/msp:/etc/hyperledger/fabric/msp
       - ./crypto-config/peerOrganizations/org1.lab805.com/peers/peer0.org1.lab805.com/tls:/etc/hyperledger/fabric/tls
-      - peer0.org1.lab805.com:/var/hyperledger/production
+#      - peer0.org1.lab805.com:/var/hyperledger/production
     ports:
       - 7051:7051
     depends_on:
@@ -87,7 +87,7 @@ services:
       - /var/run/:/host/var/run/
       - ./crypto-config/peerOrganizations/org1.lab805.com/peers/peer1.org1.lab805.com/msp:/etc/hyperledger/fabric/msp
       - ./crypto-config/peerOrganizations/org1.lab805.com/peers/peer1.org1.lab805.com/tls:/etc/hyperledger/fabric/tls
-      - peer1.org1.lab805.com:/var/hyperledger/production
+#      - peer1.org1.lab805.com:/var/hyperledger/production
     ports:
       - 8051:8051
     depends_on:
@@ -114,7 +114,7 @@ services:
       - /var/run/:/host/var/run/
       - ./crypto-config/peerOrganizations/org2.lab805.com/peers/peer0.org2.lab805.com/msp:/etc/hyperledger/fabric/msp
       - ./crypto-config/peerOrganizations/org2.lab805.com/peers/peer0.org2.lab805.com/tls:/etc/hyperledger/fabric/tls
-      - peer0.org2.lab805.com:/var/hyperledger/production
+#      - peer0.org2.lab805.com:/var/hyperledger/production
     ports:
       - 9051:9051
     depends_on:
@@ -141,7 +141,7 @@ services:
       - /var/run/:/host/var/run/
       - ./crypto-config/peerOrganizations/org2.lab805.com/peers/peer1.org2.lab805.com/msp:/etc/hyperledger/fabric/msp
       - ./crypto-config/peerOrganizations/org2.lab805.com/peers/peer1.org2.lab805.com/tls:/etc/hyperledger/fabric/tls
-      - peer1.org2.lab805.com:/var/hyperledger/production
+#      - peer1.org2.lab805.com:/var/hyperledger/production
     ports:
       - 10051:10051
     depends_on:
