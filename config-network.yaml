@@ -3,9 +3,6 @@ version: 1.0.0
 
 channels: # 指定通道信息（如果由要通过应用程序来创建通道则需要，否则可以不写）
   mychannel:
-    orderers:
-      - orderer.lab805.com
-      - orderer2.lab805.com
     peers:
       peer0.org1.lab805.com:
         endorsingPeer: true # [可选] 是否为背书节点，默认为 true
@@ -82,9 +79,14 @@ organizations: # 这个网络中的参与组织
     users:
       Admin:
         key:
-          path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/Admin@org1.lab805.com/msp/keystore/b26dc4f26507b0e37a36ed655a232e8f9621e43925f02b7bf5394bad81dcd2ca_sk
+          path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/Admin@org1.lab805.com/msp/keystore/b0bd81359b6fe7a836a254e607818671c582aadf11b7be1ad8180e53a97798db_sk
         cert:
-          path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/Admin@org1.lab805.com/msp/signcerts/cert.pem
+          path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/Admin@org1.lab805.com/msp/signcerts/Admin@org1.lab805.com-cert.pem
+      User1:
+        key:
+          path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User1@org1.lab805.com/msp/keystore/25ad15ef1b420dd0f01960ca340986ee745e9813e938bdbf1caa0a9220797673_sk
+        cert:
+          path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User1@org1.lab805.com/msp/signcerts/User1@org1.lab805.com-cert.pem
 
     # [可选] 证书授权机构（Certificate Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
     # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
@@ -96,6 +98,17 @@ organizations: # 这个网络中的参与组织
     peers:
       - peer0.org2.lab805.com
       - peer1.org2.lab805.com
+    users:
+      Admin:
+        key:
+          path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/Admin@org2.lab805.com/msp/keystore/66f2f422387fed4bed36c41439649700e27506a744921724411af1947346375b_sk
+        cert:
+          path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/Admin@org2.lab805.com/msp/signcerts/Admin@org2.lab805.com-cert.pem
+      User1:
+        key:
+          path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User1@org2.lab805.com/msp/keystore/24081f57714eff324d9b00c495fc40ef18af9ec5b262386e870df5f8bef41ef2_sk
+        cert:
+          path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User1@org2.lab805.com/msp/signcerts/User1@org2.lab805.com-cert.pem
     # [可选] 证书授权机构（Certificate Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
     # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
 #    certificateAuthorities:
@@ -104,6 +117,7 @@ orderers: # SDK 将交易和通道创建与更新请求发到这些排序节点�
   orderer.lab805.com:
     url: localhost:7050
     grpcOptions: # gRPC 库所用的标准参数，会直接传递给应用中的 gRPC 部分
+#      hostnameOverride: orderer.lab805.com
       ssl-target-name-override: orderer.lab805.com
       keep-alive-time: 0s
       keep-alive-timeout: 20s
@@ -111,10 +125,11 @@ orderers: # SDK 将交易和通道创建与更新请求发到这些排序节点�
       fail-fast: false
       allow-insecure: false
     tlsCACerts:
-      path: fixtures/crypto-config/ordererOrganizations/lab805.com/orderers/orderer.lab805.com/msp/tlscacerts/tlsca.lab805.com-cert.pem
+      path: fixtures/crypto-config/ordererOrganizations/lab805.com/orderers/orderer.lab805.com/tls/ca.crt
   orderer2.lab805.com:
     url: localhost:8050
     grpcOptions: # gRPC 库所用的标准参数，会直接传递给应用中的 gRPC 部分
+#      hostnameOverride: orderer2.lab805.com
       ssl-target-name-override: orderer2.lab805.com
       keep-alive-time: 0s
       keep-alive-timeout: 20s
@@ -122,7 +137,7 @@ orderers: # SDK 将交易和通道创建与更新请求发到这些排序节点�
       fail-fast: false
       allow-insecure: false
     tlsCACerts:
-      path: fixtures/crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/msp/tlscacerts/tlsca.lab805.com-cert.pem
+      path: fixtures/crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/tls/ca.crt
 peers:
   peer0.org1.lab805.com:
     url: localhost:7051 # 用于发送背书和查询请求的 URL

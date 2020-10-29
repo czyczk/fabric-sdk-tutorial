@@ -1,6 +1,6 @@
 .PHONY: all dev clean build env-up env-down run
 
-all: clean env-up run
+all: clean build env-up run
 
 ##### BUILD
 build:
@@ -28,6 +28,6 @@ run:
 ##### CLEAN
 clean: env-down
 	@echo "Cleaning up..."
-	@docker rm -f -v `docker ps -a --no-trunc | grep "lab805" | cut -d ' ' -f 1` 2>dev/null || true
+	@docker rm -f -v `docker ps -a --no-trunc | grep "lab805" | cut -d ' ' -f 1` 2>/dev/null || true
 	@docker rmi `docker images --no-trunc | grep "lab805" | cut -d ' ' -f 1` 2>/dev/null || true
 	@echo "Done cleaning up."

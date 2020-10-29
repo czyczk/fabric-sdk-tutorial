@@ -6,16 +6,6 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 )
 
-type ResMgmtClients struct {
-	AdminResMgmtClient *resmgmt.Client
-	User1ResMgmtClient *resmgmt.Client
-}
-
-type MSPClients struct {
-	AdminMSPClient *msp.Client
-	User1MSPClient *msp.Client
-}
-
 var SDKInstance *fabsdk.FabricSDK
-var ResMgmtClientInstances *ResMgmtClients
-var MSPClientInstances *MSPClients
+var ResMgmtClientInstances map[string]map[string]*resmgmt.Client
+var MSPClientInstances map[string]map[string]*msp.Client
