@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
@@ -20,9 +21,18 @@ func main() {
 	}
 
 	// Specify init info
+	channelID := "mychannel"
 	channelInitInfo := &appinit.ChannelInitInfo{
-		ChannelID:         "mychannel",
+		ChannelID:         channelID,
 		ChannelConfigPath: workingDirectory + "/fixtures/channel-artifacts/channel.tx",
+	}
+	org1AnchorPeerInitInfo := &appinit.ChannelInitInfo{
+		ChannelID:         channelID,
+		ChannelConfigPath: workingDirectory + "/fixtures/channel-artifacts/Org1MSPanchors.tx",
+	}
+	org2AnchorPeerInitInfo := &appinit.ChannelInitInfo{
+		ChannelID:         channelID,
+		ChannelConfigPath: workingDirectory + "/fixtures/channel-artifacts/Org2MSPanchors.tx",
 	}
 
 	org1InitInfo := &appinit.OrgInitInfo{
@@ -56,6 +66,14 @@ func main() {
 
 	// Create a channel
 	if err = appinit.CreateChannel(channelInitInfo, org1InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+
+	// Update anchor peers
+	if err = appinit.CreateChannel(org1AnchorPeerInitInfo, org1InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+	if err = appinit.CreateChannel(org2AnchorPeerInitInfo, org2InitInfo); err != nil {
 		log.Fatalln(err)
 	}
 
@@ -94,12 +112,29 @@ func main() {
 		}
 	}
 
-	// Register event "eventTransfer". Make a "transfer" request and show the event result.
-	serviceInfo := service.Info{
+	// Instantiate a screw service.
+	serviceInfo := &service.Info{
 		ChaincodeID:   chaincodeInitInfo.ChaincodeID,
 		ChannelClient: global.ChannelClientInstances[channelInitInfo.ChannelID][org1InitInfo.OrgName][org1InitInfo.AdminID],
 	}
 
+	screwSvc := &service.ScrewService{ServiceInfo: serviceInfo}
+
+	// Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID.
+	respMsg, err := screwSvc.TransferAndShowEvent(org1InitInfo.OrgName, org2InitInfo.OrgName, 10)
+	if err != nil {
+		log.Fatalln(err)
+	} else {
+		fmt.Printf("Transaction ID: %v\n", respMsg)
+	}
+
+	// Make a "query" request for "Org1" and show the response payload.
+	respMsg, err = screwSvc.Query(org1InitInfo.OrgName)
+	if err != nil {
+		log.Fatalln(err)
+	} else {
+		fmt.Printf("Screw amount in Org 1 after the transfer: %v\n", respMsg)
+	}
 }
 
 //func setupLogger() {

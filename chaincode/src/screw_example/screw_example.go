@@ -67,11 +67,11 @@ func (si *ScrewInventory) Invoke(stub shim.ChaincodeStubInterface) peer.Response
 	return shim.Error("Invalid invoke function name. Expecting \"transfer\" or \"query\"")
 }
 
-// This function will receive parameters as `peer chaincode invoke ... -c '{"Args":["transfer","CorpA","CorpB","10"]}'`
+// This function will receive parameters as `peer chaincode invoke ... -c '{"Args":["transfer","CorpA","CorpB","10","eventTransfer"]}'`
 func (si *ScrewInventory) transfer(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 	// Check if the parameters are valid
-	if len(args) != 3 {
-		return shim.Error("Incorrect number of arguments. Expecting 3")
+	if len(args) != 4 {
+		return shim.Error("Incorrect number of arguments. Expecting 4")
 	}
 
 	invalidAmntErrorStr := "Expecting an integer value >= 0 for asset holding"
@@ -82,6 +82,7 @@ func (si *ScrewInventory) transfer(stub shim.ChaincodeStubInterface, args []stri
 	if err != nil {
 		return shim.Error(invalidAmntErrorStr)
 	}
+	eventID := args[3]
 
 	// Check if the asset source has enough amount to transfer
 	sourceRemainingAmntBytes, err := stub.GetState(sourceCorpName)
@@ -110,6 +111,11 @@ func (si *ScrewInventory) transfer(stub shim.ChaincodeStubInterface, args []stri
 	}
 
 	err = stub.PutState(destCorpName, []byte(strconv.Itoa(destRemainingAmnt)))
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.SetEvent(eventID, []byte{})
 	if err != nil {
 		return shim.Error(err.Error())
 	}

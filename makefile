@@ -12,7 +12,7 @@ build:
 env-up:
 	@echo "Starting environment..."
 	@cd fixtures && docker-compose up --force-recreate -d
-	@sleep 2
+	@sleep 3
 	@echo "Environment is up."
 
 env-down:

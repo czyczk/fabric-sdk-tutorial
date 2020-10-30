@@ -7,7 +7,7 @@ import (
 )
 
 type ScrewService struct {
-	serviceInfo *Info
+	ServiceInfo *Info
 }
 
 // TransferAndShowEvent invokes the chaincode with "transfer" command with the arguments specified.
@@ -22,21 +22,21 @@ type ScrewService struct {
 func (s *ScrewService) TransferAndShowEvent(source, destination string, amount uint) (string, error) {
 	// Try to register the event with ID "eventTransfer". Unregister it on failure.
 	eventID := "eventTransfer"
-	reg, notifier, err := registerEvent(s.serviceInfo.ChannelClient, s.serviceInfo.ChaincodeID, eventID)
+	reg, notifier, err := registerEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
 	if err != nil {
 		return "", err
 	} else {
-		defer s.serviceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
+		defer s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
 	}
 
 	// Make a channel request to invoke the "transfer" command.
 	channelReq := channel.Request{
-		ChaincodeID: s.serviceInfo.ChaincodeID,
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         "transfer",
-		Args:        [][]byte{[]byte(source), []byte(destination), []byte(strconv.Itoa(int(amount)))},
+		Args:        [][]byte{[]byte(source), []byte(destination), []byte(strconv.Itoa(int(amount))), []byte(eventID)},
 	}
 
-	resp, err := s.serviceInfo.ChannelClient.Execute(channelReq)
+	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
 	if err != nil {
 		return "", err
 	}
@@ -58,12 +58,12 @@ func (s *ScrewService) TransferAndShowEvent(source, destination string, amount u
 //   the response payload
 func (s *ScrewService) Query(corporationName string) (string, error) {
 	channelReq := channel.Request{
-		ChaincodeID: s.serviceInfo.ChaincodeID,
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         "query",
 		Args:        [][]byte{[]byte(corporationName)},
 	}
 
-	resp, err := s.serviceInfo.ChannelClient.Query(channelReq)
+	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
 	if err != nil {
 		return "", err
 	}
