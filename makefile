@@ -16,7 +16,7 @@ env-up:
 	@echo "Environment is up."
 
 env-down:
-	@echo "Stopping environmnt..."
+	@echo "Stopping environment..."
 	@cd fixtures && docker-compose down
 	@echo "Environment is down."
 

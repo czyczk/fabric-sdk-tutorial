@@ -21,4 +21,5 @@ type ChaincodeInitInfo struct {
 	ChaincodePath    string
 	ChaincodeGoPath  string
 	Policy           string
+	InitArgs         [][]byte
 }

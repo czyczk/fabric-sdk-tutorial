@@ -2,6 +2,7 @@ package appinit
 
 import (
 	"fmt"
+
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/msp"
@@ -124,7 +125,7 @@ func CreateChannel(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
 		return fmt.Errorf("failed to create channel for the app: %v", err)
 	}
 
-	log.Println("Channel created successfully.")
+	log.Printf("Channel %v created successfully.\n", channelInfo.ChannelID)
 
 	return nil
 }
@@ -139,26 +140,26 @@ func JoinChannel(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
 	// Peers are not specified in options, so it will join all peers that belong to the client's MSP.
 	err := adminResMgmtClient.JoinChannel(channelInfo.ChannelID, resmgmt.WithRetry(retry.DefaultResMgmtOpts), resmgmt.WithOrdererEndpoint(orgInfo.OrdererEndpoint))
 	if err != nil {
-		return fmt.Errorf("failed to join peers to the client: %v", err)
+		return fmt.Errorf("failed joining peers in %v to channel %v: %v", orgInfo.OrgName, channelInfo.ChannelID, err)
 	}
 
-	log.Printf("Peers of %v joined to the channel successfully.\n", orgInfo.OrgName)
+	log.Printf("Peers in %v joined to channel %v successfully.\n", orgInfo.OrgName, channelInfo.ChannelID)
 	return nil
 }
 
-// InstallAndInstantiateCC installs the specified chaincode on all the peers of the specified org and instantiate it on the peers.
-func InstallAndInstantiateCC(sdk *fabsdk.FabricSDK, chaincodeInfo *ChaincodeInitInfo, channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) (*channel.Client, error) {
+// InstallCC installs the specified chaincode on all the peers of the specified org.
+func InstallCC(chaincodeInfo *ChaincodeInitInfo, orgInfo *OrgInitInfo) error {
 	adminResMgmtClient := global.ResMgmtClientInstances[orgInfo.OrgName][orgInfo.AdminID]
 	if adminResMgmtClient == nil {
-		return nil, fmt.Errorf("admin res mgmt client of %v not initialized", orgInfo.OrgName)
+		return fmt.Errorf("admin res mgmt client of %v not initialized", orgInfo.OrgName)
 	}
 
-	log.Printf("Starting to install chaincode of ID '%v' for peers in org %v...\n", chaincodeInfo.ChaincodeID, orgInfo.OrgName)
+	log.Printf("Starting to install chaincode '%v' for peers in org %v...\n", chaincodeInfo.ChaincodeID, orgInfo.OrgName)
 
 	// Create a new Go chaincode package
 	ccPkg, err := gopackager.NewCCPackage(chaincodeInfo.ChaincodePath, chaincodeInfo.ChaincodeGoPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed creating chaincode package for chaincode ID %v: %v", chaincodeInfo.ChaincodeID, err)
+		return fmt.Errorf("failed creating chaincode package for chaincode '%v': %v", chaincodeInfo.ChaincodeID, err)
 	}
 
 	// Make a request containing parameters to install the chaincode
@@ -172,16 +173,27 @@ func InstallAndInstantiateCC(sdk *fabsdk.FabricSDK, chaincodeInfo *ChaincodeInit
 	// Install the chaincode. No peers are specified here so it will be installed on all the peers in the org.
 	_, err = adminResMgmtClient.InstallCC(installCCReq, resmgmt.WithRetry(retry.DefaultResMgmtOpts))
 	if err != nil {
-		return nil, fmt.Errorf("failed installing chaincode for peers in org %v: %v", orgInfo.OrgName, err)
+		return fmt.Errorf("failed installing chaincode '%v' for peers in org %v: %v", chaincodeInfo.ChaincodeID, orgInfo.OrgName, err)
 	}
 
-	log.Printf("Chaincode of ID '%v' installed for peer in org %v.\n", chaincodeInfo.ChaincodeID, orgInfo.OrgName)
-	log.Printf("Starting to instantiate chaincode of ID '%v' for peers in org %v...\n", chaincodeInfo.ChaincodeID, orgInfo.OrgName)
+	log.Printf("Chaincode '%v' installed for peer in org %v.\n", chaincodeInfo.ChaincodeID, orgInfo.OrgName)
+
+	return nil
+}
+
+// InstantiateCC instantiates the specified chaincode on the specified channel.
+func InstantiateCC(sdk *fabsdk.FabricSDK, chaincodeInfo *ChaincodeInitInfo, channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
+	adminResMgmtClient := global.ResMgmtClientInstances[orgInfo.OrgName][orgInfo.AdminID]
+	if adminResMgmtClient == nil {
+		return fmt.Errorf("admin res mgmt client of %v not initialized", orgInfo.OrgName)
+	}
+
+	log.Printf("Starting to instantiate chaincode '%v' on channel %v...\n", chaincodeInfo.ChaincodeID, channelInfo.ChannelID)
 
 	// Parse the endorsement policy
 	ccPolicy, err := policydsl.FromString(chaincodeInfo.Policy)
 	if err != nil {
-		return nil, fmt.Errorf("failed instantiating chaincode of ID '%v': %v", chaincodeInfo.ChaincodeID, err)
+		return fmt.Errorf("failed instantiating chaincode '%v' on channel %v: %v", chaincodeInfo.ChaincodeID, channelInfo.ChannelID, err)
 	}
 
 	// Make a request containing parameters to instantiate the chaincode
@@ -189,26 +201,48 @@ func InstallAndInstantiateCC(sdk *fabsdk.FabricSDK, chaincodeInfo *ChaincodeInit
 		Name:    chaincodeInfo.ChaincodeID,
 		Path:    chaincodeInfo.ChaincodePath,
 		Version: chaincodeInfo.ChaincodeVersion,
-		Args:    [][]byte{[]byte("init")},
+		Args:    chaincodeInfo.InitArgs,
 		Policy:  ccPolicy,
 	}
 
 	// Instantiate the chaincode for all peers in the org
 	_, err = adminResMgmtClient.InstantiateCC(channelInfo.ChannelID, instantiateCCReq, resmgmt.WithRetry(retry.DefaultResMgmtOpts))
 	if err != nil {
-		return nil, fmt.Errorf("failed instantiating chaincode of ID %v for peers in org %v: %v", chaincodeInfo.ChaincodeID, orgInfo.OrgName, err)
+		return fmt.Errorf("failed instantiating chaincode '%v' on channel %v: %v", chaincodeInfo.ChaincodeID, channelInfo.ChannelID, err)
 	}
 
-	log.Printf("Chaincode of ID '%v' instantiated for peers in org %v.\n", chaincodeInfo.ChaincodeID, orgInfo.OrgName)
+	log.Printf("Chaincode '%v' instantiated on channel %v.\n", chaincodeInfo.ChaincodeID, channelInfo.ChannelID)
+
+	return nil
+}
+
+// InstantiateChannelClient instantiate a channel client on the specified channel for the specified user in the specified org.
+func InstantiateChannelClient(sdk *fabsdk.FabricSDK, channelID, username, orgName string) error {
+	if global.ChannelClientInstances == nil {
+		global.ChannelClientInstances = make(map[string]map[string]map[string]*channel.Client)
+	}
+
+	if global.ChannelClientInstances[channelID] == nil {
+		global.ChannelClientInstances[channelID] = make(map[string]map[string]*channel.Client)
+	}
+
+	if global.ChannelClientInstances[channelID][orgName] == nil {
+		global.ChannelClientInstances[channelID][orgName] = make(map[string]*channel.Client)
+	}
+
+	if global.ChannelClientInstances[channelID][orgName][username] != nil {
+		return fmt.Errorf("channel clients on channel %v for %v.%v already instantiated", channelID, username, orgName)
+	}
 
 	// Returns a channel client instance. Channel clients can query chaincode, execute chaincode and register chaincode events on specific channel.
-	clientChannelCtx := sdk.ChannelContext(channelInfo.ChannelID, fabsdk.WithUser(orgInfo.AdminID), fabsdk.WithOrg(orgInfo.OrgName))
-	channelClient, err := channel.New(clientChannelCtx)
+	clientCtx := sdk.ChannelContext(channelID, fabsdk.WithUser(username), fabsdk.WithOrg(orgName))
+	channelClient, err := channel.New(clientCtx)
 	if err != nil {
-		return nil, fmt.Errorf("failed creating channel client: %v", err)
+		return fmt.Errorf("failed creating channel client on channel %v for %v.%v: %v", channelID, username, orgName, err)
 	}
+	global.ChannelClientInstances[channelID][orgName][username] = channelClient
 
-	log.Println("Channel client created.")
+	log.Printf("Channel client on channel %v for %v.%v created successfully.\n", channelID, username, orgName)
 
-	return channelClient, nil
+	return nil
 }
