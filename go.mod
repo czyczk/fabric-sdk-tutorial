@@ -4,7 +4,9 @@ go 1.15
 
 require github.com/hyperledger/fabric-sdk-go v1.0.0-beta3
 
-require github.com/hyperledger/fabric v1.4.8
+require github.com/hyperledger/fabric v1.4.8 // indirect
+
+require github.com/gin-gonic/gin v1.6.3 // indirect
 
 require (
 	github.com/fsouza/go-dockerclient v1.6.6 // indirect

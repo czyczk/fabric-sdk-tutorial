@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+vendor/
 bin/
 fixtures/bin/
 fabric-sdk-tutorial
