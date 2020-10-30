@@ -64,53 +64,11 @@ func main() {
 	initApp([]*appinit.OrgInitInfo{org1InitInfo, org2InitInfo})
 	defer global.SDKInstance.Close()
 
-	// Create a channel
-	if err = appinit.CreateChannel(channelInitInfo, org1InitInfo); err != nil {
-		log.Fatalln(err)
-	}
+	// Configure a channel
+	configureChannel(org1InitInfo, org2InitInfo, channelInitInfo, org1AnchorPeerInitInfo, org2AnchorPeerInitInfo)
 
-	// Update anchor peers
-	if err = appinit.CreateChannel(org1AnchorPeerInitInfo, org1InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-	if err = appinit.CreateChannel(org2AnchorPeerInitInfo, org2InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Join peers of org1 to the channel
-	if err = appinit.JoinChannel(channelInitInfo, org1InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Join peers of org2 to the channel
-	if err = appinit.JoinChannel(channelInitInfo, org2InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Install the chaincode for peers in org1 and org2
-	err = appinit.InstallCC(chaincodeInitInfo, org1InitInfo)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	err = appinit.InstallCC(chaincodeInitInfo, org2InitInfo)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// Instantiate the chaincode on the channel
-	err = appinit.InstantiateCC(global.SDKInstance, chaincodeInitInfo, channelInitInfo, org1InitInfo)
-
-	// Instantiate channel clients
-	for _, orgInfo := range []*appinit.OrgInitInfo{org1InitInfo, org2InitInfo} {
-		if err = appinit.InstantiateChannelClient(global.SDKInstance, channelInitInfo.ChannelID, orgInfo.AdminID, orgInfo.OrgName); err != nil {
-			log.Fatalln(err)
-		}
-
-		if err = appinit.InstantiateChannelClient(global.SDKInstance, channelInitInfo.ChannelID, orgInfo.UserID, orgInfo.OrgName); err != nil {
-			log.Fatalln(err)
-		}
-	}
+	// Install and instantiate the chaincode
+	installAndInstantiateChaincode(org1InitInfo, org2InitInfo, channelInitInfo, chaincodeInitInfo)
 
 	// Instantiate a screw service.
 	serviceInfo := &service.Info{
@@ -171,4 +129,60 @@ func initApp(orgInitInfoList []*appinit.OrgInitInfo) {
 		}
 	}
 
+}
+
+// This function creates and configures a channel according to the channel init info and joins the peers to the channel.
+func configureChannel(org1InitInfo *appinit.OrgInitInfo, org2InitInfo *appinit.OrgInitInfo,
+	channelInitInfo *appinit.ChannelInitInfo,
+	org1AnchorPeerInitInfo *appinit.ChannelInitInfo, org2AnchorPeerInitInfo *appinit.ChannelInitInfo) {
+	// Create a channel
+	if err := appinit.ApplyChannelTx(channelInitInfo, org1InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+
+	// Update anchor peers
+	if err := appinit.ApplyChannelTx(org1AnchorPeerInitInfo, org1InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+	if err := appinit.ApplyChannelTx(org2AnchorPeerInitInfo, org2InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+
+	// Join peers of org1 to the channel
+	if err := appinit.JoinChannel(channelInitInfo, org1InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+
+	// Join peers of org2 to the channel
+	if err := appinit.JoinChannel(channelInitInfo, org2InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func installAndInstantiateChaincode(org1InitInfo, org2InitInfo *appinit.OrgInitInfo,
+	channelInitInfo *appinit.ChannelInitInfo, chaincodeInitInfo *appinit.ChaincodeInitInfo) {
+	// Install the chaincode for peers in org1 and org2
+	if err := appinit.InstallCC(chaincodeInitInfo, org1InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+
+	if err := appinit.InstallCC(chaincodeInitInfo, org2InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+
+	// Instantiate the chaincode on the channel
+	if err := appinit.InstantiateCC(global.SDKInstance, chaincodeInitInfo, channelInitInfo, org1InitInfo); err != nil {
+		log.Fatalln(err)
+	}
+
+	// Instantiate channel clients
+	for _, orgInfo := range []*appinit.OrgInitInfo{org1InitInfo, org2InitInfo} {
+		if err := appinit.InstantiateChannelClient(global.SDKInstance, channelInitInfo.ChannelID, orgInfo.AdminID, orgInfo.OrgName); err != nil {
+			log.Fatalln(err)
+		}
+
+		if err := appinit.InstantiateChannelClient(global.SDKInstance, channelInitInfo.ChannelID, orgInfo.UserID, orgInfo.OrgName); err != nil {
+			log.Fatalln(err)
+		}
+	}
 }

@@ -90,8 +90,8 @@ func InstantiateMSPClients(username, orgName string) error {
 	return nil
 }
 
-// CreateChannel creates a channel in the network using the channel creation transaction files.
-func CreateChannel(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
+// ApplyChannelTx applies a channel trasaction file to create a channel or configure a channel.
+func ApplyChannelTx(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
 	// Make sure the admin MSP client is initialized
 	adminMSPClient := global.MSPClientInstances[orgInfo.OrgName][orgInfo.AdminID]
 	if adminMSPClient == nil {
@@ -122,10 +122,10 @@ func CreateChannel(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
 		resmgmt.WithRetry(retry.DefaultResMgmtOpts),
 		resmgmt.WithOrdererEndpoint(orgInfo.OrdererEndpoint))
 	if err != nil {
-		return fmt.Errorf("failed to create channel for the app: %v", err)
+		return fmt.Errorf("failed to apply channel tx file '%v' for channel '%v': %v", channelInfo.ChannelConfigPath, channelInfo.ChannelID, err)
 	}
 
-	log.Printf("Channel %v created successfully.\n", channelInfo.ChannelID)
+	log.Printf("Channel tx file '%v' for channel '%v' applied successfully.\n", channelInfo.ChannelConfigPath, channelInfo.ChannelID)
 
 	return nil
 }
