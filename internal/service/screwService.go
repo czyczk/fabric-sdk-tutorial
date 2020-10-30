@@ -6,6 +6,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 )
 
+// ScrewService contains functions that accept parameters valid in type and invoke the corresponding chaincode functions.
 type ScrewService struct {
 	ServiceInfo *Info
 }

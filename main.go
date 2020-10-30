@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/controller"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
+	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/appinit"
@@ -93,12 +95,19 @@ func main() {
 	} else {
 		fmt.Printf("Screw amount in Org 1 after the transfer: %v\n", respMsg)
 	}
-}
 
-//func setupLogger() {
-//	log.SetFormatter(&log.JSONFormatter{})
-//	log.WithField("package", "main")
-//}
+	// Instantiate a screw controller
+	screwController := &controller.ScrewController{
+		GroupName: "/screw",
+		ScrewSvc:  screwSvc,
+	}
+
+	// Register controller handlers
+	router := gin.Default()
+	apiv1Group := router.Group("/api/v1")
+	controller.RegisterHandlers(apiv1Group, screwController)
+	router.Run(":8081")
+}
 
 // Both the instantiations of the resource management clients and the MSP clients will be invoked here.
 func initApp(orgInitInfoList []*appinit.OrgInitInfo) {
