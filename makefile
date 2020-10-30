@@ -1,3 +1,5 @@
+export COMPOSE_PROJECT_NAME=lab805
+
 .PHONY: all dev clean build env-up env-down run
 
 all: clean build env-up run

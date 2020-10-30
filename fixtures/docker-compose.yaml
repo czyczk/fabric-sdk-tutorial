@@ -10,7 +10,6 @@ version: "2"
 
 networks:
   default:
-    name: lab-805
 
 services:
   orderer.lab805.com:
