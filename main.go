@@ -96,6 +96,9 @@ func main() {
 		fmt.Printf("Screw amount in Org 1 after the transfer: %v\n", respMsg)
 	}
 
+	// Instantiate a ping pong controller
+	pingPongController := &controller.PingPongController{}
+
 	// Instantiate a screw controller
 	screwController := &controller.ScrewController{
 		GroupName: "/screw",
@@ -104,7 +107,9 @@ func main() {
 
 	// Register controller handlers
 	router := gin.Default()
+	router.Use(controller.CORSMiddleware())
 	apiv1Group := router.Group("/api/v1")
+	controller.RegisterHandlers(apiv1Group, pingPongController)
 	controller.RegisterHandlers(apiv1Group, screwController)
 	router.Run(":8081")
 }
