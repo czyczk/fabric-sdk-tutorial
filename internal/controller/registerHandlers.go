@@ -27,7 +27,12 @@ type Controller interface {
 
 // RegisterHandlers registers the endpoint handlers in the controller to the router group.
 func RegisterHandlers(r *gin.RouterGroup, c Controller) error {
-	group := r.Group(c.GetGroupName())
+	// Register the handlers in a subgroup if the group name of the controller is not empty
+	// E.g.: ScrewController might want to register its handlers on endpoints starting from .../screw
+	group := r
+	if c.GetGroupName() != "" {
+		group = r.Group(c.GetGroupName())
+	}
 
 	em := c.GetEndpointMap()
 
