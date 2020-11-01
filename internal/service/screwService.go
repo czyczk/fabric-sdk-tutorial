@@ -56,7 +56,7 @@ func (s *ScrewService) TransferAndShowEvent(source, destination string, amount u
 //   the name of the corporation to query
 //
 // Returns:
-//   the response payload
+//   the response payload. Empty payloads indicate invalid query keys.
 func (s *ScrewService) Query(corporationName string) (string, error) {
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,

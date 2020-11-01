@@ -40,13 +40,12 @@ func (sc *ScrewController) GetEndpointMap() EndpointMap {
 				amntUint := pel.AppendIfNotUint(amnt, "数量必须为正整数。")
 
 				if len(*pel) > 0 {
-					c.JSON(http.StatusBadRequest, gin.H{
-						"errors": pel,
-					})
+					c.JSON(http.StatusBadRequest, pel)
 					return
 				}
 
 				txID, err := sc.ScrewSvc.TransferAndShowEvent(corpAName, corpBName, amntUint)
+
 				if err != nil {
 					c.String(http.StatusInternalServerError, err.Error())
 				} else {
@@ -65,9 +64,7 @@ func (sc *ScrewController) GetEndpointMap() EndpointMap {
 				corpName = pel.AppendIfEmptyOrBlankSpaces(corpName, "公司名称不能为空。")
 
 				if len(*pel) > 0 {
-					c.JSON(http.StatusBadRequest, gin.H{
-						"errors": pel,
-					})
+					c.JSON(http.StatusBadRequest, pel)
 					return
 				}
 
@@ -75,7 +72,13 @@ func (sc *ScrewController) GetEndpointMap() EndpointMap {
 				if err != nil {
 					c.String(http.StatusInternalServerError, err.Error())
 				} else {
-					c.String(http.StatusOK, count)
+					// Empty return value indicates invalid query key
+					if count == "" {
+						*pel = append(*pel, "该公司名称不存在。")
+						c.JSON(http.StatusBadRequest, pel)
+					} else {
+						c.String(http.StatusOK, count)
+					}
 				}
 			},
 		},
