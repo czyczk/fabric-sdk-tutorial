@@ -49,7 +49,7 @@ func (sc *ScrewController) GetEndpointMap() EndpointMap {
 				if err != nil {
 					c.String(http.StatusInternalServerError, err.Error())
 				} else {
-					c.String(http.StatusOK, txID)
+					c.JSON(http.StatusOK, txID)
 				}
 			},
 		},
@@ -77,7 +77,7 @@ func (sc *ScrewController) GetEndpointMap() EndpointMap {
 						*pel = append(*pel, "该公司名称不存在。")
 						c.JSON(http.StatusBadRequest, pel)
 					} else {
-						c.String(http.StatusOK, count)
+						c.JSON(http.StatusOK, count)
 					}
 				}
 			},

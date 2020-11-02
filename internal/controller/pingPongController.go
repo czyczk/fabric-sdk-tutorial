@@ -21,7 +21,7 @@ func (ppc *PingPongController) GetGroupName() string {
 // GetEndpointMap implements the interface `Controller` and returns the API endpoints and handlers defined and managed by ScrewController.
 func (ppc *PingPongController) GetEndpointMap() EndpointMap {
 	pingHandler := func(c *gin.Context) {
-		c.String(http.StatusOK, "pong")
+		c.JSON(http.StatusOK, "pong")
 	}
 
 	return EndpointMap{
