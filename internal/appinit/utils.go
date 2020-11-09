@@ -182,7 +182,7 @@ func InstallCC(chaincodeInfo *ChaincodeInitInfo, orgInfo *OrgInitInfo) error {
 }
 
 // InstantiateCC instantiates the specified chaincode on the specified channel.
-func InstantiateCC(sdk *fabsdk.FabricSDK, chaincodeInfo *ChaincodeInitInfo, channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
+func InstantiateCC(chaincodeInfo *ChaincodeInitInfo, channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
 	adminResMgmtClient := global.ResMgmtClientInstances[orgInfo.OrgName][orgInfo.AdminID]
 	if adminResMgmtClient == nil {
 		return fmt.Errorf("admin res mgmt client of %v not initialized", orgInfo.OrgName)

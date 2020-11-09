@@ -185,7 +185,7 @@ func installAndInstantiateChaincode(org1InitInfo, org2InitInfo *appinit.OrgInitI
 	}
 
 	// Instantiate the chaincode on the channel
-	if err := appinit.InstantiateCC(global.SDKInstance, chaincodeInitInfo, channelInitInfo, org1InitInfo); err != nil {
+	if err := appinit.InstantiateCC(chaincodeInitInfo, channelInitInfo, org1InitInfo); err != nil {
 		log.Fatalln(err)
 	}
 
