@@ -75,7 +75,7 @@ func main() {
 	// Instantiate a screw service.
 	serviceInfo := &service.Info{
 		ChaincodeID:   chaincodeInitInfo.ChaincodeID,
-		ChannelClient: global.ChannelClientInstances[channelInitInfo.ChannelID][org1InitInfo.OrgName][org1InitInfo.AdminID],
+		ChannelClient: global.ChannelClientInstances[channelInitInfo.ChannelID][org1InitInfo.OrgName][org1InitInfo.UserID],
 	}
 
 	screwSvc := &service.ScrewService{ServiceInfo: serviceInfo}
