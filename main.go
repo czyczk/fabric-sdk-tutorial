@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"os"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/controller"
@@ -65,6 +67,28 @@ func main() {
 	// Init the app
 	initApp([]*appinit.OrgInitInfo{org1InitInfo, org2InitInfo})
 	defer global.SDKInstance.Close()
+
+	config, err := global.SDKInstance.Config()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	configOrderers, ok := config.Lookup("orderers")
+	if !ok {
+		log.Fatalln(false)
+	}
+	orderers := new(map[string]fab.OrdererConfig)
+	orderersBytes, err := json.Marshal(configOrderers)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	err = json.Unmarshal(orderersBytes, &orderers)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	println(orderers)
+
 
 	// Configure a channel
 	configureChannel(org1InitInfo, org2InitInfo, channelInitInfo, org1AnchorPeerInitInfo, org2AnchorPeerInitInfo)
