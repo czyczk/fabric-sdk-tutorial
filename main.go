@@ -1,10 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"os"
+
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/networkinfo"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/controller"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
@@ -68,27 +68,16 @@ func main() {
 	initApp([]*appinit.OrgInitInfo{org1InitInfo, org2InitInfo})
 	defer global.SDKInstance.Close()
 
-	config, err := global.SDKInstance.Config()
+	// Fetch the network config info
+	sdkConfig, err := global.SDKInstance.Config()
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	configOrderers, ok := config.Lookup("orderers")
-	if !ok {
-		log.Fatalln(false)
-	}
-	orderers := new(map[string]fab.OrdererConfig)
-	orderersBytes, err := json.Marshal(configOrderers)
+	networkConfig, err := networkinfo.ParseConfig(sdkConfig)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	err = json.Unmarshal(orderersBytes, &orderers)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	println(orderers)
-
+	fmt.Println(networkConfig)
 
 	// Configure a channel
 	configureChannel(org1InitInfo, org2InitInfo, channelInitInfo, org1AnchorPeerInitInfo, org2AnchorPeerInitInfo)
