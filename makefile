@@ -1,4 +1,5 @@
 export COMPOSE_PROJECT_NAME=lab805
+export DOCKER_FILES_PARAM=-f docker-compose.yaml -f docker-compose-couch.yaml
 
 .PHONY: all dev clean build env-up env-down run
 
@@ -13,13 +14,13 @@ build:
 ##### ENV
 env-up:
 	@echo "Starting environment..."
-	@cd fixtures && docker-compose up --force-recreate -d
+	@cd fixtures && docker-compose ${DOCKER_FILES_PARAM} up --force-recreate -d
 	@sleep 3
 	@echo "Environment is up."
 
 env-down:
 	@echo "Stopping environment..."
-	@cd fixtures && docker-compose down
+	@cd fixtures && docker-compose ${DOCKER_FILES_PARAM} down
 	@echo "Environment is down."
 
 ##### RUN
