@@ -8,10 +8,9 @@ type ChannelInitInfo struct {
 
 // OrgInitInfo needed to create resource management clients and MSP clients.
 type OrgInitInfo struct {
-	AdminID         string // The admin ID of the organization
-	UserID          string // The user ID of the organization
-	OrgName         string // The organization name. Used for display and client map lookup within the app.
-	OrdererEndpoint string // The endpoint of any orderer of the organization
+	AdminID string // The admin ID of the organization
+	UserID  string // The user ID of the organization
+	OrgName string // The organization name. Used for display and client map lookup within the app.
 }
 
 // ChaincodeInitInfo needed to install and instantiate a chaincode.

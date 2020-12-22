@@ -119,8 +119,7 @@ func ApplyChannelTx(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
 
 	// Get the channel creation response with a transaction ID
 	_, err = adminResMgmtClient.SaveChannel(channelReq,
-		resmgmt.WithRetry(retry.DefaultResMgmtOpts),
-		resmgmt.WithOrdererEndpoint(orgInfo.OrdererEndpoint))
+		resmgmt.WithRetry(retry.DefaultResMgmtOpts))
 	if err != nil {
 		return fmt.Errorf("failed to apply channel tx file '%v' for channel '%v': %v", channelInfo.ChannelConfigPath, channelInfo.ChannelID, err)
 	}
@@ -138,7 +137,7 @@ func JoinChannel(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
 	}
 
 	// Peers are not specified in options, so it will join all peers that belong to the client's MSP.
-	err := adminResMgmtClient.JoinChannel(channelInfo.ChannelID, resmgmt.WithRetry(retry.DefaultResMgmtOpts), resmgmt.WithOrdererEndpoint(orgInfo.OrdererEndpoint))
+	err := adminResMgmtClient.JoinChannel(channelInfo.ChannelID, resmgmt.WithRetry(retry.DefaultResMgmtOpts))
 	if err != nil {
 		return fmt.Errorf("failed joining peers in %v to channel %v: %v", orgInfo.OrgName, channelInfo.ChannelID, err)
 	}

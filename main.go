@@ -40,17 +40,15 @@ func main() {
 	}
 
 	org1InitInfo := &appinit.OrgInitInfo{
-		AdminID:         "Admin",
-		UserID:          "User1",
-		OrgName:         "Org1",
-		OrdererEndpoint: "orderer.lab805.com",
+		AdminID: "Admin",
+		UserID:  "User1",
+		OrgName: "Org1",
 	}
 
 	org2InitInfo := &appinit.OrgInitInfo{
-		AdminID:         "Admin",
-		UserID:          "User1",
-		OrgName:         "Org2",
-		OrdererEndpoint: "orderer2.lab805.com",
+		AdminID: "Admin",
+		UserID:  "User1",
+		OrgName: "Org2",
 	}
 
 	chaincodeInitInfo := &appinit.ChaincodeInitInfo{
