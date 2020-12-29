@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -8,9 +9,38 @@ import (
 	"github.com/hyperledger/fabric/protos/peer"
 )
 
-// ScrewInventory implements interface Chaincode.
-type ScrewInventory struct {
+type corporation struct {
+	ObjectType string `json:"docType"`
+	Name       string `json:"name"`
+	ScrewAmnt  int    `json:"screwAmnt"`
 }
+
+// newCorporation creates an `organization` object with the info specified.
+func newCorporation(name string, screwAmnt int) corporation {
+	return corporation{
+		ObjectType: "corporation",
+		Name:       name,
+		ScrewAmnt:  screwAmnt,
+	}
+}
+
+type accessRecord struct {
+	ObjectType  string `json:"docType"`
+	ClientID    string `json:"clientID"`
+	ResourceKey string `json:"resourceKey"`
+}
+
+// newAccessRecord creates an `accessRecord` object with the info specified.
+func newAccessRecord(clientID string, resourceKey string) accessRecord {
+	return accessRecord{
+		ObjectType:  "accessRecord",
+		ClientID:    clientID,
+		ResourceKey: resourceKey,
+	}
+}
+
+// ScrewInventory implements interface Chaincode.
+type ScrewInventory struct{}
 
 // Init specifies the initial amount of available screws in each company.
 func (si *ScrewInventory) Init(stub shim.ChaincodeStubInterface) peer.Response {
@@ -36,13 +66,27 @@ func (si *ScrewInventory) Init(stub shim.ChaincodeStubInterface) peer.Response {
 		return shim.Error(invalidValErrorStr)
 	}
 
-	// Write the state to the ledger
-	err = stub.PutState(corp1Name, []byte(strconv.Itoa(corp1Amnt)))
+	// Construct corporation objects
+	corp1 := newCorporation(corp1Name, corp1Amnt)
+	corp2 := newCorporation(corp2Name, corp2Amnt)
+
+	corp1JsonBytes, err := json.Marshal(corp1)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(corp2Name, []byte(strconv.Itoa(corp2Amnt)))
+	corp2JsonBytes, err := json.Marshal(corp2)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	// Write the state to the ledger
+	err = stub.PutState(corp1Name, corp1JsonBytes)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.PutState(corp2Name, corp2JsonBytes)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -77,40 +121,60 @@ func (si *ScrewInventory) transfer(stub shim.ChaincodeStubInterface, args []stri
 	invalidAmntErrorStr := "Expecting an integer value >= 0 for asset holding"
 
 	sourceCorpName := args[0]
-	destCorpName := args[1]
+	targetCorpName := args[1]
 	transferAmnt, err := strconv.Atoi(args[2])
 	if err != nil {
 		return shim.Error(invalidAmntErrorStr)
 	}
 	eventID := args[3]
 
-	// Check if the asset source has enough amount to transfer
-	sourceRemainingAmntBytes, err := stub.GetState(sourceCorpName)
+	// Fetch the source and target corporations from the ledger
+	failedFetchingAssetStatusErrorStr := "Failed fetching the asset status of \"%v\""
+
+	sourceCorpBytes, err := stub.GetState(sourceCorpName)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("Failed fetching the asset status of \"%v\"", sourceCorpName))
+		return shim.Error(fmt.Sprintf(failedFetchingAssetStatusErrorStr, sourceCorpName))
+	}
+	sourceCorp := corporation{}
+	err = json.Unmarshal(sourceCorpBytes, &sourceCorp)
+	if err != nil {
+		return shim.Error(fmt.Sprintf(failedFetchingAssetStatusErrorStr, sourceCorpName))
 	}
 
-	sourceRemainingAmnt, _ := strconv.Atoi(string(sourceRemainingAmntBytes))
+	targetCorpBytes, err := stub.GetState(targetCorpName)
+	if err != nil {
+		return shim.Error(fmt.Sprintf(failedFetchingAssetStatusErrorStr, targetCorpName))
+	}
+	targetCorp := corporation{}
+	err = json.Unmarshal(targetCorpBytes, &targetCorp)
+	if err != nil {
+		return shim.Error(fmt.Sprintf(failedFetchingAssetStatusErrorStr, targetCorpName))
+	}
+
+	// Check if the asset source has enough amount to transfer
+	sourceRemainingAmnt := sourceCorp.ScrewAmnt
 	if sourceRemainingAmnt < transferAmnt {
 		return shim.Error(fmt.Sprintf("Failed to transfer: \"%v\" does not have the enough amount of assets", sourceCorpName))
 	}
 
 	// Perform the transfer and update the ledger
-	destRemainingAmntBytes, err := stub.GetState(destCorpName)
+	sourceCorp.ScrewAmnt -= transferAmnt
+	targetCorp.ScrewAmnt += transferAmnt
+	sourceCorpBytes, err = json.Marshal(&sourceCorp)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("Failed fetching the asset status of \"%v\"", destCorpName))
+		return shim.Error(fmt.Sprintf("Error JSON conversion: %v", err.Error()))
+	}
+	targetCorpBytes, err = json.Marshal(&targetCorp)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("Error JSON conversion: %v", err.Error()))
 	}
 
-	sourceRemainingAmnt -= transferAmnt
-	destRemainingAmnt, _ := strconv.Atoi(string(destRemainingAmntBytes))
-	destRemainingAmnt += transferAmnt
-
-	err = stub.PutState(sourceCorpName, []byte(strconv.Itoa(sourceRemainingAmnt)))
+	err = stub.PutState(sourceCorpName, sourceCorpBytes)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(destCorpName, []byte(strconv.Itoa(destRemainingAmnt)))
+	err = stub.PutState(targetCorpName, targetCorpBytes)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -134,11 +198,17 @@ func (si *ScrewInventory) query(stub shim.ChaincodeStubInterface, args []string)
 	targetCorpName := args[0]
 
 	// Get the current state of the specified corporation
-	amntBytes, err := stub.GetState(targetCorpName)
+	corpBytes, err := stub.GetState(targetCorpName)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	return shim.Success(amntBytes)
+	corp := corporation{}
+	err = json.Unmarshal(corpBytes, &corp)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success([]byte(strconv.Itoa(corp.ScrewAmnt)))
 }
 
 func main() {

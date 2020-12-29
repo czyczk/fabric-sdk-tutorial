@@ -118,7 +118,7 @@ func TestInvokeTransfer(t *testing.T) {
 
 	// Invoke transfer and expect the payload to be correct
 	invokeFunction := []byte("transfer")
-	invokeResp := mockStub.MockInvoke("1", [][]byte{invokeFunction, []byte("CorpA"), []byte("CorpB"), []byte("10")})
+	invokeResp := mockStub.MockInvoke("1", [][]byte{invokeFunction, []byte("CorpA"), []byte("CorpB"), []byte("10"), []byte("eventTransfer")})
 
 	if invokeResp.Status != shim.OK {
 		testLogger.Infof("%s failed: %v", invokeFunction, string(invokeResp.Message))
