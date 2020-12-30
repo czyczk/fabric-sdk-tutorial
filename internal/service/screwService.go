@@ -26,9 +26,9 @@ func (s *ScrewService) TransferAndShowEvent(source, target string, amount uint) 
 	reg, notifier, err := registerEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
 	if err != nil {
 		return "", err
-	} else {
-		defer s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
 	}
+
+	defer s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
 
 	// Make a channel request to invoke the "transfer" command.
 	channelReq := channel.Request{
