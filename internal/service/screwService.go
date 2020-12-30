@@ -15,12 +15,12 @@ type ScrewService struct {
 //
 // Parameters:
 //   the name of the source corporation
-//   the name of the destination corporation
+//   the name of the target corporation
 //   the amount of screws
 //
 // Returns:
 //   the transaction ID
-func (s *ScrewService) TransferAndShowEvent(source, destination string, amount uint) (string, error) {
+func (s *ScrewService) TransferAndShowEvent(source, target string, amount uint) (string, error) {
 	// Try to register the event with ID "eventTransfer". Unregister it on failure.
 	eventID := "eventTransfer"
 	reg, notifier, err := registerEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
@@ -34,7 +34,7 @@ func (s *ScrewService) TransferAndShowEvent(source, destination string, amount u
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         "transfer",
-		Args:        [][]byte{[]byte(source), []byte(destination), []byte(strconv.Itoa(int(amount))), []byte(eventID)},
+		Args:        [][]byte{[]byte(source), []byte(target), []byte(strconv.Itoa(int(amount))), []byte(eventID)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
