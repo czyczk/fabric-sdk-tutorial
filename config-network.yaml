@@ -138,6 +138,18 @@ orderers: # SDK 将交易和通道创建与更新请求发到这些排序节点�
       allow-insecure: false
     tlsCACerts:
       path: fixtures/crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/tls/ca.crt
+  orderer3.lab805.com:
+    url: localhost:9050
+    grpcOptions: # gRPC 库所用的标准参数，会直接传递给应用中的 gRPC 部分
+#      hostnameOverride: orderer3.lab805.com
+      ssl-target-name-override: orderer3.lab805.com
+      keep-alive-time: 0s
+      keep-alive-timeout: 20s
+      keep-alive-permit: false
+      fail-fast: false
+      allow-insecure: false
+    tlsCACerts:
+      path: fixtures/crypto-config/ordererOrganizations/lab805.com/orderers/orderer3.lab805.com/tls/ca.crt
 peers:
   peer0.org1.lab805.com:
     url: localhost:7051 # 用于发送背书和查询请求的 URL
@@ -235,6 +247,10 @@ entityMatchers:
       urlSubstitutionExp: localhost:8050
       sslTargetOverrideUrlSubstitutionExp: orderer2.lab805.com
       mappedHost: orderer2.lab805.com
+    - pattern: (\w*)orderer3.lab805.com(\w*)
+      urlSubstitutionExp: localhost:9050
+      sslTargetOverrideUrlSubstitutionExp: orderer3.lab805.com
+      mappedHost: orderer3.lab805.com
   certificateAuthorities:
     - pattern: (\w*)ca.org1.lab805.com(\w*)
       urlSubstitutionExp: https://localhost:7054

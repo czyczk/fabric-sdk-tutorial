@@ -222,6 +222,7 @@ Orderer: &OrdererDefaults
     Addresses:
         - orderer.lab805.com:7050
         - orderer2.lab805.com:7050
+        - orderer3.lab805.com:7050
 
     # Batch Timeout: The amount of time to wait before creating a batch
     BatchTimeout: 2s
@@ -257,6 +258,11 @@ Orderer: &OrdererDefaults
               Port: 7050
               ClientTLSCert: crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/tls/server.crt
               ServerTLSCert: crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/tls/server.crt
+
+            - Host: orderer3.lab805.com
+              Port: 7050
+              ClientTLSCert: crypto-config/ordererOrganizations/lab805.com/orderers/orderer3.lab805.com/tls/server.crt
+              ServerTLSCert: crypto-config/ordererOrganizations/lab805.com/orderers/orderer3.lab805.com/tls/server.crt
 
     # Organizations is the list of orgs which are defined as participants on
     # the orderer side of the network
@@ -364,9 +370,14 @@ Profiles:
                   Port: 7050
                   ClientTLSCert: crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/tls/server.crt
                   ServerTLSCert: crypto-config/ordererOrganizations/lab805.com/orderers/orderer2.lab805.com/tls/server.crt
+                - Host: orderer3.lab805.com
+                  Port: 7050
+                  ClientTLSCert: crypto-config/ordererOrganizations/lab805.com/orderers/orderer3.lab805.com/tls/server.crt
+                  ServerTLSCert: crypto-config/ordererOrganizations/lab805.com/orderers/orderer3.lab805.com/tls/server.crt
             Addresses:
                 - orderer.lab805.com:7050
                 - orderer2.lab805.com:7050
+                - orderer3.lab805.com:7050
 
             Organizations:
             - *OrdererOrg

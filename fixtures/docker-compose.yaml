@@ -3,6 +3,7 @@ version: "2"
 #volumes:
 #  orderer.lab805.com:
 #  orderer2.lab805.com:
+#  orderer3.lab805.com:
 #  peer0.org1.lab805.com:
 #  peer1.org1.lab805.com:
 #  peer0.org2.lab805.com:
@@ -41,6 +42,21 @@ services:
       - 8050:7050
     networks:
       - default
+
+  orderer3.lab805.com:
+    container_name: orderer3.lab805.com
+    extends:
+      file: docker-compose-peer-base.yaml
+      service: orderer-base
+    volumes:
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer3.lab805.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/lab805.com/orderers/orderer3.lab805.com/tls:/var/hyperledger/orderer/tls
+#      - orderer3.lab805.com:/var/hyperledger/production/orderer
+    ports:
+      - 9050:7050
+    networks:
+      - default
   
   peer0.org1.lab805.com:
     container_name: peer0.org1.lab805.com
@@ -66,6 +82,7 @@ services:
     depends_on:
       - orderer.lab805.com
       - orderer2.lab805.com
+      - orderer3.lab805.com
     networks:
       - default
   
@@ -93,6 +110,7 @@ services:
     depends_on:
       - orderer.lab805.com
       - orderer2.lab805.com
+      - orderer3.lab805.com
     networks:
       - default
 
@@ -120,6 +138,7 @@ services:
     depends_on:
       - orderer.lab805.com
       - orderer2.lab805.com
+      - orderer3.lab805.com
     networks:
       - default
 
@@ -147,5 +166,6 @@ services:
     depends_on:
       - orderer.lab805.com
       - orderer2.lab805.com
+      - orderer3.lab805.com
     networks:
       - default
