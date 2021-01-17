@@ -4,244 +4,157 @@ import (
 	"fmt"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/msp"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/resmgmt"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
-	providersmsp "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/msp"
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
-	"github.com/hyperledger/fabric-sdk-go/pkg/fab/ccpackager/gopackager"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
-	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/policydsl"
-	log "github.com/sirupsen/logrus"
+	errors "github.com/pkg/errors"
 )
 
-// SetupSDK creates a Fabric SDK instance from the specified config file(s).
-func SetupSDK(configFile string) error {
-	configProvider := config.FromFile(configFile)
+// SetupSDK creates a Fabric SDK instance from the specified config file(s). The SDK instance will be available as `global.SDKInstance`.
+//
+// Parameters:
+//   the path to the config file
+func SetupSDK(configFilePath string) error {
+	configProvider := config.FromFile(configFilePath)
 	sdk, err := fabsdk.New(configProvider)
 	if err != nil {
-		return fmt.Errorf("failed initializing Fabric SDK: %v", err)
+		return errors.Wrap(err, "初始化 Fabric SDK 失败")
 	}
 	global.SDKInstance = sdk
 
 	return nil
 }
 
-// InstantiateResMgmtClients creates resource management clients for both the admin and the user of the org as singletons.
-func InstantiateResMgmtClients(username, orgName string) error {
-	if global.ResMgmtClientInstances == nil {
-		global.ResMgmtClientInstances = make(map[string]map[string]*resmgmt.Client)
+// InitApp instantiates clients, configure channels and chaincodes according to the init info
+func InitApp(initInfo *InitInfo) error {
+	// Make sure the SDK instance is instantiated
+	sdk := global.SDKInstance
+	if sdk == nil {
+		return fmt.Errorf("Fabric SDK 未实例化")
 	}
 
-	if global.ResMgmtClientInstances[orgName] == nil {
-		global.ResMgmtClientInstances[orgName] = make(map[string]*resmgmt.Client)
+	// Res mgmt clients and MSP clients
+	if err := instantiateResMgmtClientsAndMSPClients(initInfo.Users); err != nil {
+		return err
 	}
 
-	if global.ResMgmtClientInstances[orgName][username] != nil {
-		return fmt.Errorf("res mgmt client for %v.%v already instantiated", username, orgName)
+	// Configure channels if the channels section is specified
+	if initInfo.Channels != nil {
+		if err := configureChannels(initInfo.Channels); err != nil {
+			return err
+		}
 	}
 
-	// Create client contexts using the initialized SDK instance and the init info
-	clientContext := global.SDKInstance.Context(fabsdk.WithUser(username), fabsdk.WithOrg(orgName))
-	if clientContext == nil {
-		return fmt.Errorf("failed to create a client context for %v.%v", username, orgName)
+	// Configure chaincodes if the chaincodes section is specified
+	if initInfo.Chaincodes != nil {
+		if err := configureChaincodes(initInfo.Chaincodes); err != nil {
+			return err
+		}
 	}
 
-	// Create an admin resource management client instance using the admin client context.
-	resMgmtClient, err := resmgmt.New(clientContext)
-	if err != nil {
-		return fmt.Errorf("failed to create a resource management client: %v", err)
+	// Channel clients
+	channelIDs := make([]string, 0, len(initInfo.Channels))
+	for channelID := range initInfo.Channels {
+		channelIDs = append(channelIDs, channelID)
 	}
-
-	global.ResMgmtClientInstances[orgName][username] = resMgmtClient
+	if err := instantiateChannelClients(sdk, initInfo.Users, channelIDs); err != nil {
+		return err
+	}
 
 	return nil
 }
 
-// InstantiateMSPClients creates MSP clients for both the org admin and user.
-func InstantiateMSPClients(username, orgName string) error {
-	if global.MSPClientInstances == nil {
-		global.MSPClientInstances = make(map[string]map[string]*msp.Client)
-	}
+// Instantiates resource management clients and MSP clients for the orgs in the list.
+func instantiateResMgmtClientsAndMSPClients(userInfo map[string]*OrgInfo) error {
+	for orgName, orgInfo := range userInfo {
+		// Clients for each admin ID
+		for _, adminID := range orgInfo.AdminIDs {
+			if err := InstantiateResMgmtClient(orgName, adminID); err != nil {
+				return err
+			}
 
-	if global.MSPClientInstances[orgName] == nil {
-		global.MSPClientInstances[orgName] = make(map[string]*msp.Client)
-	}
+			if err := InstantiateMSPClient(orgName, adminID); err != nil {
+				return err
+			}
+		}
 
-	if global.MSPClientInstances[orgName][username] != nil {
-		return fmt.Errorf("MSP client for %v.%v already instantiated", username, orgName)
-	}
+		// Clients for each user ID
+		for _, userID := range orgInfo.UserIDs {
+			if err := InstantiateResMgmtClient(orgName, userID); err != nil {
+				return err
+			}
 
-	// Create clients contexts using the initialized SDK instance and the init info
-	clientCtx := global.SDKInstance.Context(fabsdk.WithUser(username), fabsdk.WithOrg(orgName))
-	if clientCtx == nil {
-		return fmt.Errorf("failed to create a client context for %v.%v", username, orgName)
+			if err := InstantiateMSPClient(orgName, userID); err != nil {
+				return err
+			}
+		}
 	}
-
-	// Create an MSP client
-	mspClient, err := msp.New(clientCtx, msp.WithOrg(orgName))
-	if err != nil {
-		return fmt.Errorf("failed to create an MSP client: %v", err)
-	}
-
-	global.MSPClientInstances[orgName][username] = mspClient
 
 	return nil
 }
 
-// ApplyChannelTx applies a channel trasaction file to create a channel or configure a channel.
-func ApplyChannelTx(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
-	// Make sure the admin MSP client is initialized
-	adminMSPClient := global.MSPClientInstances[orgInfo.OrgName][orgInfo.AdminID]
-	if adminMSPClient == nil {
-		return fmt.Errorf("admin MSP client not initialized")
-	}
+// This function creates and configures channels according to the channel init info and joins the peers to the channels.
+func configureChannels(channels map[string]*ChannelInfo) error {
+	// Apply the specifications for each of the channels
+	for channelID, channelInfo := range channels {
+		// Apply channel configs in order
+		for _, channelConfigInfo := range channelInfo.Configs {
+			if err := ApplyChannelConfigTx(channelID, channelConfigInfo); err != nil {
+				return err
+			}
+		}
 
-	// Make sure the admin resource management client is initialized
-	adminResMgmtClient := global.ResMgmtClientInstances[orgInfo.OrgName][orgInfo.AdminID]
-	if adminResMgmtClient == nil {
-		return fmt.Errorf("admin resource management client not initialized")
+		// Join peers to the channel
+		for orgName, operatingIdentity := range channelInfo.Participants {
+			if err := JoinChannel(channelID, orgName, operatingIdentity); err != nil {
+				return err
+			}
+		}
 	}
-
-	// Create signing identity from the MSP client
-	adminIdentity, err := adminMSPClient.GetSigningIdentity(orgInfo.AdminID)
-	if err != nil {
-		return fmt.Errorf("failed to get the admin signing identity: %v", err)
-	}
-
-	// Create a "save channel" request
-	channelReq := resmgmt.SaveChannelRequest{
-		ChannelID:         channelInfo.ChannelID,
-		ChannelConfigPath: channelInfo.ChannelConfigPath,
-		SigningIdentities: []providersmsp.SigningIdentity{adminIdentity},
-	}
-
-	// Get the channel creation response with a transaction ID
-	_, err = adminResMgmtClient.SaveChannel(channelReq,
-		resmgmt.WithRetry(retry.DefaultResMgmtOpts))
-	if err != nil {
-		return fmt.Errorf("failed to apply channel tx file '%v' for channel '%v': %v", channelInfo.ChannelConfigPath, channelInfo.ChannelID, err)
-	}
-
-	log.Printf("Channel tx file '%v' for channel '%v' applied successfully.\n", channelInfo.ChannelConfigPath, channelInfo.ChannelID)
 
 	return nil
 }
 
-// JoinChannel joins the peers of the specified org to the specified channel.
-func JoinChannel(channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
-	adminResMgmtClient := global.ResMgmtClientInstances[orgInfo.OrgName][orgInfo.AdminID]
-	if adminResMgmtClient == nil {
-		return fmt.Errorf("admin res mgmt client of %v not initialized", orgInfo.OrgName)
+// This function installs and instantiates chaincodes according to the init info.
+func configureChaincodes(chaincodes map[string]*ChaincodeInfo) error {
+	// Install and instantiate each chaincode in the list
+	for ccID, chaincodeInfo := range chaincodes {
+		// Perform installations for the chaincode
+		for orgName, operatingIdentity := range chaincodeInfo.Installations {
+			if err := InstallCC(ccID, chaincodeInfo.Version, chaincodeInfo.Path, chaincodeInfo.GoPath, orgName, operatingIdentity); err != nil {
+				return err
+			}
+		}
+
+		// Perform instantiations for the chaincode
+		for channelID, instantiationInfo := range chaincodeInfo.Instantiations {
+			if err := InstantiateCC(ccID, chaincodeInfo.Path, chaincodeInfo.Version, channelID, instantiationInfo); err != nil {
+				return err
+			}
+		}
 	}
-
-	// Peers are not specified in options, so it will join all peers that belong to the client's MSP.
-	err := adminResMgmtClient.JoinChannel(channelInfo.ChannelID, resmgmt.WithRetry(retry.DefaultResMgmtOpts))
-	if err != nil {
-		return fmt.Errorf("failed joining peers in %v to channel %v: %v", orgInfo.OrgName, channelInfo.ChannelID, err)
-	}
-
-	log.Printf("Peers in %v joined to channel %v successfully.\n", orgInfo.OrgName, channelInfo.ChannelID)
-	return nil
-}
-
-// InstallCC installs the specified chaincode on all the peers of the specified org.
-func InstallCC(chaincodeInfo *ChaincodeInitInfo, orgInfo *OrgInitInfo) error {
-	adminResMgmtClient := global.ResMgmtClientInstances[orgInfo.OrgName][orgInfo.AdminID]
-	if adminResMgmtClient == nil {
-		return fmt.Errorf("admin res mgmt client of %v not initialized", orgInfo.OrgName)
-	}
-
-	log.Printf("Starting to install chaincode '%v' for peers in org %v...\n", chaincodeInfo.ChaincodeID, orgInfo.OrgName)
-
-	// Create a new Go chaincode package
-	ccPkg, err := gopackager.NewCCPackage(chaincodeInfo.ChaincodePath, chaincodeInfo.ChaincodeGoPath)
-	if err != nil {
-		return fmt.Errorf("failed creating chaincode package for chaincode '%v': %v", chaincodeInfo.ChaincodeID, err)
-	}
-
-	// Make a request containing parameters to install the chaincode
-	installCCReq := resmgmt.InstallCCRequest{
-		Name:    chaincodeInfo.ChaincodeID,
-		Path:    chaincodeInfo.ChaincodePath,
-		Version: chaincodeInfo.ChaincodeVersion,
-		Package: ccPkg,
-	}
-
-	// Install the chaincode. No peers are specified here so it will be installed on all the peers in the org.
-	_, err = adminResMgmtClient.InstallCC(installCCReq, resmgmt.WithRetry(retry.DefaultResMgmtOpts))
-	if err != nil {
-		return fmt.Errorf("failed installing chaincode '%v' for peers in org %v: %v", chaincodeInfo.ChaincodeID, orgInfo.OrgName, err)
-	}
-
-	log.Printf("Chaincode '%v' installed for peer in org %v.\n", chaincodeInfo.ChaincodeID, orgInfo.OrgName)
 
 	return nil
 }
 
-// InstantiateCC instantiates the specified chaincode on the specified channel.
-func InstantiateCC(chaincodeInfo *ChaincodeInitInfo, channelInfo *ChannelInitInfo, orgInfo *OrgInitInfo) error {
-	adminResMgmtClient := global.ResMgmtClientInstances[orgInfo.OrgName][orgInfo.AdminID]
-	if adminResMgmtClient == nil {
-		return fmt.Errorf("admin res mgmt client of %v not initialized", orgInfo.OrgName)
+// Instantiates channel clients for users in the list.
+func instantiateChannelClients(sdk *fabsdk.FabricSDK, userInfo map[string]*OrgInfo, channelIDs []string) error {
+	for orgName, orgInfo := range userInfo {
+		for _, channelID := range channelIDs {
+			// Channel client for each admin ID
+			for _, adminID := range orgInfo.AdminIDs {
+				if err := InstantiateChannelClient(sdk, channelID, orgName, adminID); err != nil {
+					return err
+				}
+			}
+
+			// Channel client for each user ID
+			for _, userID := range orgInfo.UserIDs {
+				if err := InstantiateChannelClient(sdk, channelID, orgName, userID); err != nil {
+					return err
+				}
+			}
+		}
 	}
-
-	log.Printf("Starting to instantiate chaincode '%v' on channel %v...\n", chaincodeInfo.ChaincodeID, channelInfo.ChannelID)
-
-	// Parse the endorsement policy
-	ccPolicy, err := policydsl.FromString(chaincodeInfo.Policy)
-	if err != nil {
-		return fmt.Errorf("failed instantiating chaincode '%v' on channel %v: %v", chaincodeInfo.ChaincodeID, channelInfo.ChannelID, err)
-	}
-
-	// Make a request containing parameters to instantiate the chaincode
-	instantiateCCReq := resmgmt.InstantiateCCRequest{
-		Name:    chaincodeInfo.ChaincodeID,
-		Path:    chaincodeInfo.ChaincodePath,
-		Version: chaincodeInfo.ChaincodeVersion,
-		Args:    chaincodeInfo.InitArgs,
-		Policy:  ccPolicy,
-	}
-
-	// Instantiate the chaincode for all peers in the org
-	_, err = adminResMgmtClient.InstantiateCC(channelInfo.ChannelID, instantiateCCReq, resmgmt.WithRetry(retry.DefaultResMgmtOpts))
-	if err != nil {
-		return fmt.Errorf("failed instantiating chaincode '%v' on channel %v: %v", chaincodeInfo.ChaincodeID, channelInfo.ChannelID, err)
-	}
-
-	log.Printf("Chaincode '%v' instantiated on channel %v.\n", chaincodeInfo.ChaincodeID, channelInfo.ChannelID)
-
-	return nil
-}
-
-// InstantiateChannelClient instantiate a channel client on the specified channel for the specified user in the specified org.
-func InstantiateChannelClient(sdk *fabsdk.FabricSDK, channelID, username, orgName string) error {
-	if global.ChannelClientInstances == nil {
-		global.ChannelClientInstances = make(map[string]map[string]map[string]*channel.Client)
-	}
-
-	if global.ChannelClientInstances[channelID] == nil {
-		global.ChannelClientInstances[channelID] = make(map[string]map[string]*channel.Client)
-	}
-
-	if global.ChannelClientInstances[channelID][orgName] == nil {
-		global.ChannelClientInstances[channelID][orgName] = make(map[string]*channel.Client)
-	}
-
-	if global.ChannelClientInstances[channelID][orgName][username] != nil {
-		return fmt.Errorf("channel clients on channel %v for %v.%v already instantiated", channelID, username, orgName)
-	}
-
-	// Returns a channel client instance. Channel clients can query chaincode, execute chaincode and register chaincode events on specific channel.
-	clientCtx := sdk.ChannelContext(channelID, fabsdk.WithUser(username), fabsdk.WithOrg(orgName))
-	channelClient, err := channel.New(clientCtx)
-	if err != nil {
-		return fmt.Errorf("failed creating channel client on channel %v for %v.%v: %v", channelID, username, orgName, err)
-	}
-	global.ChannelClientInstances[channelID][orgName][username] = channelClient
-
-	log.Printf("Channel client on channel %v for %v.%v created successfully.\n", channelID, username, orgName)
 
 	return nil
 }

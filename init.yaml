@@ -1,0 +1,55 @@
+users:
+  Org1:
+    adminIDs:
+      - Admin
+    userIDs:
+      - User1
+  Org2:
+    adminIDs:
+      - Admin
+    userIDs:
+      - User1
+channels:
+  mychannel:
+    participants:
+      Org1:
+        orgName: Org1
+        userID: Admin
+      Org2:
+        orgName: Org2
+        userID: Admin
+    configs:
+      - path: fixtures/channel-artifacts/channel.tx
+        orgName: Org1
+        userID: Admin
+      - path: fixtures/channel-artifacts/Org1MSPanchors.tx
+        orgName: Org1
+        userID: Admin
+      - path: fixtures/channel-artifacts/Org2MSPanchors.tx
+        orgName: Org2
+        userID: Admin
+chaincodes:
+  screwCc:
+    version: 0.1
+    path: screw_example
+    goPath: chaincode
+    installations:
+      Org1:
+        orgName: Org1
+        userID: Admin
+      Org2:
+        orgName: Org2
+        userID: Admin
+    instantiations:
+      mychannel:
+        policy: OR('Org1MSP.member', 'Org2MSP.member')
+        initArgs:
+          - init
+          - Org1
+          - 200
+          - Org2
+          - 100
+        orgName: Org1
+        userID: Admin
+    
+        

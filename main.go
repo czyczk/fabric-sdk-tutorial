@@ -24,47 +24,25 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// Specify init info
-	channelID := "mychannel"
-	channelInitInfo := &appinit.ChannelInitInfo{
-		ChannelID:         channelID,
-		ChannelConfigPath: workingDirectory + "/fixtures/channel-artifacts/channel.tx",
-	}
-	org1AnchorPeerInitInfo := &appinit.ChannelInitInfo{
-		ChannelID:         channelID,
-		ChannelConfigPath: workingDirectory + "/fixtures/channel-artifacts/Org1MSPanchors.tx",
-	}
-	org2AnchorPeerInitInfo := &appinit.ChannelInitInfo{
-		ChannelID:         channelID,
-		ChannelConfigPath: workingDirectory + "/fixtures/channel-artifacts/Org2MSPanchors.tx",
+	// Create a Fabric SDK instance
+	err = appinit.SetupSDK("config-network.yaml")
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	org1InitInfo := &appinit.OrgInitInfo{
-		AdminID: "Admin",
-		UserID:  "User1",
-		OrgName: "Org1",
+	defer global.SDKInstance.Close()
+
+	// Load init info from `init.yaml`
+	initInfoPath := workingDirectory + "/init.yaml"
+	initInfo, err := appinit.LoadInitInfo(initInfoPath)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	org2InitInfo := &appinit.OrgInitInfo{
-		AdminID: "Admin",
-		UserID:  "User1",
-		OrgName: "Org2",
-	}
-
-	chaincodeInitInfo := &appinit.ChaincodeInitInfo{
-		ChaincodeID:      "screwCc",
-		ChaincodeVersion: "0.1",
-		ChaincodePath:    "screw_example",
-		ChaincodeGoPath:  workingDirectory + "/chaincode",
-		Policy:           "OR('Org1MSP.member', 'Org2MSP.member')",
-		InitArgs: [][]byte{[]byte("init"),
-			[]byte(org1InitInfo.OrgName), []byte("200"),
-			[]byte(org2InitInfo.OrgName), []byte("100")},
-	}
+	fmt.Println(initInfo)
 
 	// Init the app
-	initApp([]*appinit.OrgInitInfo{org1InitInfo, org2InitInfo})
-	defer global.SDKInstance.Close()
+	appinit.InitApp(&initInfo)
 
 	// Fetch the network config info
 	sdkConfig, err := global.SDKInstance.Config()
@@ -77,22 +55,16 @@ func main() {
 	}
 	fmt.Println(networkConfig)
 
-	// Configure a channel
-	configureChannel(org1InitInfo, org2InitInfo, channelInitInfo, org1AnchorPeerInitInfo, org2AnchorPeerInitInfo)
-
-	// Install and instantiate the chaincode
-	installAndInstantiateChaincode(org1InitInfo, org2InitInfo, channelInitInfo, chaincodeInitInfo)
-
 	// Instantiate a screw service.
 	serviceInfo := &service.Info{
-		ChaincodeID:   chaincodeInitInfo.ChaincodeID,
-		ChannelClient: global.ChannelClientInstances[channelInitInfo.ChannelID][org1InitInfo.OrgName][org1InitInfo.UserID],
+		ChaincodeID:   "screwCc",
+		ChannelClient: global.ChannelClientInstances["mychannel"]["Org1"]["User1"],
 	}
 
 	screwSvc := &service.ScrewService{ServiceInfo: serviceInfo}
 
 	// Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID.
-	respMsg, err := screwSvc.TransferAndShowEvent(org1InitInfo.OrgName, org2InitInfo.OrgName, 10)
+	respMsg, err := screwSvc.TransferAndShowEvent("Org1", "Org2", 10)
 	if err != nil {
 		log.Fatalln(err)
 	} else {
@@ -100,7 +72,7 @@ func main() {
 	}
 
 	// Make a "query" request for "Org1" and show the response payload.
-	respMsg, err = screwSvc.Query(org1InitInfo.OrgName)
+	respMsg, err = screwSvc.Query("Org1")
 	if err != nil {
 		log.Fatalln(err)
 	} else {
@@ -123,91 +95,4 @@ func main() {
 	controller.RegisterHandlers(apiv1Group, pingPongController)
 	controller.RegisterHandlers(apiv1Group, screwController)
 	router.Run(":8081")
-}
-
-// Both the instantiations of the resource management clients and the MSP clients will be invoked here.
-func initApp(orgInitInfoList []*appinit.OrgInitInfo) {
-	// Setup the SDK
-	err := appinit.SetupSDK("config-network.yaml")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// Instantiate resource management clients and MSP clients for the orgs in the list.
-	for _, info := range orgInitInfoList {
-		// Instantiate clients
-		err = appinit.InstantiateResMgmtClients(info.AdminID, info.OrgName)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		err = appinit.InstantiateResMgmtClients(info.UserID, info.OrgName)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		err = appinit.InstantiateMSPClients(info.AdminID, info.OrgName)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		err = appinit.InstantiateMSPClients(info.UserID, info.OrgName)
-		if err != nil {
-			log.Fatalln(err)
-		}
-	}
-
-}
-
-// This function creates and configures a channel according to the channel init info and joins the peers to the channel.
-func configureChannel(org1InitInfo *appinit.OrgInitInfo, org2InitInfo *appinit.OrgInitInfo,
-	channelInitInfo *appinit.ChannelInitInfo,
-	org1AnchorPeerInitInfo *appinit.ChannelInitInfo, org2AnchorPeerInitInfo *appinit.ChannelInitInfo) {
-	// Create a channel
-	if err := appinit.ApplyChannelTx(channelInitInfo, org1InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Update anchor peers
-	if err := appinit.ApplyChannelTx(org1AnchorPeerInitInfo, org1InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-	if err := appinit.ApplyChannelTx(org2AnchorPeerInitInfo, org2InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Join peers of org1 to the channel
-	if err := appinit.JoinChannel(channelInitInfo, org1InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Join peers of org2 to the channel
-	if err := appinit.JoinChannel(channelInitInfo, org2InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-}
-
-func installAndInstantiateChaincode(org1InitInfo, org2InitInfo *appinit.OrgInitInfo,
-	channelInitInfo *appinit.ChannelInitInfo, chaincodeInitInfo *appinit.ChaincodeInitInfo) {
-	// Install the chaincode for peers in org1 and org2
-	if err := appinit.InstallCC(chaincodeInitInfo, org1InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	if err := appinit.InstallCC(chaincodeInitInfo, org2InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Instantiate the chaincode on the channel
-	if err := appinit.InstantiateCC(chaincodeInitInfo, channelInitInfo, org1InitInfo); err != nil {
-		log.Fatalln(err)
-	}
-
-	// Instantiate channel clients
-	for _, orgInfo := range []*appinit.OrgInitInfo{org1InitInfo, org2InitInfo} {
-		if err := appinit.InstantiateChannelClient(global.SDKInstance, channelInitInfo.ChannelID, orgInfo.AdminID, orgInfo.OrgName); err != nil {
-			log.Fatalln(err)
-		}
-
-		if err := appinit.InstantiateChannelClient(global.SDKInstance, channelInitInfo.ChannelID, orgInfo.UserID, orgInfo.OrgName); err != nil {
-			log.Fatalln(err)
-		}
-	}
 }
