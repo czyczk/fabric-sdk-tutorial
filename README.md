@@ -1,39 +1,26 @@
 # fabric-sdk-tutorial
 
 #### 介绍
-{**以下是 Gitee 平台说明，您可以替换此简介**
-Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN）。专为开发者提供稳定、高效、安全的云端软件开发协作平台
-无论是个人、团队、或是企业，都能够用 Gitee 实现代码托管、项目管理、协作开发。企业项目请看 [https://gitee.com/enterprises](https://gitee.com/enterprises)}
 
-#### 软件架构
-软件架构说明
-
-
-#### 安装教程
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
+此仓库是一个示例工程，用于展示一种利用 Fabric SDK Go 来管理数字文档和资产记录的方式，其中使用了如密钥置换等加密特性以保证访问加密数据时留痕。
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+`make` 和 `make clean` 是通常使用的两个命令。
 
-#### 参与贡献
+`make` 将清理之前启动的 Fabric 网络、重启网络，并运行程序。程序在初始化网络后将启动为一个服务器。
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+`make clean` 关闭并清理已启动的 Fabric 网络。
 
+此外，以下是所有的可用命令，可以按需使用它们。
 
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+|命令|描述|
+|-|-|
+|`make`|清理已启动的 Fabric 网络，重启网络并运行程序。程序将初始化网络，并启动为一个服务器。|
+|`make clean`|关闭已启动的 Fabric 网络并清理它。|
+|`make env-up`|启动 Fabric 网络。不要在 `make clean` 之前使用。|
+|`make env-down`|只关闭已启动的 Fabric 网络，不清理。|
+|`make build`|编译程序。|
+|`make run`|运行程序。初始化网络并启动为服务器。|
+|`make run-init`|运行程序。只初始化网络。|
+|`make run-serve`|运行程序。只启动为服务器。|

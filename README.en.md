@@ -1,36 +1,27 @@
 # fabric-sdk-tutorial
 
 #### Description
-{**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
 
-#### Software Architecture
-Software architecture description
-
-#### Installation
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
+This repo is a demo project to show a possible use case to make use of Fabric SDK Go to manage digital documents and asset records featuring encryption techniques like the key-switch process to enforce leaving traces when accessing encrypted data.
 
 #### Instructions
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+`make` and `make clean` are the two commands for common use.
 
-#### Contribution
+`make` will clean the previously started Fabric network, restart the Fabric network, run the app to initialize the network and then start as a server.
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+`make clean` shutdowns and cleans the Fabric network.
 
+Besides, these are all the commands you can use to achieve different tasks.
 
-#### Gitee Feature
+|Command|Description|
+|-|-|
+|`make`|Cleans the started Fabric network, restarts the network and runs the app to initialize the network and then start as a server.|
+|`make clean`|Brings down the started Fabric network and cleans it.|
+|`make env-up`|Brings up the Fabric network. Don't run it until `make clean`.|
+|`make env-down`|Brings down the started Fabric network without cleaning.|
+|`make build`|Compiles the app.|
+|`make run`|Run the app to initialize the network and start as a server.|
+|`make run-init`|Run the app only to initialize the network.|
+|`make run-serve`|Run the app only to start a server.|
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
