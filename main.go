@@ -190,7 +190,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		apiv1Group := router.Group("/api/v1")
 		controller.RegisterHandlers(apiv1Group, pingPongController)
 		controller.RegisterHandlers(apiv1Group, screwController)
-		router.Run(":8081")
+		router.Run(fmt.Sprintf(":%v", serverInfo.Port))
 
 		return nil
 	}

@@ -202,6 +202,11 @@ func (si *ScrewInventory) query(stub shim.ChaincodeStubInterface, args []string)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+
+	if len(corpBytes) == 0 {
+		return shim.Error(fmt.Sprintf("Key '%v' not found", targetCorpName))
+	}
+
 	corp := corporation{}
 	err = json.Unmarshal(corpBytes, &corp)
 	if err != nil {
