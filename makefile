@@ -1,7 +1,7 @@
 export COMPOSE_PROJECT_NAME=lab805
 export DOCKER_FILES_PARAM=-f docker-compose.yaml -f docker-compose-couch.yaml
 
-.PHONY: all dev clean build env-up env-down run
+.PHONY: all dev clean build env-up env-down run run-init run-serve
 
 all: clean build env-up run
 
@@ -26,7 +26,14 @@ env-down:
 ##### RUN
 run:
 	@echo "Starting app..."
-	@./fabric-sdk-tutorial
+	$(MAKE) run-init
+	$(MAKE) run-serve
+
+run-init:
+	@./fabric-sdk-tutorial init
+
+run-serve:
+	@./fabric-sdk-tutorial serve
 
 ##### CLEAN
 clean: env-down

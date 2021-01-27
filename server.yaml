@@ -1,0 +1,6 @@
+user:
+  orgName: Org1
+  userID: User1
+channels:
+  - mychannel
+port: 8081

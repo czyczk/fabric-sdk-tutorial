@@ -11,3 +11,5 @@ require github.com/gin-gonic/gin v1.6.3
 require gopkg.in/yaml.v2 v2.4.0
 
 require github.com/pkg/errors v0.9.1
+
+require github.com/urfave/cli/v2 v2.3.0
