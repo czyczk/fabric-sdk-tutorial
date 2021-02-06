@@ -13,7 +13,6 @@ import (
 )
 
 func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-
 	// 检查参数数量
 	lenArgs := len(args)
 	if lenArgs < 1 || lenArgs > 2 {
