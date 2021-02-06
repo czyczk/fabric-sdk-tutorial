@@ -196,7 +196,8 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 
 	// 删除 resourcecreator~authsessionid 索引
 	indexName := "resourcecreator~authsessionid"
-	indexKey, err := stub.CreateCompositeKey(indexName, []string{string(Metadata.Creator), authResponse.AuthSessionID})
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(Metadata.Creator)
+	indexKey, err := stub.CreateCompositeKey(indexName, []string{creatorAsBase64, authResponse.AuthSessionID})
 	err = stub.DelState(indexKey)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法删除 resourcecreator~authsessionid 索引: %v", err))
