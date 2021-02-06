@@ -2,13 +2,13 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/auth"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/identity"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
@@ -18,15 +18,6 @@ import (
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/mitchellh/mapstructure"
 )
-
-// Attribute 表示证书中属性的名称
-type Attribute struct {
-	DeptType      string
-	DeptLevel     int
-	DeptName      string
-	SuperDeptName string
-	//Department    string
-}
 
 func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 
@@ -64,13 +55,13 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	}
 
 	// 如果 authSessionID 不等于0
-	if authSessionID != "0" {
+	if authSessionID != "" {
 		// 获取 AuthResponseStored,并解析成json对象
 		authresp := uc.getAuthResponseHelper(stub, []string{authSessionID})
 		var authResponseStored auth.AuthResponseStored
 		err = json.Unmarshal(authresp.Payload, &authResponseStored)
 		if err != nil {
-			return shim.Error(fmt.Sprintf("AuthResponseStored无法解析成 JSON 对象: %v", err))
+			return shim.Error(fmt.Sprintf("AuthResponseStored 无法解析成 JSON 对象: %v", err))
 		}
 		// 根据 AuthResponseStored 中的结果得到最终判断结果
 		if authResponseStored.Result == true {
@@ -91,26 +82,26 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 			return shim.Error(fmt.Sprintf("无法获取属性: %v", err))
 		}
 		// 将从证书中得到属性的map类型，转为struct类型
-		attr := Attribute{}
+		attr := identity.DepartmentIdentityStored{}
 		mapstructure.Decode(attri.Attrs, &attr)
 		deptLevel, err := strconv.Atoi(attri.Attrs["DeptLevel"])
 		if err != nil {
-			return shim.Error(fmt.Sprintf("DeptLevel需为正整数: %v", err))
+			return shim.Error(fmt.Sprintf("DeptLevel 需为正整数: %v", err))
 		}
 		attr.DeptLevel = deptLevel
 
 		// 根据资源ID,得到资源的访问策略
 		resourceID := ksTrigger.ResourceID
-		key := "res_" + resourceID + "_policy"
+		key := getKeyForResPlicy(resourceID)
 		Policy, err := stub.GetState(key)
 		if err != nil {
-			return shim.Error(fmt.Sprintf("无法确定policy的可用性: %v", err))
+			return shim.Error(fmt.Sprintf("无法确定 policy 的可用性: %v", err))
 		}
 		if Policy == nil {
 			return shim.Error("该资源的访问策略不存在")
 		}
 
-		// 完善访问策略
+		// TODO:完善访问策略
 		s := string(Policy)
 		parts := strings.Split(s, "|| ")
 		s = strings.Join(parts, "|| r.sub.")
@@ -146,7 +137,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化 KeySwitchTriggerStored: %v", err))
 	}
-	key := "ks_" + ksSessionID + "_trigger"
+	key := getKeyForKeySwitchTrigger(ksSessionID)
 	err = stub.PutState(key, data)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法存储 KeySwitchTriggerStored: %v", err))
@@ -181,7 +172,7 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 	// 检查 KeySwitchTriggerStored 是否存在
 	ksTriggerStored, err := uc.getKeySwitchTriggerHelper(stub, ksSessionID)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法确定KeySwitchTriggerStored的可用性: %v", err))
+		return shim.Error(fmt.Sprintf("无法确定 KeySwitchTriggerStored 的可用性: %v", err))
 	}
 	if ksTriggerStored == nil {
 		return shim.Error("该 KeySwitchTriggerStored 不存在")
@@ -197,7 +188,6 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获得时间戳: %v", err))
 	}
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	// 构建 KeySwitchResultStored 并存储上链
 	ksResultStored := keyswitch.KeySwitchResultStored{ksSessionID, ksResult.Share, creator, timestamp}
@@ -205,7 +195,7 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化 KeySwitchResultStored: %v", err))
 	}
-	key := "ks_" + ksSessionID + "_result_" + creatorAsBase64
+	key := getKeyForKeySwitchResponse(ksSessionID, creator)
 	err = stub.PutState(key, data)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法存储 KeySwitchResultStored: %v", err))
@@ -213,7 +203,7 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 
 	// 发事件
 	eventID := "ks_" + ksSessionID + "_result"
-	value := "ks_" + ksSessionID + "_result_" + creatorAsBase64
+	value := getKeyForKeySwitchResponse(ksSessionID, creator)
 	err = stub.SetEvent(eventID, []byte(value))
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
@@ -228,7 +218,7 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 func (uc *UniversalCC) getKeySwitchTriggerHelper(stub shim.ChaincodeStubInterface, keySwitchSessionID string) (*keyswitch.KeySwitchTriggerStored, error) {
 
 	// 获取 ksTriggerStored
-	key := "ks_" + keySwitchSessionID + "_trigger"
+	key := getKeyForKeySwitchTrigger(keySwitchSessionID)
 	ksTriggerStored, err := stub.GetState(key)
 	if err != nil {
 		return nil, err
@@ -261,10 +251,9 @@ func (uc *UniversalCC) getKeySwitchResult(stub shim.ChaincodeStubInterface, args
 	// 获取 ksSessionID and resultCreator
 	ksSessionID := query.KeySwitchSessionID
 	resultCreator := query.ResultCreator
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(resultCreator)
 
 	// 获取 KeySwitchResultStore
-	key := "ks_" + ksSessionID + "_result_" + creatorAsBase64
+	key := getKeyForKeySwitchResponse(ksSessionID, resultCreator)
 	ksResultStored, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定 KeySwitchResultStore 的可用性: %v", err))
@@ -315,7 +304,6 @@ func (uc *UniversalCC) listKeySwitchResultsByID(stub shim.ChaincodeStubInterface
 		bArrayMemberAlreadyWritten = true
 	}
 	buffer.WriteString("]")
-	//fmt.Printf("- queryAll:\n%s\n", buffer.String())
 	return shim.Success(buffer.Bytes())
 }
 

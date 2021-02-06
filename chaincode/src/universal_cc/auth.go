@@ -36,13 +36,13 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 
 	// 检查资源是否存在
 	resourceID := authRequest.ResourceID
-	key := "res_" + resourceID + "_metadata"
+	key := getKeyForResMetadata(resourceID)
 	metadata, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定资源 ID 可用性: %v", err))
 	}
 	if metadata == nil {
-		return shim.Error("资源ID不存在")
+		return shim.Error("资源 ID 不存在")
 	}
 
 	// 获取创建者与时间戳
@@ -63,12 +63,12 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 	authRequestStored := auth.AuthRequestStored{authSessionID, authRequest.ResourceID, authRequest.Extensions, creator, timestamp}
 	authRequestStoredByte, err := json.Marshal(authRequestStored)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法序列化authRequestStored: %v", err))
+		return shim.Error(fmt.Sprintf("无法序列化 authRequestStored: %v", err))
 	}
-	key = "auth_" + authSessionID + "_req"
+	key = getKeyForAuthRequest(authSessionID)
 	err = stub.PutState(key, authRequestStoredByte)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法存储authRequestStored: %v", err))
+		return shim.Error(fmt.Sprintf("无法存储 authRequestStored: %v", err))
 	}
 
 	// 构建并获取 resMetadataStored，以此得到资源的creator
@@ -82,12 +82,12 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 	// resourcecreator~authsessionid 绑定资源创建者和auth会话ID
 	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 	indexName := "resourcecreator~authsessionid"
-	IndexKey, err := stub.CreateCompositeKey(indexName, []string{creatorAsBase64, authSessionID})
+	indexKey, err := stub.CreateCompositeKey(indexName, []string{creatorAsBase64, authSessionID})
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", indexName, err))
 	}
 	value := []byte{0x00}
-	err = stub.PutState(IndexKey, value)
+	err = stub.PutState(indexKey, value)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", indexName, err))
 	}
@@ -123,20 +123,20 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	}
 
 	// 检查 auth 请求是否存在
-	key := "auth_" + authResponse.AuthSessionID + "_req"
+	key := getKeyForAuthRequest(authResponse.AuthSessionID)
 	authReq, err := stub.GetState(key)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法确定auth会话请求的可用性: %v", err))
+		return shim.Error(fmt.Sprintf("无法确定 auth 会话请求的可用性: %v", err))
 	}
 	if authReq == nil {
 		return shim.Error("该 auth 会话请求不存在")
 	}
 
 	// 检查 auth 请求是否已经被回复
-	key = "auth_" + authResponse.AuthSessionID + "_resp"
+	key = getKeyForAuthResponse(authResponse.AuthSessionID)
 	authResp, err := stub.GetState(key)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法确定auth会话批复的可用性: %v", err))
+		return shim.Error(fmt.Sprintf("无法确定 auth 会话批复的可用性: %v", err))
 	}
 	if authResp != nil {
 		return shim.Error("该 auth 会话请求已经被批复")
@@ -150,7 +150,7 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	}
 
 	// 根据资源id，得到资源的元数据的序列化结果，以此检查资源是否存在
-	key = "res_" + authRequestStored.ResourceID + "_metadata"
+	key = getKeyForResMetadata(authRequestStored.ResourceID)
 	metadata, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定资源 ID 可用性: %v", err))
@@ -188,7 +188,7 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化 AuthResponseStored: %v", err))
 	}
-	key = "auth_" + authResponse.AuthSessionID + "_resp"
+	key = getKeyForAuthResponse(authResponse.AuthSessionID)
 	err = stub.PutState(key, data)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法存储 AuthResponseStored: %v", err))
@@ -196,8 +196,8 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 
 	// 删除 resourcecreator~authsessionid 索引
 	indexName := "resourcecreator~authsessionid"
-	IndexKey, err := stub.CreateCompositeKey(indexName, []string{string(Metadata.Creator), authResponse.AuthSessionID})
-	err = stub.DelState(IndexKey)
+	indexKey, err := stub.CreateCompositeKey(indexName, []string{string(Metadata.Creator), authResponse.AuthSessionID})
+	err = stub.DelState(indexKey)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法删除 resourcecreator~authsessionid 索引: %v", err))
 	}
@@ -222,7 +222,7 @@ func (uc *UniversalCC) getAuthRequest(stub shim.ChaincodeStubInterface, args []s
 	authSessionID := args[0]
 
 	// 从链上读取 AuthRequestStored
-	key := "auth_" + authSessionID + "_req"
+	key := getKeyForAuthRequest(authSessionID)
 	authReq, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定 auth 请求的可用性: %v", err))
@@ -245,7 +245,7 @@ func (uc *UniversalCC) getAuthResponseHelper(stub shim.ChaincodeStubInterface, a
 	authSessionID := args[0]
 
 	// 从链上读取 AuthResponseStored
-	key := "auth_" + authSessionID + "_resp"
+	key := getKeyForAuthResponse(authSessionID)
 	authResp, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定 auth 批复的可用性: %v", err))
