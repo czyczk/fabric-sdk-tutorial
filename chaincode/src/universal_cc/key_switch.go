@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -128,7 +129,15 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	}
 
 	// 构建 KeySwitchTriggerStored 并存储上链
-	ksTriggerToBeStored := keyswitch.KeySwitchTriggerStored{ksSessionID, ksTrigger.ResourceID, authSessionID, creator, ksTrigger.KeySwitchPK, timestamp, validationResult}
+	ksTriggerToBeStored := keyswitch.KeySwitchTriggerStored{
+		KeySwitchSessionID: ksSessionID,
+		ResourceID:         ksTrigger.ResourceID,
+		AuthSessionID:      authSessionID,
+		Creator:            creator,
+		KeySwitchPK:        ksTrigger.KeySwitchPK,
+		Timestamp:          timestamp,
+		ValidationResult:   validationResult,
+	}
 	data, err := json.Marshal(ksTriggerToBeStored)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化 KeySwitchTriggerStored: %v", err))
@@ -149,7 +158,6 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 }
 
 func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-
 	// 检查参数个数
 	if len(args) != 1 {
 		return shim.Error("参数数量不正确。应为 1 个")
@@ -179,6 +187,7 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取创建者: %v", err))
 	}
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	timestamp, err := getTimeFromStub(stub)
 	if err != nil {
@@ -186,20 +195,25 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 	}
 
 	// 构建 KeySwitchResultStored 并存储上链
-	ksResultStored := keyswitch.KeySwitchResultStored{ksSessionID, ksResult.Share, creator, timestamp}
+	ksResultStored := keyswitch.KeySwitchResultStored{
+		KeySwitchSessionID: ksSessionID,
+		Share:              ksResult.Share,
+		Creator:            creator,
+		Timestamp:          timestamp,
+	}
 	data, err := json.Marshal(ksResultStored)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化 KeySwitchResultStored: %v", err))
 	}
-	key := getKeyForKeySwitchResponse(ksSessionID, creator)
+	key := getKeyForKeySwitchResponse(ksSessionID, creatorAsBase64)
 	err = stub.PutState(key, data)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法存储 KeySwitchResultStored: %v", err))
 	}
 
 	// 发事件
-	eventID := getKeyForKeySwitchResponse(ksSessionID)
-	value := getKeyForKeySwitchResponse(ksSessionID, creator)
+	eventID := getKeyPrefixForKeySwitchResponse(ksSessionID)
+	value := getKeyForKeySwitchResponse(ksSessionID, creatorAsBase64)
 	err = stub.SetEvent(eventID, []byte(value))
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
@@ -247,9 +261,10 @@ func (uc *UniversalCC) getKeySwitchResult(stub shim.ChaincodeStubInterface, args
 	// 获取 ksSessionID and resultCreator
 	ksSessionID := query.KeySwitchSessionID
 	resultCreator := query.ResultCreator
+	resultCreatorAsBase64 := base64.StdEncoding.EncodeToString(resultCreator)
 
 	// 获取 KeySwitchResultStore
-	key := getKeyForKeySwitchResponse(ksSessionID, resultCreator)
+	key := getKeyForKeySwitchResponse(ksSessionID, resultCreatorAsBase64)
 	ksResultStored, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定 KeySwitchResultStore 的可用性: %v", err))
@@ -269,7 +284,7 @@ func (uc *UniversalCC) listKeySwitchResultsByID(stub shim.ChaincodeStubInterface
 
 	// 获取 ksSessionID，确定搜索前缀
 	ksSessionID := args[0]
-	startKey := getKeyForKeySwitchResponse(ksSessionID) + "_"
+	startKey := getKeyPrefixForKeySwitchResponse(ksSessionID) + "_"
 
 	// 得到搜索截至key
 	endKey := string(BytesPrefix([]byte(startKey)))

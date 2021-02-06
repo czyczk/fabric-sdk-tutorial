@@ -48,8 +48,12 @@ func getKeyForKeySwitchTrigger(keySwitchSessionID string) string {
 	return fmt.Sprintf("ks_%s_trigger", keySwitchSessionID)
 }
 
-func getKeyForKeySwitchResponse(keySwitchSessionID string, resultCreator []byte) string {
-	return fmt.Sprintf("ks_%s_result_%s", keySwitchSessionID, string(resultCreator))
+func getKeyForKeySwitchResponse(keySwitchSessionID string, resultCreatorAsBase64 string) string {
+	return fmt.Sprintf("ks_%s_result_%s", keySwitchSessionID, resultCreatorAsBase64)
+}
+
+func getKeyPrefixForKeySwitchResponse(keySwitchSessionID string) string {
+	return fmt.Sprintf("ks_%s_result", keySwitchSessionID)
 }
 
 func getTimeFromStub(stub shim.ChaincodeStubInterface) (ret time.Time, err error) {
