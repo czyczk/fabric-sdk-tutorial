@@ -59,7 +59,13 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 	authSessionID := stub.GetTxID()
 
 	// 构建authRequestStored，并存储上链
-	authRequestStored := auth.AuthRequestStored{authSessionID, authRequest.ResourceID, authRequest.Extensions, creator, timestamp}
+	authRequestStored := auth.AuthRequestStored{
+		AuthSessionID: authSessionID,
+		ResourceID:    authRequest.ResourceID,
+		Extensions:    authRequest.Extensions,
+		Creator:       creator,
+		Timestamp:     timestamp,
+	}
 	authRequestStoredByte, err := json.Marshal(authRequestStored)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化 authRequestStored: %v", err))
@@ -181,7 +187,11 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	}
 
 	// 构建 AuthResponseStored 并存储上链
-	authResponseStored := auth.AuthResponseStored{authResponse.AuthSessionID, authResponse.Result, creator, timestamp}
+	authResponseStored := auth.AuthResponseStored{AuthSessionID: authResponse.AuthSessionID,
+		Result:    authResponse.Result,
+		Creator:   creator,
+		Timestamp: timestamp,
+	}
 	data, err := json.Marshal(authResponseStored)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化 AuthResponseStored: %v", err))

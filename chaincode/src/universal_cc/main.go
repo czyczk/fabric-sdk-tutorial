@@ -63,6 +63,8 @@ func (uc *UniversalCC) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 		return uc.createAuthResponse(stub, args)
 	case "getAuthRequest":
 		return uc.getAuthRequest(stub, args)
+	case "listPendingAuthSessionIDsByResourceCreator":
+		return uc.listPendingAuthSessionIDsByResourceCreator(stub, args)
 	// key_switch.go
 	case "createKeySwitchTrigger":
 		return uc.createKeySwitchTrigger(stub, args)
