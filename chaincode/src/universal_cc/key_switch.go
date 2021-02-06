@@ -53,9 +53,8 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		return shim.Error(fmt.Sprintf("无法获得时间戳: %v", err))
 	}
 
-	// 如果 authSessionID 不等于0
 	if authSessionID != "" {
-		// 获取 AuthResponseStored,并解析成json对象
+		// 如果 authSessionID 不为空值，则获取 AuthResponseStored，并解析成 JSON 对象
 		authresp := uc.getAuthResponseHelper(stub, []string{authSessionID})
 		var authResponseStored auth.AuthResponseStored
 		err = json.Unmarshal(authresp.Payload, &authResponseStored)
@@ -66,10 +65,8 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		if authResponseStored.Result == true {
 			validationResult = true
 		}
-	}
-
-	// 如果authSessionID 等于 0，执行abac
-	if authSessionID == "0" {
+	} else {
+		// 如果 authSessionID 为空值，执行 abac
 		// 获取当前客户端的证书
 		cert, err := cid.GetX509Certificate(stub)
 		if err != nil {
@@ -89,7 +86,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		}
 		attr.DeptLevel = deptLevel
 
-		// 根据资源ID,得到资源的访问策略
+		// 根据资源 ID，得到资源的访问策略
 		resourceID := ksTrigger.ResourceID
 		key := getKeyForResPlicy(resourceID)
 		Policy, err := stub.GetState(key)
