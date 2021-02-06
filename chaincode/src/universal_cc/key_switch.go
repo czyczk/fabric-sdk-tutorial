@@ -20,7 +20,6 @@ import (
 )
 
 func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-
 	// 检查参数个数
 	if len(args) != 2 {
 		return shim.Error("参数数量不正确。应为 2 个")
@@ -202,7 +201,7 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 	}
 
 	// 发事件
-	eventID := "ks_" + ksSessionID + "_result"
+	eventID := getKeyForKeySwitchResponse(ksSessionID)
 	value := getKeyForKeySwitchResponse(ksSessionID, creator)
 	err = stub.SetEvent(eventID, []byte(value))
 	if err != nil {
@@ -216,7 +215,6 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 }
 
 func (uc *UniversalCC) getKeySwitchTriggerHelper(stub shim.ChaincodeStubInterface, keySwitchSessionID string) (*keyswitch.KeySwitchTriggerStored, error) {
-
 	// 获取 ksTriggerStored
 	key := getKeyForKeySwitchTrigger(keySwitchSessionID)
 	ksTriggerStored, err := stub.GetState(key)
@@ -226,16 +224,17 @@ func (uc *UniversalCC) getKeySwitchTriggerHelper(stub shim.ChaincodeStubInterfac
 	if ksTriggerStored == nil {
 		return nil, err
 	}
+
 	var keySwitchTriggerStored keyswitch.KeySwitchTriggerStored
 	err = json.Unmarshal(ksTriggerStored, &keySwitchTriggerStored)
 	if err != nil {
 		return nil, err
 	}
+
 	return &keySwitchTriggerStored, nil
 }
 
 func (uc *UniversalCC) getKeySwitchResult(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-
 	// 检查参数个数
 	if len(args) != 1 {
 		return shim.Error("参数数量不正确。应为 1 个")
@@ -266,7 +265,6 @@ func (uc *UniversalCC) getKeySwitchResult(stub shim.ChaincodeStubInterface, args
 }
 
 func (uc *UniversalCC) listKeySwitchResultsByID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-
 	// 检查参数个数
 	if len(args) != 1 {
 		return shim.Error("参数数量不正确。应为 1 个")
@@ -274,7 +272,7 @@ func (uc *UniversalCC) listKeySwitchResultsByID(stub shim.ChaincodeStubInterface
 
 	// 获取 ksSessionID，确定搜索前缀
 	ksSessionID := args[0]
-	startKey := "ks_" + ksSessionID + "_result_"
+	startKey := getKeyForKeySwitchResponse(ksSessionID) + "_"
 
 	// 得到搜索截至key
 	endKey := string(BytesPrefix([]byte(startKey)))
@@ -282,7 +280,7 @@ func (uc *UniversalCC) listKeySwitchResultsByID(stub shim.ChaincodeStubInterface
 	// 开始搜索
 	resultsIterator, err := stub.GetStateByRange(startKey, endKey)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法查询: %v", err))
+		return shim.Error(fmt.Sprintf("无法查询密钥置换结果: %v", err))
 	}
 	defer resultsIterator.Close()
 

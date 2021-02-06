@@ -101,7 +101,6 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 }
 
 func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-
 	// 检查参数数量
 	lenArgs := len(args)
 	if lenArgs < 1 || lenArgs > 2 {
@@ -122,31 +121,31 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 		eventID = args[1]
 	}
 
-	// 检查 auth 请求是否存在
+	// 检查授权会话的请求是否存在
 	key := getKeyForAuthRequest(authResponse.AuthSessionID)
 	authReq, err := stub.GetState(key)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法确定 auth 会话请求的可用性: %v", err))
+		return shim.Error(fmt.Sprintf("无法确定授权会话是否存在: %v", err))
 	}
 	if authReq == nil {
-		return shim.Error("该 auth 会话请求不存在")
+		return shim.Error("该授权会话不存在")
 	}
 
-	// 检查 auth 请求是否已经被回复
+	// 检查授权请求是否已经被回复
 	key = getKeyForAuthResponse(authResponse.AuthSessionID)
 	authResp, err := stub.GetState(key)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法确定 auth 会话批复的可用性: %v", err))
+		return shim.Error(fmt.Sprintf("无法确定该授权会话的批复状态: %v", err))
 	}
 	if authResp != nil {
-		return shim.Error("该 auth 会话请求已经被批复")
+		return shim.Error("该授权请求已经被批复")
 	}
 
-	// 构建 AuthRequetStored 去得到 资源id
+	// 构建 AuthRequetStored 去得到 资源 ID
 	var authRequestStored auth.AuthRequestStored
 	err = json.Unmarshal(authReq, &authRequestStored)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法解析 authRequestStored 的 json 对象: %v", err))
+		return shim.Error(fmt.Sprintf("无法解析 authRequestStored 的 JSON 对象: %v", err))
 	}
 
 	// 根据资源id，得到资源的元数据的序列化结果，以此检查资源是否存在
@@ -163,7 +162,7 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	var Metadata data.ResMetadataStored
 	err = json.Unmarshal(metadata, &Metadata)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法解析 ResMetadataStored 的 json 对象: %v", err))
+		return shim.Error(fmt.Sprintf("无法解析 ResMetadataStored 的 JSON 对象: %v", err))
 	}
 
 	// 获取创建者与时间戳
@@ -200,7 +199,7 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	indexKey, err := stub.CreateCompositeKey(indexName, []string{creatorAsBase64, authResponse.AuthSessionID})
 	err = stub.DelState(indexKey)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法删除 resourcecreator~authsessionid 索引: %v", err))
+		return shim.Error(fmt.Sprintf("无法删除索引 '%v': %v", indexName, err))
 	}
 
 	// 获取交易ID
@@ -214,49 +213,49 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 }
 
 func (uc *UniversalCC) getAuthRequest(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-
 	// 检查参数个数
 	if len(args) != 1 {
 		return shim.Error("参数数量不正确。应为 1 个")
 	}
-	// 第0个参数为 auth 的会话ID
+
+	// 第 0 个参数为授权会话 ID
 	authSessionID := args[0]
 
 	// 从链上读取 AuthRequestStored
 	key := getKeyForAuthRequest(authSessionID)
 	authReq, err := stub.GetState(key)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法确定 auth 请求的可用性: %v", err))
+		return shim.Error(fmt.Sprintf("无法确定授权会话的可用性: %v", err))
 	}
 	if authReq == nil {
-		return shim.Error("该 auth 请求不存在")
+		return shim.Error("授权会话不存在")
 	}
 
 	return shim.Success(authReq)
 }
 
 func (uc *UniversalCC) getAuthResponseHelper(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-
 	// 检查参数个数
 	if len(args) != 1 {
 		return shim.Error("参数数量不正确。应为 1 个")
 	}
 
-	// 第0个参数为 auth 的会话ID
+	// 第 0 个参数为授权会话 ID
 	authSessionID := args[0]
 
 	// 从链上读取 AuthResponseStored
 	key := getKeyForAuthResponse(authSessionID)
 	authResp, err := stub.GetState(key)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法确定 auth 批复的可用性: %v", err))
+		return shim.Error(fmt.Sprintf("无法确定授权会话状态: %v", err))
 	}
 	if authResp == nil {
-		return shim.Error("该 auth 批复不存在")
+		return shim.Error("该授权请求未被批复")
 	}
 
 	return shim.Success(authResp)
 }
+
 func (uc *UniversalCC) listPendingAuthSessionIDsByResourceCreator(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 	// 检查参数数量
 	lenArgs := len(args)
@@ -283,9 +282,10 @@ func (uc *UniversalCC) listPendingAuthSessionIDsByResourceCreator(stub shim.Chai
 	}
 
 	// 提供 creator 项以获取迭代器
-	it, _, err := stub.GetStateByPartialCompositeKeyWithPagination("resourcecreator~authsessionid", []string{string(creator)}, int32(pageSize), bookmark)
+	indexName := "resourcecreator~authsessionid"
+	it, _, err := stub.GetStateByPartialCompositeKeyWithPagination(indexName, []string{string(creator)}, int32(pageSize), bookmark)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法查询索引: %v", err))
+		return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", indexName, err))
 	}
 
 	// 遍历迭代器，解出 authsessionid 项，组为列表
@@ -293,12 +293,12 @@ func (uc *UniversalCC) listPendingAuthSessionIDsByResourceCreator(stub shim.Chai
 	for it.HasNext() {
 		entry, err := it.Next()
 		if err != nil {
-			return shim.Error(fmt.Sprintf("无法查询索引: %v", err))
+			return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", indexName, err))
 		}
 
 		_, ckParts, err := stub.SplitCompositeKey(entry.Key)
 		if err != nil {
-			return shim.Error(fmt.Sprintf("无法查询索引: %v", err))
+			return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", indexName, err))
 		}
 
 		authSessionIDs = append(authSessionIDs, ckParts[1])
