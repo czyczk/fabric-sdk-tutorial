@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/auth"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/identity"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
@@ -270,7 +271,7 @@ func (uc *UniversalCC) getKeySwitchResult(stub shim.ChaincodeStubInterface, args
 		return shim.Error(fmt.Sprintf("无法确定 KeySwitchResultStore 的可用性: %v", err))
 	}
 	if ksResultStored == nil {
-		return shim.Error("该 KeySwitchResultStore 不存在")
+		return shim.Error(errorcode.CodeNotFound)
 	}
 
 	return shim.Success(ksResultStored)

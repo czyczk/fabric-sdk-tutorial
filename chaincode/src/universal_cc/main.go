@@ -7,13 +7,6 @@ import (
 	"github.com/hyperledger/fabric-protos-go/peer"
 )
 
-const (
-	// "NOTIMPLEMENTED" 是个在这个项目中约定俗成的代号。Service 层收到错误中若是这样的 payload 则表示是暂时未实现的功能而非错误。
-	codeNotImplemented = "NOTIMPLEMENTED"
-	// "NOTFOUND" 表示资源未找到。Service 层收到的错误中若是这样的 payload 则表示是资源未找到，而非链码运行出错。
-	codeNotFound = "NOTFOUND"
-)
-
 // UniversalCC 实现 Chaincode 接口。它将负责数据上链、访问权申请批准与密钥置换等功能的相关数据在区块链上的存取。
 type UniversalCC struct{}
 

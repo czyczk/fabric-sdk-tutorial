@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/auth"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
@@ -237,7 +238,7 @@ func (uc *UniversalCC) getAuthRequest(stub shim.ChaincodeStubInterface, args []s
 		return shim.Error(fmt.Sprintf("无法确定授权会话的可用性: %v", err))
 	}
 	if authReq == nil {
-		return shim.Error("授权会话不存在")
+		return shim.Error(errorcode.CodeNotFound)
 	}
 
 	return shim.Success(authReq)

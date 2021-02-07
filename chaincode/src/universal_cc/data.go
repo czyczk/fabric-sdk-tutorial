@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
@@ -133,11 +134,11 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 }
 
 func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	return shim.Error(codeNotImplemented)
+	return shim.Error(errorcode.CodeNotImplemented)
 }
 
 func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	return shim.Error(codeNotImplemented)
+	return shim.Error(errorcode.CodeNotImplemented)
 }
 
 func (uc *UniversalCC) getMetadata(stub shim.ChaincodeStubInterface, args []string) peer.Response {
@@ -158,22 +159,22 @@ func (uc *UniversalCC) getMetadata(stub shim.ChaincodeStubInterface, args []stri
 	}
 
 	if len(metadataBytes) == 0 {
-		return shim.Error(codeNotFound)
+		return shim.Error(errorcode.CodeNotFound)
 	}
 
 	return shim.Success(metadataBytes)
 }
 
 func (uc *UniversalCC) getData(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	return shim.Error(codeNotImplemented)
+	return shim.Error(errorcode.CodeNotImplemented)
 }
 
 func (uc *UniversalCC) getKey(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	return shim.Error(codeNotImplemented)
+	return shim.Error(errorcode.CodeNotImplemented)
 }
 
 func (uc *UniversalCC) getPolicy(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	return shim.Error(codeNotImplemented)
+	return shim.Error(errorcode.CodeNotImplemented)
 }
 
 func (uc *UniversalCC) linkEntityIDWithDocumentID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
@@ -287,5 +288,5 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 }
 
 func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	return shim.Error(codeNotImplemented)
+	return shim.Error(errorcode.CodeNotImplemented)
 }
