@@ -1,5 +1,7 @@
 package data
 
+import "fmt"
+
 // ResourceType 用于标志一个资源的加密类别
 type ResourceType int
 
@@ -13,6 +15,42 @@ const (
 	// RegulatorEncrypted 表示资源加密类别为“由监管者公钥加密”。只由监管者使用。
 	RegulatorEncrypted
 )
+
+func (t ResourceType) String() string {
+	switch t {
+	case Plain:
+		return "Plain"
+	case Encrypted:
+		return "Encrypted"
+	case Offchain:
+		return "Offchain"
+	case RegulatorEncrypted:
+		return "RegulatorEncrypted"
+	default:
+		return fmt.Sprintf("%d", int(t))
+	}
+}
+
+// NewResourceTypeFromString 从 enum 名称获得 ResourceType enum。
+func NewResourceTypeFromString(enumString string) (ret ResourceType, err error) {
+	switch enumString {
+	case "Plain":
+		ret = Plain
+		return
+	case "Encrypted":
+		ret = Encrypted
+		return
+	case "Offchain":
+		ret = Offchain
+		return
+	case "RegulatorEncrypted":
+		ret = RegulatorEncrypted
+		return
+	default:
+		err = fmt.Errorf("不正确的 enum 字符串")
+		return
+	}
+}
 
 // ResMetadata 包含要传入链码的资源的元数据
 type ResMetadata struct {
