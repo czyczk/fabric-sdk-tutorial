@@ -26,11 +26,10 @@ env-down:
 ##### RUN
 run:
 	@echo "Starting app..."
-	$(MAKE) run-init
-	$(MAKE) run-serve
+	$(MAKE) run-init && $(MAKE) run-serve
 
 run-init:
-	@./fabric-sdk-tutorial init
+	@cd chaincode/src/universal_cc && go mod vendor && cd ../../.. && ./fabric-sdk-tutorial init
 
 run-serve:
 	@./fabric-sdk-tutorial serve

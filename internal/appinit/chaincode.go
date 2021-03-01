@@ -65,7 +65,12 @@ func InstallCC(chaincodeID, version, path, goPath, orgName string, operatingIden
 func InstantiateCC(chaincodeID, path, version, channelID string, info *ChaincodeInstantiationInfo) error {
 	resMgmtClient := global.ResMgmtClientInstances[info.OrgName][info.UserID]
 	if resMgmtClient == nil {
-		return fmt.Errorf("'%v' 的资源管理客户端未初始化", info.OrgName)
+		return fmt.Errorf("'%v.%v' 的资源管理客户端未初始化", info.UserID, info.OrgName)
+	}
+
+	ledgerClient := global.LedgerClientInstances[channelID][info.OrgName][info.UserID]
+	if ledgerClient == nil {
+		return fmt.Errorf("'%v.%v' 在通道 '%v' 上的账本客户端未初始化", info.UserID, info.OrgName, channelID)
 	}
 
 	log.Printf("开始在通道 '%v' 上实例化链码 '%v'...\n", channelID, chaincodeID)

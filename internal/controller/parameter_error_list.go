@@ -41,6 +41,28 @@ func (pel *ParameterErrorList) AppendIfNotInt(str string, errMsg string) int {
 	return intResult
 }
 
+// AppendIfNotPositiveInt appends the error message specified if `str` is not a positive int.
+//
+// Parameters:
+//   the string to be checked
+//   the error message to append
+//
+// Returns:
+//   the parsed int or 0 if it can't be parsed as int
+func (pel *ParameterErrorList) AppendIfNotPositiveInt(str string, errMsg string) int {
+	intResult, err := strconv.Atoi(str)
+	if err != nil {
+		*pel = append(*pel, errMsg)
+		return 0
+	}
+
+	if intResult < 0 {
+		*pel = append(*pel, errMsg)
+	}
+
+	return intResult
+}
+
 // AppendIfNotUint appends the error message specified if `str` is not an uint.
 //
 // Parameters:

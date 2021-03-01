@@ -97,7 +97,9 @@ func getInitFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context)
 		}
 
 		// Init the app
-		appinit.InitApp(&initInfo)
+		if err := appinit.InitApp(&initInfo); err != nil {
+			return err
+		}
 
 		// Fetch the network config info
 		sdkConfig, err := global.SDKInstance.Config()
@@ -159,6 +161,14 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 
 		screwSvc := &service.ScrewService{ServiceInfo: serviceInfo}
 
+		// Instantiate a document service
+		universalCcServiceInfo := &service.Info{
+			ChaincodeID:   "universalCc",
+			ChannelClient: global.ChannelClientInstances["mychannel"][orgName][userID],
+		}
+
+		documentSvc := &service.DocumentService{ServiceInfo: universalCcServiceInfo}
+
 		// Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID
 		respMsg, err := screwSvc.TransferAndShowEvent("Org1", "Org2", 10)
 		if err != nil {
@@ -175,6 +185,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			fmt.Printf("Screw amount in Org 1 after the transfer: %v\n", respMsg)
 		}
 
+		// Instantiate controllers
 		// Instantiate a ping pong controller
 		pingPongController := &controller.PingPongController{}
 
@@ -184,12 +195,19 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			ScrewSvc:  screwSvc,
 		}
 
+		// Instantiate a document controller
+		documentController := &controller.DocumentController{
+			GroupName:   "/document",
+			DocumentSvc: documentSvc,
+		}
+
 		// Register controller handlers
 		router := gin.Default()
 		router.Use(controller.CORSMiddleware())
 		apiv1Group := router.Group("/api/v1")
 		controller.RegisterHandlers(apiv1Group, pingPongController)
 		controller.RegisterHandlers(apiv1Group, screwController)
+		controller.RegisterHandlers(apiv1Group, documentController)
 		router.Run(fmt.Sprintf(":%v", serverInfo.Port))
 
 		return nil

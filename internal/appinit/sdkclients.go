@@ -5,6 +5,7 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/msp"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/resmgmt"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
@@ -104,7 +105,7 @@ func InstantiateChannelClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID 
 		return fmt.Errorf("%v@%v 在通道 '%v' 上的通道客户端已实例化", userID, orgName, channelID)
 	}
 
-	// Returns a channel client instance. Channel clients can query chaincode, execute chaincode and register chaincode events on specific channel.
+	// Creates a channel client instance. Channel clients can query chaincode, execute chaincode and register chaincode events on specific channel.
 	clientCtx := sdk.ChannelContext(channelID, fabsdk.WithUser(userID), fabsdk.WithOrg(orgName))
 	channelClient, err := channel.New(clientCtx)
 	if err != nil {
@@ -113,6 +114,42 @@ func InstantiateChannelClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID 
 	global.ChannelClientInstances[channelID][orgName][userID] = channelClient
 
 	log.Printf("已在通道 '%v' 上为 %v@%v 创建通道客户端。", channelID, userID, orgName)
+
+	return nil
+}
+
+// InstantiateLedgerClient creates a ledger client for the specified channel, org and user ID. The ledger client will be available as singletons in `global.LedgerClientInstances`.
+// Parameters:
+//   initialized Fabric SDK instance
+//   channel ID
+//   organization name
+//   user ID
+func InstantiateLedgerClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID string) error {
+	if global.LedgerClientInstances == nil {
+		global.LedgerClientInstances = make(map[string]map[string]map[string]*ledger.Client)
+	}
+
+	if global.LedgerClientInstances[channelID] == nil {
+		global.LedgerClientInstances[channelID] = make(map[string]map[string]*ledger.Client)
+	}
+
+	if global.LedgerClientInstances[channelID][orgName] == nil {
+		global.LedgerClientInstances[channelID][orgName] = make(map[string]*ledger.Client)
+	}
+
+	if global.LedgerClientInstances[channelID][orgName][userID] != nil {
+		return fmt.Errorf("%v@%v 在通道 '%v' 上的账本客户端已实例化", userID, orgName, channelID)
+	}
+
+	// Creates a ledger client instance. Ledger clients can query blocks and transactions on the channel.
+	clientCtx := sdk.ChannelContext(channelID, fabsdk.WithUser(userID), fabsdk.WithOrg(orgName))
+	ledgerClient, err := ledger.New(clientCtx)
+	if err != nil {
+		return errors.Wrapf(err, "无法在通道 '%v' 上为 %v@%v 创建账本客户端", channelID, userID, orgName)
+	}
+	global.LedgerClientInstances[channelID][orgName][userID] = ledgerClient
+
+	log.Printf("已在通道 '%v' 上为 %v@%v 创建账本客户端。", channelID, userID, orgName)
 
 	return nil
 }

@@ -51,5 +51,21 @@ chaincodes:
           - 100
         orgName: Org1
         userID: Admin
-    
-        
+  universalCc:
+    version: 0.1
+    path: universal_cc
+    goPath: chaincode
+    installations:
+      Org1:
+        orgName: Org1
+        userID: Admin
+      Org2:
+        orgName: Org2
+        userID: Admin
+    instantiations:
+      mychannel:
+        policy: OR('Org1MSP.member', 'Org2MSP.member')
+        initArgs:
+        orgName: Org1
+        userID: Admin
+

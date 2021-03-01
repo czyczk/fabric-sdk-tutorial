@@ -44,20 +44,23 @@ func InitApp(initInfo *InitInfo) error {
 		}
 	}
 
-	// Configure chaincodes if the chaincodes section is specified
-	if initInfo.Chaincodes != nil {
-		if err := configureChaincodes(initInfo.Chaincodes); err != nil {
-			return err
-		}
-	}
-
-	// Channel clients
+	// Channel & ledger clients
 	channelIDs := make([]string, 0, len(initInfo.Channels))
 	for channelID := range initInfo.Channels {
 		channelIDs = append(channelIDs, channelID)
 	}
 	if err := instantiateChannelClients(sdk, initInfo.Users, channelIDs); err != nil {
 		return err
+	}
+	if err := instantiateLedgerClients(sdk, initInfo.Users, channelIDs); err != nil {
+		return err
+	}
+
+	// Configure chaincodes if the chaincodes section is specified
+	if initInfo.Chaincodes != nil {
+		if err := configureChaincodes(initInfo.Chaincodes); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -150,6 +153,29 @@ func instantiateChannelClients(sdk *fabsdk.FabricSDK, userInfo map[string]*OrgIn
 			// Channel client for each user ID
 			for _, userID := range orgInfo.UserIDs {
 				if err := InstantiateChannelClient(sdk, channelID, orgName, userID); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// Instantiates ledger clients for users in the list.
+func instantiateLedgerClients(sdk *fabsdk.FabricSDK, userInfo map[string]*OrgInfo, channelIDs []string) error {
+	for orgName, orgInfo := range userInfo {
+		for _, channelID := range channelIDs {
+			// Ledger client for each admin ID
+			for _, adminID := range orgInfo.AdminIDs {
+				if err := InstantiateLedgerClient(sdk, channelID, orgName, adminID); err != nil {
+					return err
+				}
+			}
+
+			// Ledger client for each user ID
+			for _, userID := range orgInfo.UserIDs {
+				if err := InstantiateLedgerClient(sdk, channelID, orgName, userID); err != nil {
 					return err
 				}
 			}
