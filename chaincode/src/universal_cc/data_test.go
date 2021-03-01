@@ -11,6 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	data1 = "data1"
+	data2 = "data2"
+)
+
 func TestCreatePlainDataWithNormalData(t *testing.T) {
 	targetFunction := "createPlainData"
 
@@ -27,7 +32,7 @@ func TestCreatePlainDataWithNormalData(t *testing.T) {
 	expectResponseStatusOK(t, &resp)
 
 	// Check if the data in State is as expected
-	expectStateEqual(t, stub, getKeyForResData(resourceID), samplePlainData1.Data)
+	expectStateEqual(t, stub, getKeyForResData(resourceID), []byte(data1))
 
 	// Check if the stored metadata can be parsed
 	metadataStoredBytes := stub.State[getKeyForResMetadata(resourceID)]
@@ -147,7 +152,7 @@ func getSamplePlainData1() data.PlainData {
 			Size:         uint64(len([]byte("data1"))),
 			Extensions:   "{\"name\":\"examplePlainData1\"}",
 		},
-		Data: []byte("data1"),
+		Data: base64.StdEncoding.EncodeToString([]byte(data1)),
 	}
 }
 
@@ -160,6 +165,6 @@ func getSamplePlainData2() data.PlainData {
 			Size:         uint64(len([]byte("data2"))),
 			Extensions:   "{\"name\":\"examplePlainData2\"}",
 		},
-		Data: []byte("data2"),
+		Data: base64.StdEncoding.EncodeToString([]byte(data2)),
 	}
 }

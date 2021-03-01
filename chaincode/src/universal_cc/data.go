@@ -43,13 +43,19 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 		return shim.Error(fmt.Sprintf("资源 ID '%v' 已被占用", resourceID))
 	}
 
-	// 计算哈希和大小并检查是否与用户提供的值相同
-	sizeStored := uint64(len(plainData.Data))
-	if sizeStored != plainData.Metadata.Size {
-		return shim.Error("大小不匹配")
+	// 将数据本体从 Base64 解码
+	dataBytes, err := base64.StdEncoding.DecodeString(plainData.Data)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析数据本体"))
 	}
 
-	hashStored := sha256.Sum256(plainData.Data)
+	// 计算哈希和大小并检查是否与用户提供的值相同
+	sizeStored := uint64(len(dataBytes))
+	if sizeStored != plainData.Metadata.Size {
+		return shim.Error(fmt.Sprintf("大小不匹配，应有大小为 %v，实际大小为 %v", plainData.Metadata.Size, sizeStored))
+	}
+
+	hashStored := sha256.Sum256(dataBytes)
 	if hashStored != plainData.Metadata.Hash {
 		return shim.Error("哈希不匹配")
 	}
@@ -80,7 +86,7 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 
 	// 写入数据库
 	dbDataKey := getKeyForResData(resourceID)
-	if err = stub.PutState(dbDataKey, plainData.Data); err != nil {
+	if err = stub.PutState(dbDataKey, dataBytes); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储资源数据: %v", err))
 	}
 
@@ -126,8 +132,10 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 	txID := stub.GetTxID()
 
 	// 发事件
-	if err = stub.SetEvent(eventID, []byte(txID)); err != nil {
-		return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
+	if eventID != "" {
+		if err = stub.SetEvent(eventID, []byte(txID)); err != nil {
+			return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
+		}
 	}
 
 	return shim.Success([]byte(txID))

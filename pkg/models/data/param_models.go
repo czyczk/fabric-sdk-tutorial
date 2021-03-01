@@ -64,7 +64,7 @@ type ResMetadata struct {
 // PlainData 用于表示要传入链码的明文资源
 type PlainData struct {
 	Metadata ResMetadata `json:"metadata"` // 资源的元数据
-	Data     []byte      `json:"data"`     // 资源数据本体
+	Data     string      `json:"data"`     // 资源数据本体
 }
 
 // EncryptedData 用于表示要传入链码的加密资源
