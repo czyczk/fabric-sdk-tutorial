@@ -86,7 +86,7 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 
 	// 建立索引
 	// resourcecreator~authsessionid 绑定资源创建者和auth会话ID
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(Metadata.Creator)
 	indexName := "resourcecreator~authsessionid"
 	indexKey, err := stub.CreateCompositeKey(indexName, []string{creatorAsBase64, authSessionID})
 	if err != nil {
