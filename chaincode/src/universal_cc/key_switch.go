@@ -44,6 +44,17 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	validationResult := false
 	authSessionID := ksTrigger.AuthSessionID
 
+	// 获取 resourceID，验证资源是否存在
+	resourceID := ksTrigger.ResourceID
+	key := getKeyForResMetadata(resourceID)
+	metadata, err := stub.GetState(key)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法确定元数据的可用性: %v", err))
+	}
+	if metadata == nil {
+		return shim.Error(fmt.Sprintln("资源 ID 不存在"))
+	}
+
 	// 获取创建者与时间戳
 	creator, err := getPKDERFromStub(stub)
 	if err != nil {
@@ -62,6 +73,20 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		err = json.Unmarshal(authresp.Payload, &authResponseStored)
 		if err != nil {
 			return shim.Error(fmt.Sprintf("AuthResponseStored 无法解析成 JSON 对象: %v", err))
+		}
+		// 获取 AuthRequestStored,验证其中资源 ID 是否相同
+		authreq := uc.getAuthRequest(stub, []string{authSessionID})
+		var authRequestStored auth.AuthRequestStored
+		err = json.Unmarshal(authreq.Payload, &authRequestStored)
+		if err != nil {
+			return shim.Error(fmt.Sprintf("AuthRequestStored 无法解析成 JSON 对象: %v", err))
+		}
+		if authRequestStored.ResourceID != resourceID {
+			return shim.Error(fmt.Sprintln("资源 ID 与授权会话 ID 不匹配"))
+		}
+		// 验证AuthRequestStored.Creator是否等于链码调用者 Creator
+		if string(authRequestStored.Creator) != string(creator) {
+			return shim.Error(fmt.Sprintln("不是申请授权者本人"))
 		}
 		// 根据 AuthResponseStored 中的结果得到最终判断结果
 		if authResponseStored.Result == true {
@@ -143,7 +168,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化 KeySwitchTriggerStored: %v", err))
 	}
-	key := getKeyForKeySwitchTrigger(ksSessionID)
+	key = getKeyForKeySwitchTrigger(ksSessionID)
 	err = stub.PutState(key, data)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法存储 KeySwitchTriggerStored: %v", err))
