@@ -52,7 +52,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		return shim.Error(fmt.Sprintf("无法确定元数据的可用性: %v", err))
 	}
 	if metadata == nil {
-		return shim.Error(fmt.Sprintln("资源 ID 不存在"))
+		return shim.Error(fmt.Sprintf("资源 ID 不存在"))
 	}
 
 	// 获取创建者与时间戳
@@ -68,25 +68,25 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 
 	if authSessionID != "" {
 		// 如果 authSessionID 不为空值，则获取 AuthResponseStored，并解析成 JSON 对象
-		authresp := uc.getAuthResponseHelper(stub, []string{authSessionID})
+		authResp := uc.getAuthResponseHelper(stub, []string{authSessionID})
 		var authResponseStored auth.AuthResponseStored
-		err = json.Unmarshal(authresp.Payload, &authResponseStored)
+		err = json.Unmarshal(authResp.Payload, &authResponseStored)
 		if err != nil {
 			return shim.Error(fmt.Sprintf("AuthResponseStored 无法解析成 JSON 对象: %v", err))
 		}
-		// 获取 AuthRequestStored,验证其中资源 ID 是否相同
-		authreq := uc.getAuthRequest(stub, []string{authSessionID})
+		// 获取 AuthRequestStored，验证其中资源 ID 是否相同
+		authReq := uc.getAuthRequest(stub, []string{authSessionID})
 		var authRequestStored auth.AuthRequestStored
-		err = json.Unmarshal(authreq.Payload, &authRequestStored)
+		err = json.Unmarshal(authReq.Payload, &authRequestStored)
 		if err != nil {
 			return shim.Error(fmt.Sprintf("AuthRequestStored 无法解析成 JSON 对象: %v", err))
 		}
 		if authRequestStored.ResourceID != resourceID {
-			return shim.Error(fmt.Sprintln("资源 ID 与授权会话 ID 不匹配"))
+			return shim.Error(fmt.Sprintf("资源 ID 与授权会话 ID 不匹配"))
 		}
-		// 验证AuthRequestStored.Creator是否等于链码调用者 Creator
+		// 验证 AuthRequestStored.Creator 是否等于链码调用者 Creator
 		if string(authRequestStored.Creator) != string(creator) {
-			return shim.Error(fmt.Sprintln("不是申请授权者本人"))
+			return shim.Error(fmt.Sprintf("不是申请授权者本人"))
 		}
 		// 根据 AuthResponseStored 中的结果得到最终判断结果
 		if authResponseStored.Result == true {
