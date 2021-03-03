@@ -11,6 +11,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
 
 // A DocumentController contains a group name and a `DocumentService` instance. It also implements the interface `Controller`.
@@ -107,18 +108,15 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	}
 
 	// Check error type and generate the corresponding response
-	switch err {
-	case nil:
+	if err == nil {
 		info := ResourceCreationInfo{
 			ResourceID:    id,
 			TransactionID: txID,
 		}
 		c.JSON(http.StatusOK, info)
-	case errorcode.ErrorNotFound:
-		c.Writer.WriteHeader(http.StatusNotFound)
-	case errorcode.ErrorNotImplemented:
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
 		c.Writer.WriteHeader(http.StatusNotImplemented)
-	default:
+	} else {
 		c.String(http.StatusInternalServerError, err.Error())
 	}
 }
@@ -136,14 +134,13 @@ func (dc *DocumentController) handleGetDocumentMetadata(c *gin.Context) {
 	}
 
 	resDataMetadata, err := dc.DocumentSvc.GetDocumentMetadata(id)
-	switch err {
-	case nil:
+	if err == nil {
 		c.JSON(http.StatusOK, resDataMetadata)
-	case errorcode.ErrorNotFound:
+	} else if errors.Cause(err) == errorcode.ErrorNotFound {
 		c.Writer.WriteHeader(http.StatusNotFound)
-	case errorcode.ErrorNotImplemented:
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
 		c.Writer.WriteHeader(http.StatusNotImplemented)
-	default:
+	} else {
 		c.String(http.StatusInternalServerError, err.Error())
 	}
 }
@@ -199,14 +196,13 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	}
 
 	// Check error type and generate the corresponding response
-	switch err {
-	case nil:
+	if err == nil {
 		c.JSON(http.StatusOK, document)
-	case errorcode.ErrorNotFound:
+	} else if errors.Cause(err) == errorcode.ErrorNotFound {
 		c.Writer.WriteHeader(http.StatusNotFound)
-	case errorcode.ErrorNotImplemented:
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
 		c.Writer.WriteHeader(http.StatusNotImplemented)
-	default:
+	} else {
 		c.String(http.StatusInternalServerError, err.Error())
 	}
 }
