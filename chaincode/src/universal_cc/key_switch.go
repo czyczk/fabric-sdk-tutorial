@@ -52,7 +52,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		return shim.Error(fmt.Sprintf("无法确定元数据的可用性: %v", err))
 	}
 	if metadata == nil {
-		return shim.Error(fmt.Sprintf("资源 ID 不存在"))
+		return shim.Error("资源 ID 不存在")
 	}
 
 	// 获取创建者与时间戳
@@ -67,6 +67,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	}
 
 	if authSessionID != "" {
+
 		// 如果 authSessionID 不为空值，则获取 AuthResponseStored，并解析成 JSON 对象
 		authResp := uc.getAuthResponseHelper(stub, []string{authSessionID})
 		var authResponseStored auth.AuthResponseStored
@@ -74,6 +75,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		if err != nil {
 			return shim.Error(fmt.Sprintf("AuthResponseStored 无法解析成 JSON 对象: %v", err))
 		}
+
 		// 获取 AuthRequestStored，验证其中资源 ID 是否相同
 		authReq := uc.getAuthRequest(stub, []string{authSessionID})
 		var authRequestStored auth.AuthRequestStored
@@ -82,36 +84,43 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 			return shim.Error(fmt.Sprintf("AuthRequestStored 无法解析成 JSON 对象: %v", err))
 		}
 		if authRequestStored.ResourceID != resourceID {
-			return shim.Error(fmt.Sprintf("资源 ID 与授权会话 ID 不匹配"))
+			return shim.Error("资源 ID 与授权会话 ID 不匹配")
 		}
+
 		// 验证 AuthRequestStored.Creator 是否等于链码调用者 Creator
 		if string(authRequestStored.Creator) != string(creator) {
-			return shim.Error(fmt.Sprintf("不是申请授权者本人"))
+			return shim.Error("不是申请授权者本人")
 		}
+
 		// 根据 AuthResponseStored 中的结果得到最终判断结果
 		if authResponseStored.Result == true {
 			validationResult = true
 		}
 	} else {
+
 		// 如果 authSessionID 为空值，执行 abac
 		// 获取当前客户端的证书
 		cert, err := cid.GetX509Certificate(stub)
 		if err != nil {
 			return shim.Error(fmt.Sprintf("无法获取证书: %v", err))
 		}
+
 		// 获取当前客户端证书上的属性
 		attri, err := attrmgr.New().GetAttributesFromCert(cert)
 		if err != nil {
 			return shim.Error(fmt.Sprintf("无法获取属性: %v", err))
 		}
+
 		// 将从证书中得到属性的map类型，转为struct类型
 		attr := identity.DepartmentIdentityStored{}
 		mapstructure.Decode(attri.Attrs, &attr)
-		deptLevel, err := strconv.Atoi(attri.Attrs["DeptLevel"])
-		if err != nil {
-			return shim.Error(fmt.Sprintf("DeptLevel 需为正整数: %v", err))
+		if attri.Attrs["DeptLevel"] != "" {
+			deptLevel, err := strconv.Atoi(attri.Attrs["DeptLevel"])
+			if err != nil {
+				return shim.Error(fmt.Sprintf("DeptLevel 需为正整数: %v", err))
+			}
+			attr.DeptLevel = deptLevel
 		}
-		attr.DeptLevel = deptLevel
 
 		// 根据资源 ID，得到资源的访问策略
 		resourceID := ksTrigger.ResourceID
