@@ -37,12 +37,29 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 	// 检查资源是否存在
 	resourceID := authRequest.ResourceID
 	key := getKeyForResMetadata(resourceID)
-	metadata, err := stub.GetState(key)
+	metaDataStoredByte, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定资源 ID 可用性: %v", err))
 	}
-	if metadata == nil {
+	if metaDataStoredByte == nil {
 		return shim.Error("资源 ID 不存在")
+	}
+
+	// 构建并获取 resMetadataStored，以此得到资源的creator以及资源类型
+	var metaDataStored data.ResMetadataStored
+	err = json.Unmarshal(metaDataStoredByte, &metaDataStored)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("元数据无法解析成 JSON 对象: %v", err))
+	}
+
+	// 检查资源是否为明文
+	if metaDataStored.ResourceType == data.Plain {
+		return shim.Error("明文不需要申请访问权")
+	}
+
+	// 检查资源是否为监管者只读文件
+	if metaDataStored.ResourceType == data.RegulatorEncrypted {
+		return shim.Error("不允许申请监管者只读文件的访问权")
 	}
 
 	// 获取创建者与时间戳
@@ -77,16 +94,9 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 		return shim.Error(fmt.Sprintf("无法存储 authRequestStored: %v", err))
 	}
 
-	// 构建并获取 resMetadataStored，以此得到资源的creator
-	var Metadata data.ResMetadataStored
-	err = json.Unmarshal(metadata, &Metadata)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("元数据无法解析成 JSON 对象: %v", err))
-	}
-
 	// 建立索引
 	// resourcecreator~authsessionid 绑定资源创建者和auth会话ID
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(Metadata.Creator)
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(metaDataStored.Creator)
 	indexName := "resourcecreator~authsessionid"
 	indexKey, err := stub.CreateCompositeKey(indexName, []string{creatorAsBase64, authSessionID})
 	if err != nil {
