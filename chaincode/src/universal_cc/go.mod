@@ -8,7 +8,6 @@ require (
 	gitee.com/czyczk/fabric-sdk-tutorial v0.0.0
 	github.com/casbin/casbin v1.9.1
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/protobuf v1.3.3 // indirect
 	github.com/google/uuid v1.2.0
 	github.com/hyperledger/fabric-ca v1.4.9
 	github.com/hyperledger/fabric-chaincode-go v0.0.0-20201119163726-f8ef75b17719
