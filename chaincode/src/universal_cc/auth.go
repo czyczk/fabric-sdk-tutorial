@@ -37,17 +37,17 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 	// 检查资源是否存在
 	resourceID := authRequest.ResourceID
 	key := getKeyForResMetadata(resourceID)
-	metaDataStoredByte, err := stub.GetState(key)
+	metadataStoredByte, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定资源 ID 可用性: %v", err))
 	}
-	if metaDataStoredByte == nil {
+	if metadataStoredByte == nil {
 		return shim.Error("资源 ID 不存在")
 	}
 
 	// 构建并获取 resMetadataStored，以此得到资源的creator以及资源类型
 	var metaDataStored data.ResMetadataStored
-	err = json.Unmarshal(metaDataStoredByte, &metaDataStored)
+	err = json.Unmarshal(metadataStoredByte, &metaDataStored)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("元数据无法解析成 JSON 对象: %v", err))
 	}
