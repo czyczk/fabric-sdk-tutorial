@@ -51,6 +51,21 @@ func TestCreatePlainDataWithNormalData(t *testing.T) {
 	expectEqual(t, samplePlainData1.Metadata.Size, metadataStored.SizeStored)
 }
 
+func TestCreatePlainDataWithExcessiveParameters(t *testing.T) {
+	targetFunction := "createPlainData"
+
+	stub := createMockStub(t, "TestCreatePlainDataWithExcessiveParameters")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the arg
+	samplePlainData1 := getSamplePlainData1()
+	dataBytes, _ := json.Marshal(samplePlainData1)
+
+	// Invoke with samplePlainData1 with excessive parameters and expect the response status to be ERROR
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes, []byte("someEventID"), []byte("EXCESSIVE PARAMETER")})
+	expectResponseStatusERROR(t, &resp)
+}
+
 func TestCreatePlainDataWithDuplicateResourceIDs(t *testing.T) {
 	targetFunction := "createPlainData"
 
