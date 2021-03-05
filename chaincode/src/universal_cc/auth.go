@@ -194,7 +194,7 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 
 	// 检查该交易的创建者是否为资源创建者
 	if string(creator) != string(Metadata.Creator) {
-		return shim.Error("你不是资源创建者，无权限批复该请求")
+		return shim.Error(errorcode.CodeForbidden)
 	}
 
 	// 构建 AuthResponseStored 并存储上链
