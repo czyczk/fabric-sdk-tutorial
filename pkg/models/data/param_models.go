@@ -70,7 +70,7 @@ type PlainData struct {
 // EncryptedData 用于表示要传入链码的加密资源
 type EncryptedData struct {
 	Metadata ResMetadata `json:"metadata"` // 资源的元数据
-	Data     []byte      `json:"data"`     // 资源数据本体
+	Data     string      `json:"data"`     // 资源数据本体
 	Key      []byte      `json:"key"`      // 加密的对称密钥
 	Policy   string      `json:"policy"`   // 策略
 }
