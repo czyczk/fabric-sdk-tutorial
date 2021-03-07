@@ -28,19 +28,11 @@ func getKeyForResMetadata(resourceID string) string {
 	return fmt.Sprintf("res_%s_metadata", resourceID)
 }
 
-func getKeyForKey(resourceID string) string {
-	return fmt.Sprintf("res_%s_key", resourceID)
-}
-
-func getKeyForPolicy(resourceID string) string {
-	return fmt.Sprintf("res_%s_Policy", resourceID)
-}
-
 func getKeyForResKey(resourceID string) string {
 	return fmt.Sprintf("res_%s_key", resourceID)
 }
 
-func getKeyForResPlicy(resourceID string) string {
+func getKeyForResPolicy(resourceID string) string {
 	return fmt.Sprintf("res_%s_policy", resourceID)
 }
 

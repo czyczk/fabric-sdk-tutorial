@@ -95,6 +95,8 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		// 根据 AuthResponseStored 中的结果得到最终判断结果
 		if authResponseStored.Result == true {
 			validationResult = true
+		} else {
+			return shim.Error(errorcode.CodeForbidden)
 		}
 	} else {
 
@@ -124,7 +126,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 
 		// 根据资源 ID，得到资源的访问策略
 		resourceID := ksTrigger.ResourceID
-		key := getKeyForResPlicy(resourceID)
+		key := getKeyForResPolicy(resourceID)
 		Policy, err := stub.GetState(key)
 		if err != nil {
 			return shim.Error(fmt.Sprintf("无法确定 policy 的可用性: %v", err))
@@ -161,6 +163,9 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		m.LoadModelFromText(modeltext)
 		e := casbin.NewEnforcer(m)
 		validationResult = e.Enforce(attr, "", "")
+		if validationResult == false {
+			return shim.Error(errorcode.CodeForbidden)
+		}
 	}
 
 	// 构建 KeySwitchTriggerStored 并存储上链

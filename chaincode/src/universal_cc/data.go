@@ -148,7 +148,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 		return shim.Error("参数数量不正确。应为 1 或 2 个")
 	}
 
-	// 解析第 0 个参数为 data.PlainData
+	// 解析第 0 个参数为 data.EncryptedData
 	encryptedData := data.EncryptedData{}
 	if err := json.Unmarshal([]byte(args[0]), &encryptedData); err != nil {
 		return shim.Error(fmt.Sprintf("无法解析参数中的 JSON 对象: %v", err))
@@ -175,18 +175,12 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	// 将数据本体从 Base64 解码
 	dataBytes, err := base64.StdEncoding.DecodeString(encryptedData.Data)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法解析数据本体"))
+		return shim.Error("无法解析数据本体")
 	}
 
-	PolicyBytes, _ := json.Marshal(encryptedData.Policy)
+	policyBytes, err := json.Marshal(encryptedData.Policy)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法解析策略"))
-	}
-
-	// 计算哈希和大小并检查是否与用户提供的值相同
-	sizeStored := uint64(len(dataBytes))
-	if sizeStored != encryptedData.Metadata.Size {
-		return shim.Error(fmt.Sprintf("大小不匹配，应有大小为 %v，实际大小为 %v", encryptedData.Metadata.Size, sizeStored))
+		return shim.Error("无法解析策略")
 	}
 
 	hashStored := sha256.Sum256(dataBytes)
@@ -206,7 +200,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	}
 
 	// 准备存储元数据
-	metadataStored := data.ResMetadataStored{
+	metaDataStored := data.ResMetadataStored{
 		ResourceType: encryptedData.Metadata.ResourceType,
 		ResourceID:   encryptedData.Metadata.ResourceID,
 		Hash:         encryptedData.Metadata.Hash,
@@ -215,7 +209,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 		Creator:      creator,
 		Timestamp:    timestamp,
 		HashStored:   hashStored,
-		SizeStored:   sizeStored,
+		SizeStored:   encryptedData.Metadata.Size,
 	}
 
 	// 写入数据库
@@ -223,21 +217,22 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	if err = stub.PutState(dbDataKey, dataBytes); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储资源数据: %v", err))
 	}
-	dbKeykey := getKeyForKey(resourceID)
-	if err = stub.PutState(dbKeykey, encryptedData.Key); err != nil {
+
+	dbKeyKey := getKeyForResKey(resourceID)
+	if err = stub.PutState(dbKeyKey, encryptedData.Key); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储密钥: %v", err))
 	}
 
-	dbpolicykey := getKeyForPolicy(resourceID)
-	if err = stub.PutState(dbpolicykey, PolicyBytes); err != nil {
-		return shim.Error(fmt.Sprintf("无法存储密钥: %v", err))
+	dbPolicykey := getKeyForResPolicy(resourceID)
+	if err = stub.PutState(dbPolicykey, policyBytes); err != nil {
+		return shim.Error(fmt.Sprintf("无法存储策略: %v", err))
 	}
 
-	metadataStoredBytes, err := json.Marshal(metadataStored)
+	metaDataStoredBytes, err := json.Marshal(metaDataStored)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化元数据: %v", err))
 	}
-	if err = stub.PutState(dbMetadataKey, metadataStoredBytes); err != nil {
+	if err = stub.PutState(dbMetadataKey, metaDataStoredBytes); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储元数据: %v", err))
 	}
 
@@ -316,7 +311,10 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 	}
 
 	// 将数据本体从 Base64 解码
-	PolicyBytes, _ := json.Marshal(offchainData.Policy)
+	policyBytes, err := json.Marshal(offchainData.Policy)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法获取策略: %v", err))
+	}
 	// 获取创建者与时间戳
 	creator, err := getPKDERFromStub(stub)
 	if err != nil {
@@ -337,17 +335,17 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 		Extensions:   offchainData.Metadata.Extensions,
 		Creator:      creator,
 		Timestamp:    timestamp,
-		HashStored:   offchainData.Metadata.Hash,
-		SizeStored:   offchainData.Metadata.Size,
+		HashStored:   [32]byte{},
+		SizeStored:   0,
 	}
 
-	dbKeykey := getKeyForKey(resourceID)
+	dbKeykey := getKeyForResKey(resourceID)
 	if err = stub.PutState(dbKeykey, offchainData.Key); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储密钥: %v", err))
 	}
 
-	dbpolicykey := getKeyForPolicy(resourceID)
-	if err = stub.PutState(dbpolicykey, PolicyBytes); err != nil {
+	dbpolicykey := getKeyForResPolicy(resourceID)
+	if err = stub.PutState(dbpolicykey, policyBytes); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储密钥: %v", err))
 	}
 
@@ -404,16 +402,13 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 
 func (uc *UniversalCC) getMetadata(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 	// 检查参数数量
-
 	lenArgs := len(args)
 	if lenArgs != 1 {
 		return shim.Error("参数数量不正确。应为 1 个")
 	}
 
-	var a string
-	json.Unmarshal([]byte(args[0]), &a)
 	// 解析第一个参数为 resourceID
-	resourceID := a
+	resourceID := args[0]
 
 	// 读 metadata 并返回，若未找到则返回 codeNotFound
 	dbKey := getKeyForResMetadata(resourceID)
@@ -435,16 +430,14 @@ func (uc *UniversalCC) getData(stub shim.ChaincodeStubInterface, args []string) 
 		return shim.Error("参数数量不正确。应为 1 个")
 	}
 
-	var a string
-	json.Unmarshal([]byte(args[0]), &a)
 	// 解析第一个参数为 resourceID
-	resourceID := a
+	resourceID := args[0]
 
-	// 读 metadata 并返回，若未找到则返回 codeNotFound
+	// 读 data 并返回，若未找到则返回 codeNotFound
 	dbKey := getKeyForResData(resourceID)
 	dataBytes, err := stub.GetState(dbKey)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法读取元数据: %v", err))
+		return shim.Error(fmt.Sprintf("无法读取数据: %v", err))
 	}
 
 	if len(dataBytes) == 0 {
@@ -460,16 +453,14 @@ func (uc *UniversalCC) getKey(stub shim.ChaincodeStubInterface, args []string) p
 		return shim.Error("参数数量不正确。应为 1 个")
 	}
 
-	var a string
-	json.Unmarshal([]byte(args[0]), &a)
 	// 解析第一个参数为 resourceID
-	resourceID := a
+	resourceID := args[0]
 
-	// 读 metadata 并返回，若未找到则返回 codeNotFound
-	dbKey := getKeyForKey(resourceID)
+	// 读 key并返回，若未找到则返回 codeNotFound
+	dbKey := getKeyForResKey(resourceID)
 	dataBytes, err := stub.GetState(dbKey)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法读取元数据: %v", err))
+		return shim.Error(fmt.Sprintf("无法读取密钥\n: %v", err))
 	}
 
 	if len(dataBytes) == 0 {
@@ -485,13 +476,11 @@ func (uc *UniversalCC) getPolicy(stub shim.ChaincodeStubInterface, args []string
 		return shim.Error("参数数量不正确。应为 1 个")
 	}
 
-	var a string
-	json.Unmarshal([]byte(args[0]), &a)
 	// 解析第一个参数为 resourceID
-	resourceID := a
+	resourceID := args[0]
 
-	// 读 metadata 并返回，若未找到则返回 codeNotFound
-	dbKey := getKeyForPolicy(resourceID)
+	// 读 policy并返回，若未找到则返回 codeNotFound
+	dbKey := getKeyForResPolicy(resourceID)
 	dataBytes, err := stub.GetState(dbKey)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法读取策略: %v", err))

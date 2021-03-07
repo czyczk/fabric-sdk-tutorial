@@ -160,7 +160,6 @@ func TestCreatePlainDataIndexStatus(t *testing.T) {
 
 func TestCreateEncryptedDataWithNormalData(t *testing.T) {
 	targetFunction := "createEncryptedData"
-
 	stub := createMockStub(t, "TestCreateEncryptedDataWithNormalData")
 	_ = initChaincode(stub, [][]byte{})
 
@@ -195,7 +194,6 @@ func TestCreateEncryptedDataWithNormalData(t *testing.T) {
 
 func TestCreateEncryptedDataWithExcessiveParameters(t *testing.T) {
 	targetFunction := "createEncryptedData"
-
 	stub := createMockStub(t, "TestCreateEncryptedDataWithExcessiveParameters")
 	_ = initChaincode(stub, [][]byte{})
 
@@ -210,7 +208,6 @@ func TestCreateEncryptedDataWithExcessiveParameters(t *testing.T) {
 
 func TestCreateEncryptedDataWithDuplicateResourceIDs(t *testing.T) {
 	targetFunction := "createEncryptedData"
-
 	stub := createMockStub(t, "TestCreatePlainDataWithDuplicateResourceIDs")
 	_ = initChaincode(stub, [][]byte{})
 
@@ -233,14 +230,12 @@ func TestCreateEncryptedDataWithDuplicateResourceIDs(t *testing.T) {
 
 func TestCreateEncryptedDataIndexStatus(t *testing.T) {
 	targetFunction := "createEncryptedData"
-
 	stub := createMockStub(t, "TestCreateEncryptedDataIndexStatus")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the args
 	getSampleEncryptedData1 := getSampleEncryptedData1()
 	getSampleEncryptedData2 := getSampleEncryptedData2()
-
 	sampleEncryptedData1Bytes, _ := json.Marshal(getSampleEncryptedData1)
 	sampleEncryptedData2Bytes, _ := json.Marshal(getSampleEncryptedData2)
 
@@ -278,8 +273,7 @@ func TestCreateEncryptedDataIndexStatus(t *testing.T) {
 
 func TestCreateOffchainDataWithNormalData(t *testing.T) {
 	targetFunction := "createOffchainData"
-
-	stub := createMockStub(t, "TestCreatePlainDataWithNormalData")
+	stub := createMockStub(t, "TestCreateOffchainDataWithNormalData")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the arg
@@ -287,7 +281,7 @@ func TestCreateOffchainDataWithNormalData(t *testing.T) {
 	resourceID := sampleOffchainData1.Metadata.ResourceID
 	dataBytes, _ := json.Marshal(sampleOffchainData1)
 
-	// Invoke with samplePlainData1 and expect the response status to be OK
+	// Invoke with createOffchainData and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 	expectResponseStatusOK(t, &resp)
 
@@ -303,53 +297,49 @@ func TestCreateOffchainDataWithNormalData(t *testing.T) {
 	expectEqual(t, resourceID, metadataStored.ResourceID)
 	expectEqual(t, sampleOffchainData1.Metadata.ResourceType, metadataStored.ResourceType)
 	expectEqual(t, sampleOffchainData1.Metadata.Hash, metadataStored.Hash)
-	expectEqual(t, sampleOffchainData1.Metadata.Hash, metadataStored.HashStored)
 	expectEqual(t, sampleOffchainData1.Metadata.Size, metadataStored.Size)
-	expectEqual(t, sampleOffchainData1.Metadata.Size, metadataStored.SizeStored)
 }
 
 func TestCreateOffchainDataWithExcessiveParameters(t *testing.T) {
 	targetFunction := "createOffchainData"
-
-	stub := createMockStub(t, "TestCreatePlainDataWithExcessiveParameters")
+	stub := createMockStub(t, "TestCreateOffchainDataWithExcessiveParameters")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the arg
 	sampleOffchainData1 := getSampleOffchainData1()
 	dataBytes, _ := json.Marshal(sampleOffchainData1)
 
-	// Invoke with samplePlainData1 with excessive parameters and expect the response status to be ERROR
+	// Invoke getSampleOffchainData1 with excessive parameters and expect the response status to be ERROR
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes, []byte("someEventID"), []byte("EXCESSIVE PARAMETER")})
 	expectResponseStatusERROR(t, &resp)
 }
 
 func TestCreateOffchainDataWithDuplicateResourceIDs(t *testing.T) {
 	targetFunction := "createOffchainData"
-
-	stub := createMockStub(t, "TestCreatePlainDataWithDuplicateResourceIDs")
+	stub := createMockStub(t, "TestCreateOffchainDataWithDuplicateResourceIDs")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the args
 	sampleOffchainData1 := getSampleOffchainData1()
 	sampleOffchainData2 := getSampleOffchainData2()
+
 	// Deliberately change the resource ID of data2 to be the same as data1
 	sampleOffchainData2.Metadata.ResourceID = sampleOffchainData1.Metadata.ResourceID
-
 	data1Bytes, _ := json.Marshal(sampleOffchainData1)
+	data2Bytes, _ := json.Marshal(sampleOffchainData1)
 
 	// Invoke with data1 and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), data1Bytes})
 	expectResponseStatusOK(t, &resp)
 
 	// Invoke with data2 and expect the response status to be ERROR
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), data1Bytes})
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), data2Bytes})
 	expectResponseStatusERROR(t, &resp)
 }
 
 func TestCreateOffchainDataIndexStatus(t *testing.T) {
 	targetFunction := "createOffchainData"
-
-	stub := createMockStub(t, "TestCreateEncryptedDataIndexStatus")
+	stub := createMockStub(t, "TestCreateOffchainDataIndexStatus")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the args
@@ -393,7 +383,6 @@ func TestCreateOffchainDataIndexStatus(t *testing.T) {
 
 func TestGetMetadata(t *testing.T) {
 	targetFunction := "createPlainData"
-
 	stub := createMockStub(t, "TestGetMetadata")
 	_ = initChaincode(stub, [][]byte{})
 
@@ -402,19 +391,20 @@ func TestGetMetadata(t *testing.T) {
 	resourceID := samplePlainData1.Metadata.ResourceID
 	dataBytes, _ := json.Marshal(samplePlainData1)
 
-	// Invoke with samplePlainData1 and expect the response status to be OK
+	// Invoke with createPlainData and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
 
-	targetFunction = "getMetadata"
 	// Prepare the arg
-
+	targetFunction = "getMetadata"
 	resourceID = samplePlainData1.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(resourceID)
 
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	// Invoke with getMetadata and expect the response status to be OK
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
+	expectResponseStatusOK(t, &resp)
 	resMetadata := data.ResMetadata{}
 	json.Unmarshal(resp.Payload, &resMetadata)
+
 	//check the return result
 	expectEqual(t, samplePlainData1.Metadata.ResourceID, resMetadata.ResourceID)
 	expectEqual(t, samplePlainData1.Metadata.Hash, resMetadata.Hash)
@@ -425,29 +415,28 @@ func TestGetMetadata(t *testing.T) {
 
 func TestGetMetadataWithExcessiveParameters(t *testing.T) {
 	targetFunction := "createPlainData"
-
 	stub := createMockStub(t, "TestGetMetadataWithExcessiveParameters")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the arg
 	samplePlainData1 := getSamplePlainData1()
-
 	dataBytes, _ := json.Marshal(samplePlainData1)
 	resourceID := samplePlainData1.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(samplePlainData1)
+
 	// Invoke with samplePlainData1 and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
 
-	targetFunction = "getMetadata"
 	// Prepare the arg
-	dataBytes, _ = json.Marshal(resourceID)
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes, []byte("EXCESSIVE PARAMETER")})
+	targetFunction = "getMetadata"
+
+	// Invoke with getMetadata and expect the response status to be ERROR
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID), []byte("EXCESSIVE PARAMETER")})
 	expectResponseStatusERROR(t, &resp)
 }
 
 func TestGetMetadataWithNonExistentID(t *testing.T) {
 	targetFunction := "createPlainData"
-
 	stub := createMockStub(t, "TestGetMetadataWithNonExistentID")
 	_ = initChaincode(stub, [][]byte{})
 
@@ -459,104 +448,96 @@ func TestGetMetadataWithNonExistentID(t *testing.T) {
 	dataBytes, _ = json.Marshal(samplePlainData1)
 	// Invoke with samplePlainData1 and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
 
-	targetFunction = "getMetadata"
 	// Prepare the arg
+	targetFunction = "getMetadata"
 	samplePlainData2 := getSamplePlainData2()
 	resourceID = samplePlainData2.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(resourceID)
 
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	// Invoke with getMetadata and expect the response status to be ERROR
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
 	expectResponseStatusERROR(t, &resp)
 }
 
 func TestGetData(t *testing.T) {
 	targetFunction := "createPlainData"
-
 	stub := createMockStub(t, "TestGetData")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the arg
 	samplePlainData1 := getSamplePlainData1()
-
 	dataBytes, _ := json.Marshal(samplePlainData1)
 	resourceID := samplePlainData1.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(samplePlainData1)
+
 	// Invoke with samplePlainData1 and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
 
+	// Invoke with getData and expect the response status to be OK
 	targetFunction = "getData"
 	resourceID = samplePlainData1.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(resourceID)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
+	expectResponseStatusOK(t, &resp)
 
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
-
-	var i string = string(resp.Payload[:])
 	//check the return result
+	var i string = string(resp.Payload[:])
 	i = base64.StdEncoding.EncodeToString([]byte(i))
 	expectEqual(t, samplePlainData1.Data, i)
 }
 
 func TestGetDataWithNonExistentID(t *testing.T) {
 	targetFunction := "createPlainData"
-
 	stub := createMockStub(t, "TestGetData")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the arg
 	samplePlainData1 := getSamplePlainData1()
-
-	dataBytes, _ := json.Marshal(samplePlainData1)
 	resourceID := samplePlainData1.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(samplePlainData1)
+	dataBytes, _ := json.Marshal(samplePlainData1)
 	// Invoke with samplePlainData1 and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
-
+	expectResponseStatusOK(t, &resp)
 	targetFunction = "getData"
 	samplePlainData2 := getSamplePlainData2()
 	resourceID = samplePlainData2.Metadata.ResourceID
 	dataBytes, _ = json.Marshal(resourceID)
 
-	// Invoke with samplePlainData1 and expect the response status to be OK
+	// Invoke with samplePlainData1 and expect the response status to be ERROR
 	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 	expectResponseStatusERROR(t, &resp)
-
 }
 
 func TestGetKey(t *testing.T) {
 	targetFunction := "createEncryptedData"
-
-	stub := createMockStub(t, "TestGetData")
+	stub := createMockStub(t, "TestGetKey")
 	_ = initChaincode(stub, [][]byte{})
 
-	// Prepare the arg
+	// Prepare the EncryptedData
 	sampleEncryptedData1 := getSampleEncryptedData1()
-
 	dataBytes, _ := json.Marshal(sampleEncryptedData1)
 	resourceID := sampleEncryptedData1.Metadata.ResourceID
 	dataBytes, _ = json.Marshal(sampleEncryptedData1)
-	// Invoke with samplePlainData1 and expect the response status to be OK
+
+	// Invoke with createEncryptedData and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
 
 	targetFunction = "getKey"
 	resourceID = sampleEncryptedData1.Metadata.ResourceID
 
-	dataBytes, _ = json.Marshal(resourceID)
-
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
-
+	// Invoke with getKey and expect the response status to be ok
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
+	expectResponseStatusOK(t, &resp)
 	sampleEncryptedData2 := getSampleEncryptedData1()
 	json.Unmarshal(resp.Payload, &sampleEncryptedData2.Key)
 
+	//check the return result
 	expectEqual(t, sampleEncryptedData1.Key, sampleEncryptedData2.Key)
 }
 
 func TestGetKeyWithNonExistentID(t *testing.T) {
 	targetFunction := "createEncryptedData"
-
 	stub := createMockStub(t, "TestGetKeyWithNonExistentID")
 	_ = initChaincode(stub, [][]byte{})
 
@@ -566,53 +547,54 @@ func TestGetKeyWithNonExistentID(t *testing.T) {
 	dataBytes, _ := json.Marshal(sampleEncryptedData1)
 	resourceID := sampleEncryptedData1.Metadata.ResourceID
 	dataBytes, _ = json.Marshal(sampleEncryptedData1)
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 
+	// Invoke with createEncryptedData and expect the response status to be OK
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
+
+	// Prepare the arg "resourceid" for test
 	sampleEncryptedData1 = getSampleEncryptedData2()
 	targetFunction = "getKey"
 	resourceID = sampleEncryptedData1.Metadata.ResourceID
 
-	dataBytes, _ = json.Marshal(resourceID)
-
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	// Invoke with getKey and expect the response status to be ERROR
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
 	expectResponseStatusERROR(t, &resp)
 
 }
 
 func TestGetPolicy(t *testing.T) {
-	targetFunction := "createOffchainData"
-
+	targetFunction := "createEncryptedData"
 	stub := createMockStub(t, "TestGetPolicy")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the arg
 	sampleEncryptedData1 := getSampleEncryptedData1()
-
 	dataBytes, _ := json.Marshal(sampleEncryptedData1)
 	resourceID := sampleEncryptedData1.Metadata.ResourceID
 	dataBytes, _ = json.Marshal(sampleEncryptedData1)
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 
+	// Invoke with createEncryptedData and expect the response status to be OK
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
+
+	// Prepare the arg "resourceid" for test
 	targetFunction = "getPolicy"
 	resourceID = sampleEncryptedData1.Metadata.ResourceID
 
-	dataBytes, _ = json.Marshal(resourceID)
+	// Invoke with getPolicy and expect the response status to be OK
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
+	expectResponseStatusOK(t, &resp)
 
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
-
-	var i string
 	//check the return result
+	var i string
 	json.Unmarshal(resp.Payload, &i)
 	expectEqual(t, sampleEncryptedData1.Policy, i)
 }
 
 func TestGetPolicyWithNonExistentID(t *testing.T) {
+	// createEncryptedData
 	targetFunction := "createEncryptedData"
-
 	stub := createMockStub(t, "TestGetPolicyWithNonExistentID")
 	_ = initChaincode(stub, [][]byte{})
 
@@ -622,17 +604,16 @@ func TestGetPolicyWithNonExistentID(t *testing.T) {
 	dataBytes, _ := json.Marshal(sampleEncryptedData1)
 	resourceID := sampleEncryptedData1.Metadata.ResourceID
 	dataBytes, _ = json.Marshal(sampleEncryptedData1)
-	// Invoke with samplePlainData1 and expect the response status to be OK
+	// Invoke with sampleEncryptedData1 and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
 
+	// Invoke with sampleEncryptedData2 and expect the response status to be ERROR
 	sampleEncryptedData1 = getSampleEncryptedData2()
 	targetFunction = "getKey"
 	resourceID = sampleEncryptedData1.Metadata.ResourceID
 
-	dataBytes, _ = json.Marshal(resourceID)
-
-	// Invoke with samplePlainData1 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
 	expectResponseStatusERROR(t, &resp)
 }
 
