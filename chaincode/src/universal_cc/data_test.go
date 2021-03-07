@@ -654,7 +654,7 @@ func getSampleEncryptedData1() data.EncryptedData {
 		},
 		Data:   base64.StdEncoding.EncodeToString([]byte(data1)),
 		Key:    []byte("123456"),
-		Policy: "Encryption strategy",
+		Policy: `(DeptType == "computer" && DeptLevel == 2)`,
 	}
 }
 
@@ -669,7 +669,7 @@ func getSampleEncryptedData2() data.EncryptedData {
 		},
 		Data:   base64.StdEncoding.EncodeToString([]byte(data2)),
 		Key:    []byte("123456"),
-		Policy: "Encryption strategy",
+		Policy: `(DeptType == "computer" && DeptLevel == 1)`,
 	}
 }
 
