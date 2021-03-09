@@ -184,9 +184,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	}
 
 	hashStored := sha256.Sum256(dataBytes)
-	if hashStored != encryptedData.Metadata.Hash {
-		return shim.Error("哈希不匹配")
-	}
+	sizeStored := len(dataBytes)
 
 	// 获取创建者与时间戳
 	creator, err := getPKDERFromStub(stub)
@@ -209,7 +207,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 		Creator:      creator,
 		Timestamp:    timestamp,
 		HashStored:   hashStored,
-		SizeStored:   encryptedData.Metadata.Size,
+		SizeStored:   uint64(sizeStored),
 	}
 
 	// 写入数据库
