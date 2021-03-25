@@ -617,86 +617,112 @@ func TestGetPolicyWithNonExistentID(t *testing.T) {
 	expectResponseStatusERROR(t, &resp)
 }
 
+// 明文数据
+// 资源 ID: "001"
+// 名称: "Sample Plain Data 1"
+// 内容: base64(data1)
 func getSamplePlainData1() data.PlainData {
 	return data.PlainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Plain,
 			ResourceID:   "001",
-			Hash:         sha256.Sum256([]byte("data1")),
-			Size:         uint64(len([]byte("data1"))),
-			Extensions:   "{\"name\":\"examplePlainData1\"}",
+			Hash:         sha256.Sum256([]byte(data1)),
+			Size:         uint64(len([]byte(data1))),
+			Extensions:   "{\"name\":\"Sample Plain Data 1\"}",
 		},
 		Data: base64.StdEncoding.EncodeToString([]byte(data1)),
 	}
 }
 
+// 明文数据
+// 资源 ID: "002"
+// 名称: "示例明文数据2"
+// 内容: base64(data2)
 func getSamplePlainData2() data.PlainData {
 	return data.PlainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Plain,
 			ResourceID:   "002",
-			Hash:         sha256.Sum256([]byte("data2")),
-			Size:         uint64(len([]byte("data2"))),
-			Extensions:   "{\"name\":\"examplePlainData2\"}",
+			Hash:         sha256.Sum256([]byte(data2)),
+			Size:         uint64(len([]byte(data2))),
+			Extensions:   "{\"name\":\"示例明文数据2\"}",
 		},
 		Data: base64.StdEncoding.EncodeToString([]byte(data2)),
 	}
 }
 
+// 加密数据
+// 资源 ID: "001"
+// 名称: "Sample Encrypted Data 1"
+// 内容：base64(encrypt(data1))
 func getSampleEncryptedData1() data.EncryptedData {
 	return data.EncryptedData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Encrypted,
 			ResourceID:   "001",
-			Hash:         sha256.Sum256([]byte("data1")),
-			Size:         uint64(len([]byte("data1"))),
-			Extensions:   "{\"name\":\"exampleEncryptedData1\"}",
+			Hash:         sha256.Sum256([]byte(data1)),
+			Size:         uint64(len([]byte(data1))),
+			Extensions:   "{\"name\":\"Sample Encrypted Data 1\"}",
 		},
+		// TODO: 需要用对称密钥加密
 		Data:   base64.StdEncoding.EncodeToString([]byte(data1)),
 		Key:    []byte("123456"),
 		Policy: `(DeptType == "computer" && DeptLevel == 2)`,
 	}
 }
 
+// 加密数据
+// 资源 ID: "002"
+// 名称: "示例加密数据2"
+// 内容：base64(encrypt(data2))
 func getSampleEncryptedData2() data.EncryptedData {
 	return data.EncryptedData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Encrypted,
 			ResourceID:   "002",
-			Hash:         sha256.Sum256([]byte("data2")),
-			Size:         uint64(len([]byte("data2"))),
-			Extensions:   "{\"name\":\"exampleEncryptedData2\"}",
+			Hash:         sha256.Sum256([]byte(data2)),
+			Size:         uint64(len([]byte(data2))),
+			Extensions:   "{\"name\":\"示例加密数据2\"}",
 		},
+		// TODO: 需要用对称密钥加密
 		Data:   base64.StdEncoding.EncodeToString([]byte(data2)),
 		Key:    []byte("123456"),
 		Policy: `(DeptType == "computer" && DeptLevel == 1)`,
 	}
 }
 
+// 链下数据
+// 资源 ID: "001"
+// 名称: "Sample Offchain Data 1"
 func getSampleOffchainData1() data.OffchainData {
 	return data.OffchainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Offchain,
 			ResourceID:   "001",
-			Hash:         sha256.Sum256([]byte("data1")),
-			Size:         uint64(len([]byte("data1"))),
-			Extensions:   "{\"name\":\"exampleOffchainData1\"}",
+			Hash:         sha256.Sum256([]byte(data1)),
+			Size:         uint64(len([]byte(data1))),
+			Extensions:   "{\"name\":\"Sample Offchain Data 1\"}",
 		},
-		Key:    []byte("123456"),
+		Key: []byte("123456"),
+		// TODO: 测试时填充
 		Policy: "Encryption strategy",
 	}
 }
 
+// 链下数据
+// 资源 ID: "002"
+// 名称: "示例链下数据2"
 func getSampleOffchainData2() data.OffchainData {
 	return data.OffchainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Offchain,
 			ResourceID:   "002",
-			Hash:         sha256.Sum256([]byte("data1")),
-			Size:         uint64(len([]byte("data1"))),
-			Extensions:   "{\"name\":\"exampleOffchainData2\"}",
+			Hash:         sha256.Sum256([]byte(data2)),
+			Size:         uint64(len([]byte(data2))),
+			Extensions:   "{\"name\":\"示例链下数据2\"}",
 		},
-		Key:    []byte("123456"),
+		Key: []byte("123456"),
+		// TODO: 测试时填充
 		Policy: "Encryption strategy",
 	}
 }
