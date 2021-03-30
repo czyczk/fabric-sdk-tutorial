@@ -7,6 +7,7 @@ import (
 	"math/bits"
 	"testing"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"github.com/google/uuid"
 )
@@ -14,6 +15,7 @@ import (
 const (
 	data1 = "data1"
 	data2 = "data2"
+	data3 = "data3"
 )
 
 func TestCreatePlainDataWithNormalData(t *testing.T) {
@@ -486,26 +488,41 @@ func TestGetData(t *testing.T) {
 	expectEqual(t, samplePlainData1.Data, i)
 }
 
+func TestGetDataWithExcessiveParameters(t *testing.T) {
+	targetFunction := "getData"
+	stub := createMockStub(t, "TestGetDataWithExcessiveParameters")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the args
+	samplePlainData1 := getSamplePlainData1()
+
+	// Invoke with excessive parameters and expect the status to be ERROR
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(samplePlainData1.Metadata.ResourceID), []byte("EXCESSIVE PARAMETER")})
+	expectResponseStatusERROR(t, &resp)
+}
+
 func TestGetDataWithNonExistentID(t *testing.T) {
 	targetFunction := "createPlainData"
-	stub := createMockStub(t, "TestGetData")
+	stub := createMockStub(t, "TestGetDataWithNonExistentID")
 	_ = initChaincode(stub, [][]byte{})
 
 	// Prepare the arg
 	samplePlainData1 := getSamplePlainData1()
 	resourceID := samplePlainData1.Metadata.ResourceID
 	dataBytes, _ := json.Marshal(samplePlainData1)
+
 	// Invoke with samplePlainData1 and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 	expectResponseStatusOK(t, &resp)
-	targetFunction = "getData"
-	samplePlainData2 := getSamplePlainData2()
-	resourceID = samplePlainData2.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(resourceID)
 
-	// Invoke with samplePlainData1 and expect the response status to be ERROR
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	// Prepare the args to test getData
+	targetFunction = "getData"
+	nonExistentResourceID := resourceID + "_NON_EXISTENT"
+
+	// Invoke with a non existent resource ID and expect the response status to be ERROR
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(nonExistentResourceID)})
 	expectResponseStatusERROR(t, &resp)
+	expectStringEndsWith(t, errorcode.CodeNotFound, resp.Message)
 }
 
 func TestGetKey(t *testing.T) {
@@ -536,6 +553,18 @@ func TestGetKey(t *testing.T) {
 	expectEqual(t, sampleEncryptedData1.Key, sampleEncryptedData2.Key)
 }
 
+func TestGetKeyWithExcessiveParameters(t *testing.T) {
+	stub := createMockStub(t, "TestGetKeyWithExcessiveParameters")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the arg
+	targetFunction := "getKey"
+	sampleEncryptedData1 := getSampleEncryptedData1()
+
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(sampleEncryptedData1.Metadata.ResourceID), []byte("EXCESSIVE PARAMETER")})
+	expectResponseStatusERROR(t, &resp)
+}
+
 func TestGetKeyWithNonExistentID(t *testing.T) {
 	targetFunction := "createEncryptedData"
 	stub := createMockStub(t, "TestGetKeyWithNonExistentID")
@@ -546,20 +575,19 @@ func TestGetKeyWithNonExistentID(t *testing.T) {
 
 	dataBytes, _ := json.Marshal(sampleEncryptedData1)
 	resourceID := sampleEncryptedData1.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(sampleEncryptedData1)
 
 	// Invoke with createEncryptedData and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 	expectResponseStatusOK(t, &resp)
 
-	// Prepare the arg "resourceid" for test
-	sampleEncryptedData1 = getSampleEncryptedData2()
+	// Prepare a non-existent resource ID to test getKey
+	nonExistentResourceID := resourceID + "_NON_EXISTENT"
 	targetFunction = "getKey"
-	resourceID = sampleEncryptedData1.Metadata.ResourceID
 
 	// Invoke with getKey and expect the response status to be ERROR
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(nonExistentResourceID)})
 	expectResponseStatusERROR(t, &resp)
+	expectStringEndsWith(t, errorcode.CodeNotFound, resp.Message)
 
 }
 
@@ -568,28 +596,51 @@ func TestGetPolicy(t *testing.T) {
 	stub := createMockStub(t, "TestGetPolicy")
 	_ = initChaincode(stub, [][]byte{})
 
-	// Prepare the arg
+	// Prepare the arg with encyprted data
 	sampleEncryptedData1 := getSampleEncryptedData1()
 	dataBytes, _ := json.Marshal(sampleEncryptedData1)
 	resourceID := sampleEncryptedData1.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(sampleEncryptedData1)
 
 	// Invoke with createEncryptedData and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 	expectResponseStatusOK(t, &resp)
 
-	// Prepare the arg "resourceid" for test
+	// Test getPolicy
 	targetFunction = "getPolicy"
-	resourceID = sampleEncryptedData1.Metadata.ResourceID
 
 	// Invoke with getPolicy and expect the response status to be OK
 	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
 	expectResponseStatusOK(t, &resp)
 
-	//check the return result
-	var i string
-	json.Unmarshal(resp.Payload, &i)
-	expectEqual(t, sampleEncryptedData1.Policy, i)
+	// Expect the result to be the same
+	expectEqual(t, resp.Payload, []byte(sampleEncryptedData1.Policy))
+
+	// Prepare the arg with offchain data and do it again
+	sampleOffchainData2 := getSampleOffchainData2()
+	dataBytes, _ = json.Marshal(sampleOffchainData2)
+	resourceID = sampleOffchainData2.Metadata.ResourceID
+	targetFunction = "createOffchainData"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
+	expectResponseStatusOK(t, &resp)
+	targetFunction = "getPolicy"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
+	expectResponseStatusOK(t, &resp)
+	expectEqual(t, resp.Payload, []byte(sampleOffchainData2.Policy))
+}
+
+func TestGetPolicyWithExcessiveParameters(t *testing.T) {
+	stub := createMockStub(t, "TestGetPolicyWithExcessiveParameters")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the args
+	targetFunction := "getPolicy"
+	sampleEncryptedData1 := getSampleEncryptedData1()
+
+	resourceID := sampleEncryptedData1.Metadata.ResourceID
+
+	// Invoke with excessive parameters and expect the response status to be ERROR
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID), []byte("EXCESSIVE PARAMETER")})
+	expectResponseStatusERROR(t, &resp)
 }
 
 func TestGetPolicyWithNonExistentID(t *testing.T) {
@@ -603,17 +654,283 @@ func TestGetPolicyWithNonExistentID(t *testing.T) {
 
 	dataBytes, _ := json.Marshal(sampleEncryptedData1)
 	resourceID := sampleEncryptedData1.Metadata.ResourceID
-	dataBytes, _ = json.Marshal(sampleEncryptedData1)
 	// Invoke with sampleEncryptedData1 and expect the response status to be OK
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 	expectResponseStatusOK(t, &resp)
 
-	// Invoke with sampleEncryptedData2 and expect the response status to be ERROR
-	sampleEncryptedData1 = getSampleEncryptedData2()
-	targetFunction = "getKey"
-	resourceID = sampleEncryptedData1.Metadata.ResourceID
+	// Invoke getPolicy with a non existent resource ID
+	nonExistentResourceID := resourceID + "_NON_EXISTENT"
+	targetFunction = "getPolicy"
 
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(resourceID)})
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(nonExistentResourceID)})
+	expectResponseStatusERROR(t, &resp)
+	expectStringEndsWith(t, errorcode.CodeNotFound, resp.Message)
+}
+
+func TestLinkEntityIDWithDocumentID(t *testing.T) {
+	stub := createMockStub(t, "TestLinkEntityIDWithDocumentID")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the args
+	asset := getSamplePlainData1()
+	doc2 := getSamplePlainData2()
+	doc3 := getSamplePlainData3()
+
+	assetBytes, _ := json.Marshal(asset)
+	doc2Bytes, _ := json.Marshal(doc2)
+	doc3Bytes, _ := json.Marshal(doc3)
+
+	// Invoke to upload the data and expect the response status to be OK
+	targetFunction := "createPlainData"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), assetBytes})
+	expectResponseStatusOK(t, &resp)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
+	expectResponseStatusOK(t, &resp)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc3Bytes})
+	expectResponseStatusOK(t, &resp)
+
+	targetFunction = "linkEntityIDWithDocumentID"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID)})
+	expectResponseStatusOK(t, &resp)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc3.Metadata.ResourceID)})
+	expectResponseStatusOK(t, &resp)
+
+	// Query the composite key and expect to get 2 entries with values of the resource IDs we've just linked to
+	expectedResourceIDs := make(map[string]bool)
+	expectedResourceIDs[doc2.Metadata.ResourceID] = true
+	expectedResourceIDs[doc3.Metadata.ResourceID] = true
+
+	ckObjectType := "entityid~documentid"
+	it, err := stub.GetStateByPartialCompositeKey(ckObjectType, []string{asset.Metadata.ResourceID})
+	expectNil(t, err)
+
+	defer it.Close()
+
+	resourceIDs := []string{}
+	for it.HasNext() {
+		entry, err := it.Next()
+		expectNil(t, err)
+
+		_, ckParts, err := stub.SplitCompositeKey(entry.Key)
+		expectNil(t, err)
+
+		resourceIDs = append(resourceIDs, ckParts[1])
+	}
+
+	expectEqual(t, len(expectedResourceIDs), len(resourceIDs))
+	for _, resourceID := range resourceIDs {
+		expectEqual(t, true, expectedResourceIDs[resourceID])
+	}
+}
+
+func TestLinkEntityIDWithDocumentIDWithExcessiveParameters(t *testing.T) {
+	stub := createMockStub(t, "TestLinkEntityIDWithDocumentIDWithExcessiveParameters")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the args
+	asset := getSamplePlainData1()
+	doc2 := getSamplePlainData2()
+
+	// Invoke to upload the data and expect the response status to be OK
+	targetFunction := "linkEntityIDWithDocumentID"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID), []byte("EXCESSIVE PARAMETER")})
+	expectResponseStatusERROR(t, &resp)
+}
+
+func TestLinkEntityIDWithDocumentIDWithNonExistentEntityID(t *testing.T) {
+	stub := createMockStub(t, "TestLinkEntityIDWithDocumentIDWithNonExistentEntityID")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the args
+	asset := getSamplePlainData1()
+	doc2 := getSamplePlainData2()
+
+	assetBytes, _ := json.Marshal(asset)
+	doc2Bytes, _ := json.Marshal(doc2)
+
+	// Invoke to upload the data and expect the response status to be OK
+	targetFunction := "createPlainData"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), assetBytes})
+	expectResponseStatusOK(t, &resp)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
+	expectResponseStatusOK(t, &resp)
+
+	targetFunction = "linkEntityIDWithDocumentID"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID)})
+	expectResponseStatusOK(t, &resp)
+
+	// Check with a non-existent entity ID and expect the results to be empty
+	doc3 := getSamplePlainData3()
+
+	ckObjectType := "entityid~documentid"
+	it, err := stub.GetStateByPartialCompositeKey(ckObjectType, []string{doc3.Metadata.ResourceID})
+	expectNil(t, err)
+
+	defer it.Close()
+
+	expectEqual(t, false, it.HasNext())
+}
+
+func TestListDocumentIDsByEntityID(t *testing.T) {
+	stub := createMockStub(t, "TestLinkEntityIDWithDocumentID")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the args
+	asset := getSamplePlainData1()
+	doc2 := getSamplePlainData2()
+	doc3 := getSamplePlainData3()
+
+	assetBytes, _ := json.Marshal(asset)
+	doc2Bytes, _ := json.Marshal(doc2)
+	doc3Bytes, _ := json.Marshal(doc3)
+
+	// Invoke to upload the data and expect the response status to be OK
+	targetFunction := "createPlainData"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), assetBytes})
+	expectResponseStatusOK(t, &resp)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
+	expectResponseStatusOK(t, &resp)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc3Bytes})
+	expectResponseStatusOK(t, &resp)
+
+	targetFunction = "linkEntityIDWithDocumentID"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID)})
+	expectResponseStatusOK(t, &resp)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc3.Metadata.ResourceID)})
+	expectResponseStatusOK(t, &resp)
+
+	// Test listDocumentIDsByEntityID
+	targetFunction = "listDocumentIDsByEntityID"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID)})
+	results := []string{}
+	err := json.Unmarshal(resp.Payload, &results)
+	expectNil(t, err)
+
+	// Expect the received results to be the same as expected
+	expectedResults := make(map[string]bool)
+	expectedResults[doc2.Metadata.ResourceID] = true
+	expectedResults[doc3.Metadata.ResourceID] = true
+
+	expectEqual(t, len(expectedResults), len(results))
+
+	for _, resourceID := range results {
+		expectEqual(t, true, expectedResults[resourceID])
+	}
+}
+
+func TestListDocumentIDsByEntityIDWithExcessiveParameters(t *testing.T) {
+	stub := createMockStub(t, "TestListDocumentIDsByEntityIDWithExcessiveParameters")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the args
+	doc1 := getSamplePlainData1()
+
+	// Invoke to upload the data and expect the response status to be OK
+	targetFunction := "listDocumentIDsByEntityID"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(doc1.Metadata.ResourceID), []byte("EXCESSIVE PARAMETER")})
+	expectResponseStatusERROR(t, &resp)
+}
+
+func TestListDocumentIDsByNonExistentEntityID(t *testing.T) {
+	stub := createMockStub(t, "TestLinkEntityIDWithDocumentID")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the args
+	asset := getSamplePlainData1()
+	doc2 := getSamplePlainData2()
+
+	assetBytes, _ := json.Marshal(asset)
+	doc2Bytes, _ := json.Marshal(doc2)
+
+	// Invoke to upload the data and expect the response status to be OK
+	targetFunction := "createPlainData"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), assetBytes})
+	expectResponseStatusOK(t, &resp)
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
+	expectResponseStatusOK(t, &resp)
+
+	targetFunction = "linkEntityIDWithDocumentID"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID)})
+	expectResponseStatusOK(t, &resp)
+
+	// Test listDocumentIDsByEntityID with a non-existent entity ID
+	doc3 := getSamplePlainData3()
+	targetFunction = "listDocumentIDsByEntityID"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(doc3.Metadata.ResourceID)})
+	expectResponseStatusOK(t, &resp)
+	results := []string{}
+	err := json.Unmarshal(resp.Payload, &results)
+	expectNil(t, err)
+
+	// Expect the received list to be empty
+	expectEqual(t, 0, len(results))
+}
+
+func TestListDocumentIDsByCreatorWithNormalProcess(t *testing.T) {
+	stub := createMockStub(t, "TestListDocumentIDsByCreatorWithNormalProcess")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Prepare the environment: upload two different types of docs as user 1
+	doc1 := getSamplePlainData1()
+	doc2 := getSampleEncryptedData2()
+
+	doc1Bytes, _ := json.Marshal(doc1)
+	doc2Bytes, _ := json.Marshal(doc2)
+
+	targetFunction := "createPlainData"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc1Bytes})
+	expectResponseStatusOK(t, &resp)
+
+	targetFunction = "createEncryptedData"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
+	expectResponseStatusOK(t, &resp)
+
+	// Test listDocumentIDsByCreator and expect to receive 2 resource IDs
+	targetFunction = "listDocumentIDsByCreator"
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction)})
+	expectResponseStatusOK(t, &resp)
+
+	expectedResourceIDs := make(map[string]bool)
+	expectedResourceIDs[doc1.Metadata.ResourceID] = true
+	expectedResourceIDs[doc2.Metadata.ResourceID] = true
+
+	results := []string{}
+	err := json.Unmarshal(resp.Payload, &results)
+	expectNil(t, err)
+
+	expectEqual(t, len(expectedResourceIDs), len(results))
+	for _, resourceID := range results {
+		expectEqual(t, true, expectedResourceIDs[resourceID])
+	}
+
+	// Change the user to user 2 and query again
+	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
+	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction)})
+	expectResponseStatusOK(t, &resp)
+	results = []string{}
+	err = json.Unmarshal(resp.Payload, &results)
+	expectNil(t, err)
+
+	expectEqual(t, 0, len(results))
+}
+
+func TestListDocumentIDsByCreatorWithExcessiveParameters(t *testing.T) {
+	stub := createMockStub(t, "TestListDocumentIDsByCreatorWithExcessiveParameters")
+	_ = initChaincode(stub, [][]byte{})
+
+	targetFunction := "listDocumentIDsWithCreator"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte("EXCESSIVE PARAMETER")})
+	expectResponseStatusERROR(t, &resp)
+}
+
+func TestListDocumentIDsByPartialNameWithExcessiveParameters(t *testing.T) {
+	stub := createMockStub(t, "TestListDocumentIDsByPartialNameWithExcessiveParameters")
+	_ = initChaincode(stub, [][]byte{})
+
+	// Test listDocumentIDsByCreator
+	targetFunction := "listDocumentIDsByPartialName"
+	partialName := "1"
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(partialName), []byte("5"), []byte(""), []byte("EXCESSIVE_PARAMETER")})
 	expectResponseStatusERROR(t, &resp)
 }
 
@@ -651,6 +968,23 @@ func getSamplePlainData2() data.PlainData {
 	}
 }
 
+// 明文数据
+// 资源 ID: "003"
+// 名称: "示例明文数据3"
+// 内容: base64(data3)
+func getSamplePlainData3() data.PlainData {
+	return data.PlainData{
+		Metadata: data.ResMetadata{
+			ResourceType: data.Plain,
+			ResourceID:   "003",
+			Hash:         sha256.Sum256([]byte(data3)),
+			Size:         uint64(len([]byte(data3))),
+			Extensions:   "{\"name\":\"示例明文数据3\"}",
+		},
+		Data: base64.StdEncoding.EncodeToString([]byte(data3)),
+	}
+}
+
 // 加密数据
 // 资源 ID: "001"
 // 名称: "Sample Encrypted Data 1"
@@ -659,7 +993,7 @@ func getSampleEncryptedData1() data.EncryptedData {
 	return data.EncryptedData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Encrypted,
-			ResourceID:   "001",
+			ResourceID:   "101",
 			Hash:         sha256.Sum256([]byte(data1)),
 			Size:         uint64(len([]byte(data1))),
 			Extensions:   "{\"name\":\"Sample Encrypted Data 1\"}",
@@ -679,7 +1013,7 @@ func getSampleEncryptedData2() data.EncryptedData {
 	return data.EncryptedData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Encrypted,
-			ResourceID:   "002",
+			ResourceID:   "102",
 			Hash:         sha256.Sum256([]byte(data2)),
 			Size:         uint64(len([]byte(data2))),
 			Extensions:   "{\"name\":\"示例加密数据2\"}",
@@ -698,7 +1032,7 @@ func getSampleOffchainData1() data.OffchainData {
 	return data.OffchainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Offchain,
-			ResourceID:   "001",
+			ResourceID:   "201",
 			Hash:         sha256.Sum256([]byte(data1)),
 			Size:         uint64(len([]byte(data1))),
 			Extensions:   "{\"name\":\"Sample Offchain Data 1\"}",
@@ -716,7 +1050,7 @@ func getSampleOffchainData2() data.OffchainData {
 	return data.OffchainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Offchain,
-			ResourceID:   "002",
+			ResourceID:   "202",
 			Hash:         sha256.Sum256([]byte(data2)),
 			Size:         uint64(len([]byte(data2))),
 			Extensions:   "{\"name\":\"示例链下数据2\"}",

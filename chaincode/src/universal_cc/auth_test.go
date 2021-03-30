@@ -46,6 +46,7 @@ func createAuthResponseHelper(stub *shimtest.MockStub, authResponse auth.AuthRes
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes, []byte("1")})
 	return resp
 }
+
 func TestCreateAuthRequestWithEncryptedData(t *testing.T) {
 	// 初始化
 	stub := createMockStub(t, "TestCreateAuthRequestWithEncryptedData")
@@ -56,7 +57,7 @@ func TestCreateAuthRequestWithEncryptedData(t *testing.T) {
 	createEncryptedDataHelper(stub, encryptedData)
 
 	// 创建授权请求
-	authRequest := getSampleAuthRequest1()
+	authRequest := getSampleAuthRequest1(encryptedData.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, authRequest)
 	expectResponseStatusOK(t, &resp)
 
@@ -86,7 +87,7 @@ func TestCreateAuthRequestWithOffchainData(t *testing.T) {
 	stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 
 	// 创建授权请求
-	authRequest := getSampleAuthRequest1()
+	authRequest := getSampleAuthRequest1(sampleOffchainData1.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, authRequest)
 	expectResponseStatusOK(t, &resp)
 
@@ -103,6 +104,7 @@ func TestCreateAuthRequestWithOffchainData(t *testing.T) {
 	expectEqual(t, authRequest.ResourceID, authRequestStored.ResourceID)
 	expectEqual(t, authRequest.Extensions, authRequestStored.Extensions)
 }
+
 func TestCreateAuthRequestWithPlainData(t *testing.T) {
 	// 初始化
 	stub := createMockStub(t, "TestCreateAuthRequestWithPlainData")
@@ -115,7 +117,7 @@ func TestCreateAuthRequestWithPlainData(t *testing.T) {
 	stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), dataBytes})
 
 	// 创建授权请求
-	authRequest := getSampleAuthRequest1()
+	authRequest := getSampleAuthRequest1(samplePlainData1.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, authRequest)
 	expectResponseStatusERROR(t, &resp)
 }
@@ -136,7 +138,7 @@ func TestCreateAuthRequestWithExcessiveParameters(t *testing.T) {
 	targetFunction := "createAuthRequest"
 
 	// Prepare authrequest
-	sampleAuthRequest := getSampleAuthRequest1()
+	sampleAuthRequest := getSampleAuthRequest1(encryptedData.Metadata.ResourceID)
 	dataBytes, _ := json.Marshal(sampleAuthRequest)
 
 	// invoke
@@ -150,7 +152,7 @@ func TestCreateAuthRequestWithNonExistentResourceID(t *testing.T) {
 	_ = initChaincode(stub, [][]byte{})
 
 	// 创建授权请求
-	authRequest := getSampleAuthRequest1()
+	authRequest := getSampleAuthRequest1("NON_EXISTENT_RESOURCE_ID")
 	resp := createAuthRequestHelper(stub, authRequest)
 	expectResponseStatusERROR(t, &resp)
 }
@@ -170,8 +172,8 @@ func TestCreateAuthRequestIndexStatus(t *testing.T) {
 	// 创建授权请求,改用 user2 的证书
 	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
 
-	sampleAuthRequest1 := getSampleAuthRequest1()
-	sampleAuthRequest2 := getSampleAuthRequest2()
+	sampleAuthRequest1 := getSampleAuthRequest1(sampleEncryptedData1.Metadata.ResourceID)
+	sampleAuthRequest2 := getSampleAuthRequest2(sampleEncryptedData2.Metadata.ResourceID)
 	createAuthRequestHelper(stub, sampleAuthRequest1)
 	createAuthRequestHelper(stub, sampleAuthRequest2)
 
@@ -210,7 +212,7 @@ func TestCreateAuthResponseWithNormalProcess(t *testing.T) {
 
 	// user2 创建授权请求
 	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
-	sampleAuthRequest := getSampleAuthRequest1()
+	sampleAuthRequest := getSampleAuthRequest1(sampleEncryptedData.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, sampleAuthRequest)
 
 	// user1 创建授权批复
@@ -244,7 +246,7 @@ func TestCreateAuthResponseWithExcessiveParameters(t *testing.T) {
 
 	// user2 创建授权请求
 	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
-	sampleAuthRequest := getSampleAuthRequest1()
+	sampleAuthRequest := getSampleAuthRequest1(sampleEncryptedData.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, sampleAuthRequest)
 
 	// user1 创建授权批复
@@ -269,7 +271,7 @@ func TestCreateAuthResponseTwice(t *testing.T) {
 
 	// user2 创建授权请求
 	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
-	sampleAuthRequest := getSampleAuthRequest1()
+	sampleAuthRequest := getSampleAuthRequest1(sampleEncryptedData.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, sampleAuthRequest)
 
 	// user1 创建授权批复
@@ -307,7 +309,7 @@ func TestCreateAuthResponseWithOthersResource(t *testing.T) {
 
 	// user2 创建授权请求
 	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
-	sampleAuthRequest := getSampleAuthRequest1()
+	sampleAuthRequest := getSampleAuthRequest1(sampleEncryptedData.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, sampleAuthRequest)
 
 	// user2 创建授权批复
@@ -333,8 +335,8 @@ func TestCreateAuthResponseIndexStatus(t *testing.T) {
 	// user2 创建两份授权请求
 	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
 
-	sampleAuthRequest1 := getSampleAuthRequest1()
-	sampleAuthRequest2 := getSampleAuthRequest2()
+	sampleAuthRequest1 := getSampleAuthRequest1(sampleEncryptedData1.Metadata.ResourceID)
+	sampleAuthRequest2 := getSampleAuthRequest2(sampleEncryptedData2.Metadata.ResourceID)
 
 	createAuthRequestHelper(stub, sampleAuthRequest1)
 	resp := createAuthRequestHelper(stub, sampleAuthRequest2)
@@ -382,7 +384,7 @@ func TestGetAuthRequestWithNormalParameters(t *testing.T) {
 
 	// user2 创建授权请求
 	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
-	sampleAuthRequest := getSampleAuthRequest1()
+	sampleAuthRequest := getSampleAuthRequest1(sampleEncryptedData.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, sampleAuthRequest)
 
 	// GetAuthRequest
@@ -414,7 +416,7 @@ func TestGetAuthRequestWithExcessiveParameters(t *testing.T) {
 
 	// user2 创建授权请求
 	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
-	sampleAuthRequest := getSampleAuthRequest1()
+	sampleAuthRequest := getSampleAuthRequest1(sampleEncryptedData.Metadata.ResourceID)
 	resp := createAuthRequestHelper(stub, sampleAuthRequest)
 
 	// GetAuthRequest
@@ -436,16 +438,16 @@ func TestGetAuthRequestWithNonExistentSessionID(t *testing.T) {
 	expectResponseStatusERROR(t, &resp)
 }
 
-func getSampleAuthRequest1() auth.AuthRequest {
+func getSampleAuthRequest1(resourceID string) auth.AuthRequest {
 	return auth.AuthRequest{
-		ResourceID: "001",
+		ResourceID: resourceID,
 		Extensions: "{\"name\":\"exampleAuthRequest1\"}",
 	}
 }
 
-func getSampleAuthRequest2() auth.AuthRequest {
+func getSampleAuthRequest2(resourceID string) auth.AuthRequest {
 	return auth.AuthRequest{
-		ResourceID: "002",
+		ResourceID: resourceID,
 		Extensions: "{\"name\":\"exampleAuthRequest2\"}",
 	}
 }
@@ -459,7 +461,7 @@ func getSampleAuthResponse1() auth.AuthResponse {
 
 func getSampleAuthResponse2() auth.AuthResponse {
 	return auth.AuthResponse{
-		AuthSessionID: "1",
+		AuthSessionID: "2",
 		Result:        false,
 	}
 }

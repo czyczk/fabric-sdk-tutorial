@@ -5,9 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
 )
@@ -178,11 +180,6 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 		return shim.Error(fmt.Sprintf("无法解析数据本体: %v", err))
 	}
 
-	policyBytes, err := json.Marshal(encryptedData.Policy)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法解析策略: %v", err))
-	}
-
 	hashStored := sha256.Sum256(dataBytes)
 	sizeStored := len(dataBytes)
 
@@ -222,7 +219,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	}
 
 	dbPolicyKey := getKeyForResPolicy(resourceID)
-	if err = stub.PutState(dbPolicyKey, policyBytes); err != nil {
+	if err = stub.PutState(dbPolicyKey, []byte(encryptedData.Policy)); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储策略: %v", err))
 	}
 
@@ -308,11 +305,6 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 		return shim.Error(fmt.Sprintf("资源 ID '%v' 已被占用", resourceID))
 	}
 
-	// 将数据本体从 Base64 解码
-	policyBytes, err := json.Marshal(offchainData.Policy)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法获取策略: %v", err))
-	}
 	// 获取创建者与时间戳
 	creator, err := getPKDERFromStub(stub)
 	if err != nil {
@@ -343,7 +335,7 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 	}
 
 	dbPolicyKey := getKeyForResPolicy(resourceID)
-	if err = stub.PutState(dbPolicyKey, policyBytes); err != nil {
+	if err = stub.PutState(dbPolicyKey, []byte(offchainData.Policy)); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储策略: %v", err))
 	}
 
@@ -602,5 +594,69 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 }
 
 func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	return shim.Error(errorcode.CodeNotImplemented)
+	// 检查参数数量
+	lenArgs := len(args)
+	if lenArgs != 3 {
+		return shim.Error("参数数量不正确。应为 3 个")
+	}
+
+	// args = [partialName string, pageSize int, bookmark string]
+	partialName := args[0]
+	pageSizeStr := args[1]
+	bookmark := args[2]
+
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析参数 pageSize，值为 %v。应为正整数", pageSizeStr))
+	}
+	if pageSize <= 0 {
+		return shim.Error(fmt.Sprintf("参数 pageSize 值为 %v。应为正整数", pageSizeStr))
+	}
+
+	// 获取关于 extensions.name 模糊匹配的迭代器
+	queryConditions := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"extensions.name": map[string]interface{}{
+				"$regex": partialName,
+			},
+		},
+	}
+	queryConditionsBytes, err := json.Marshal(queryConditions)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法序列化查询条件: %v", err))
+	}
+	fmt.Printf("%v\n", string(queryConditionsBytes))
+
+	it, respMetadata, err := stub.GetQueryResultWithPagination(string(queryConditionsBytes), int32(pageSize), bookmark)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法执行关于关键词 '%v' 的富查询: %v", partialName, err))
+	}
+
+	defer it.Close()
+
+	// 遍历迭代器，获取所有的 key 作为 resourceID，组成列表
+	resourceIDs := []string{}
+	for it.HasNext() {
+		entry, err := it.Next()
+		if err != nil {
+			return shim.Error(fmt.Sprintf("无法执行关于关键词 '%v' 的富查询: %v", partialName, err))
+		}
+
+		resourceIDs = append(resourceIDs, entry.Key)
+	}
+
+	// 记录书签位置
+	returnedBookmark := respMetadata.Bookmark
+
+	// 序列化结果并返回
+	result := query.ResourceIDsWithPagination{
+		ResourceIDs: resourceIDs,
+		Bookmark:    returnedBookmark,
+	}
+	resultAsBytes, err := json.Marshal(result)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法序列化结果列表: %v", err))
+	}
+
+	return shim.Success(resultAsBytes)
 }

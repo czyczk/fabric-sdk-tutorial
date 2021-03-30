@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"strings"
 	"testing"
 
 	"github.com/gogo/protobuf/proto"
@@ -104,6 +105,15 @@ func expectNotNil(t *testing.T, actual interface{}) {
 	isNil := assert.Nil(t, actual)
 	if isNil {
 		testLogger.Infof("Value was nil. Expecting not to be nil\n")
+		t.FailNow()
+	}
+}
+
+// Check if the string ends with the specified phrases.
+func expectStringEndsWith(t *testing.T, expectedSuffix string, actual string) {
+	isCorrectEnding := strings.HasSuffix(actual, expectedSuffix)
+	if !isCorrectEnding {
+		testLogger.Infof("Value was '%v'. Expecting to end with '%v'\n", actual, expectedSuffix)
 		t.FailNow()
 	}
 }
