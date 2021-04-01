@@ -4,6 +4,8 @@ go 1.15
 
 replace gitee.com/czyczk/fabric-sdk-tutorial => ../../../
 
+replace github.com/XiaoYao-austin/ppks => ../../../ppks/
+
 require (
 	gitee.com/czyczk/fabric-sdk-tutorial v0.0.0
 	github.com/casbin/casbin v1.9.1
