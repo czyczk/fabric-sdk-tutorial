@@ -137,6 +137,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		// Extract some info from the config for later use
 		orgName := serverInfo.User.OrgName
 		userID := serverInfo.User.UserID
+		isKeySwitchServer := serverInfo.IsKeySwitchServer
 
 		// Create clients
 		if err = appinit.InstantiateResMgmtClient(orgName, userID); err != nil {
@@ -151,6 +152,15 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			if err = appinit.InstantiateChannelClient(global.SDKInstance, channelID, orgName, userID); err != nil {
 				return err
 			}
+		}
+
+		// Load SM2 keys if it's enabled as a key switch server
+		if isKeySwitchServer {
+			if serverInfo.SM2Keys == nil {
+				return fmt.Errorf("SM2 密钥对未指定。密钥转换要求客户端指定 SM2 公私钥")
+			}
+
+			appinit.LoadSM2KeyPair(serverInfo.SM2Keys)
 		}
 
 		// Instantiate a screw service
