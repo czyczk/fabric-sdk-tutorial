@@ -16,6 +16,9 @@ func TestPrivKeyDER2PEMConversion(t *testing.T) {
 	if isNoError := assert.NoError(t, err); !isNoError {
 		t.FailNow()
 	}
+	if isEqual := assert.Equal(t, 32, len(privKey.D.Bytes())); !isEqual {
+		t.FailNow()
+	}
 
 	privKeyDer, err := x509.MarshalSm2UnecryptedPrivateKey(privKey)
 	if isNoError := assert.NoError(t, err); !isNoError {
@@ -53,6 +56,12 @@ func TestPubKeyDER2PEMConversion(t *testing.T) {
 	}
 
 	pubKey := privKey.PublicKey
+	if isEqual := assert.Equal(t, 32, len(privKey.X.Bytes())); !isEqual {
+		t.FailNow()
+	}
+	if isEqual := assert.Equal(t, 32, len(privKey.Y.Bytes())); !isEqual {
+		t.FailNow()
+	}
 
 	pubKeyDer, err := x509.MarshalSm2PublicKey(&pubKey)
 	if isNoError := assert.NoError(t, err); !isNoError {

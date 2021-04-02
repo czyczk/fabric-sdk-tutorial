@@ -2,10 +2,13 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -40,4 +43,19 @@ func showEventResult(notifier <-chan *fab.CCEvent, eventID string) error {
 	}
 
 	return nil
+}
+
+// A general error handler
+func getClassifiedError(chaincodeFcn string, err error) error {
+	if err == nil {
+		return nil
+	} else if strings.HasSuffix(err.Error(), errorcode.CodeForbidden) {
+		return errorcode.ErrorForbidden
+	} else if strings.HasSuffix(err.Error(), errorcode.CodeNotFound) {
+		return errorcode.ErrorNotFound
+	} else if strings.HasSuffix(err.Error(), errorcode.CodeNotImplemented) {
+		return errorcode.ErrorNotImplemented
+	} else {
+		return errors.Wrapf(err, "无法调用链码函数 '%v'", chaincodeFcn)
+	}
 }

@@ -79,16 +79,12 @@ func (s *DocumentService) CreateDocument(id string, name string, contents []byte
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(plainDataBytes)},
+		Args:        [][]byte{plainDataBytes},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), errorcode.CodeNotImplemented) {
-			return "", errorcode.ErrorNotImplemented
-		} else {
-			return "", errors.Wrapf(err, "无法调用链码函数 '%v'", chaincodeFcn)
-		}
+		return "", getClassifiedError(chaincodeFcn, err)
 	} else {
 		return string(resp.TransactionID), nil
 	}
@@ -157,13 +153,7 @@ func (s *DocumentService) GetDocumentMetadata(id string) (*data.ResMetadataStore
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), errorcode.CodeNotFound) {
-			return nil, errorcode.ErrorNotFound
-		} else if strings.HasSuffix(err.Error(), errorcode.CodeNotImplemented) {
-			return nil, errorcode.ErrorNotImplemented
-		} else {
-			return nil, errors.Wrapf(err, "无法调用链码函数 '%v'", chaincodeFcn)
-		}
+		return nil, getClassifiedError(chaincodeFcn, err)
 	} else {
 		var resMetadataStored data.ResMetadataStored
 		if err = json.Unmarshal(resp.Payload, &resMetadataStored); err != nil {
@@ -199,13 +189,7 @@ func (s *DocumentService) GetDocument(id string) (*common.Document, error) {
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
 	if err != nil {
-		if strings.HasSuffix(err.Error(), errorcode.CodeNotFound) {
-			return nil, errorcode.ErrorNotFound
-		} else if strings.HasSuffix(err.Error(), errorcode.CodeNotImplemented) {
-			return nil, errorcode.ErrorNotImplemented
-		} else {
-			return nil, errors.Wrapf(err, "无法调用链码函数 '%v'", chaincodeFcn)
-		}
+		return nil, getClassifiedError(chaincodeFcn, err)
 	} else {
 		var document common.Document
 		if err = json.Unmarshal(resp.Payload, &document); err != nil {

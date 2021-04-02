@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"sync"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/appinit"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/controller"
@@ -154,13 +156,25 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			}
 		}
 
-		// Load SM2 keys if it's enabled as a key switch server
+		// Prepare the channels for key switch go routines. They will be of use if the app is enabled as a key switch server.
+		ksServerJobsChan := make(chan string)
+		ksServerQuitChan := make(chan int)
+		var ksServerWg sync.WaitGroup
+		defer ksServerWg.Wait()
+
 		if isKeySwitchServer {
+			// Load SM2 keys if it's enabled as a key switch server
 			if serverInfo.SM2Keys == nil {
 				return fmt.Errorf("SM2 密钥对未指定。密钥转换要求客户端指定 SM2 公私钥")
 			}
 
 			appinit.LoadSM2KeyPair(serverInfo.SM2Keys)
+
+			// Start #LogicalCPUs go routines to listen key switch triggers
+			for i := 0; i < runtime.NumCPU(); i++ {
+				ksServerWg.Add(1)
+				// TODO: Start a key switch trigger listener
+			}
 		}
 
 		// Instantiate a screw service
@@ -219,6 +233,8 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		controller.RegisterHandlers(apiv1Group, screwController)
 		controller.RegisterHandlers(apiv1Group, documentController)
 		router.Run(fmt.Sprintf(":%v", serverInfo.Port))
+
+		// TODO: Listen to Ctrl+C signal and send #LogicalCPUs quit signals to `ksServerQuitChan`
 
 		return nil
 	}
