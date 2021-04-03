@@ -301,10 +301,9 @@ func (uc *UniversalCC) getKeySwitchResult(stub shim.ChaincodeStubInterface, args
 	// 获取 ksSessionID and resultCreator
 	ksSessionID := query.KeySwitchSessionID
 	resultCreator := query.ResultCreator
-	resultCreatorAsBase64 := base64.StdEncoding.EncodeToString(resultCreator)
 
 	// 获取 KeySwitchResultStore
-	key := getKeyForKeySwitchResponse(ksSessionID, resultCreatorAsBase64)
+	key := getKeyForKeySwitchResponse(ksSessionID, resultCreator)
 	ksResultStored, err := stub.GetState(key)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法确定 KeySwitchResultStore 的可用性: %v", err))

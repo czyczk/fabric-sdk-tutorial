@@ -16,5 +16,5 @@ type KeySwitchResult struct {
 // KeySwitchResultQuery 表示密钥置换的查询请求
 type KeySwitchResultQuery struct {
 	KeySwitchSessionID string `json:"keySwitchSessionID"` // 密钥置换会话 ID
-	ResultCreator      []byte `json:"resultCreator"`      // 密钥置换结果的创建者公钥
+	ResultCreator      string `json:"resultCreator"`      // 密钥置换结果的创建者公钥（Base 64 编码）
 }
