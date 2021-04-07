@@ -71,13 +71,13 @@ type PlainData struct {
 type EncryptedData struct {
 	Metadata ResMetadata `json:"metadata"` // 资源的元数据
 	Data     string      `json:"data"`     // 资源数据本体
-	Key      []byte      `json:"key"`      // 加密的对称密钥
+	Key      string      `json:"key"`      // 加密的对称密钥（Base64 编码）
 	Policy   string      `json:"policy"`   // 策略
 }
 
 // OffchainData 用于表示要传入链码的链下资源
 type OffchainData struct {
 	Metadata ResMetadata `json:"metadata"` // 资源的元数据
-	Key      []byte      `json:"key"`      // 加密的对称密钥
+	Key      string      `json:"key"`      // 加密的对称密钥（Base64 编码）
 	Policy   string      `json:"policy"`   // 策略
 }

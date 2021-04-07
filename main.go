@@ -162,14 +162,22 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		var ksServerWg sync.WaitGroup
 		defer ksServerWg.Wait()
 
+		// Prepare to load key switch keys
+		if serverInfo.KeySwitchKeys == nil || serverInfo.KeySwitchKeys.CollectivePublicKey == "" {
+			return fmt.Errorf("未指定密钥置换集合公钥")
+		}
+
 		if isKeySwitchServer {
-			// Load SM2 keys if it's enabled as a key switch server
-			if serverInfo.SM2Keys == nil {
-				return fmt.Errorf("SM2 密钥对未指定。密钥转换要求客户端指定 SM2 公私钥")
+			// Make sure the private key and the public key are specified if the app is enabled as a key switch server
+			if serverInfo.KeySwitchKeys.PrivateKey == "" || serverInfo.KeySwitchKeys.PublicKey == "" {
+				return fmt.Errorf("密钥置换所需的私钥和/或公钥未指定。请指定公私钥或将密钥置换服务器关闭")
 			}
 
-			appinit.LoadSM2KeyPair(serverInfo.SM2Keys)
+		}
 
+		appinit.LoadKeySwitchServerKeys(serverInfo.KeySwitchKeys)
+
+		if isKeySwitchServer {
 			// Start #LogicalCPUs go routines to listen key switch triggers
 			for i := 0; i < runtime.NumCPU(); i++ {
 				ksServerWg.Add(1)
@@ -185,13 +193,18 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 
 		screwSvc := &service.ScrewService{ServiceInfo: serviceInfo}
 
-		// Instantiate a document service
+		// Instantiate a key switch service
 		universalCcServiceInfo := &service.Info{
 			ChaincodeID:   "universalCc",
 			ChannelClient: global.ChannelClientInstances["mychannel"][orgName][userID],
 		}
 
-		documentSvc := &service.DocumentService{ServiceInfo: universalCcServiceInfo}
+		keySwitchSvc := &service.KeySwitchService{ServiceInfo: universalCcServiceInfo}
+
+		// Instantiate a document service
+		documentSvc := &service.DocumentService{ServiceInfo: universalCcServiceInfo, KeySwitchSvc: keySwitchSvc}
+
+		// TODO: Instantiate a auth service
 
 		// Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID
 		respMsg, err := screwSvc.TransferAndShowEvent("Org1", "Org2", 10)

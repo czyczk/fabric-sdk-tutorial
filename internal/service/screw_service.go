@@ -23,7 +23,7 @@ type ScrewService struct {
 func (s *ScrewService) TransferAndShowEvent(source, target string, amount uint) (string, error) {
 	// Try to register the event with ID "eventTransfer". Unregister it on failure.
 	eventID := "eventTransfer"
-	reg, notifier, err := registerEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
+	reg, notifier, err := RegisterEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
 	if err != nil {
 		return "", err
 	}

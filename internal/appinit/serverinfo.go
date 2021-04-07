@@ -9,11 +9,11 @@ import (
 
 // ServerInfo is the Go struct for contents in serve.yaml.
 type ServerInfo struct {
-	User              *OperatingIdentity `yaml:"user"`
-	Channels          []string           `yaml:"channels"`
-	Port              int                `yaml:"port"`
-	IsKeySwitchServer bool               `yaml:"isKeySwitchServer"`
-	SM2Keys           *KeyPairLocation   `yaml:"sm2Keys"`
+	User              *OperatingIdentity     `yaml:"user"`
+	Channels          []string               `yaml:"channels"`
+	Port              int                    `yaml:"port"`
+	IsKeySwitchServer bool                   `yaml:"isKeySwitchServer"`
+	KeySwitchKeys     *KeySwitchKeyLocations `yaml:"sm2Keys"`
 }
 
 // LoadServerInfo loads the server config file (in YAML) which contains info needed to start a server.

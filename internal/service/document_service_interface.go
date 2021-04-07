@@ -3,6 +3,7 @@ package service
 import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"github.com/XiaoYao-austin/ppks"
 )
 
 // DocumentServiceInterface 定义了用于管理数字文档的服务的接口。
@@ -26,12 +27,12 @@ type DocumentServiceInterface interface {
 	//   文档名称
 	//   文档内容
 	//   文档属性（JSON）
-	//   加密后的对称公钥
+	//   对称密钥（SM2 曲线上的点）
 	//   访问策略
 	//
 	// 返回：
 	//   交易 ID
-	CreateEncryptedDocument(id string, name string, contents []byte, property string, key []byte, policy string) (string, error)
+	CreateEncryptedDocument(id string, name string, contents []byte, property string, key *ppks.CurvePoint, policy string) (string, error)
 
 	// 创建监管者加密数字文档
 	//
@@ -40,11 +41,11 @@ type DocumentServiceInterface interface {
 	//   文档名称
 	//   文档内容
 	//   文档属性（JSON）
-	//   加密后的对称公钥
+	//   对称密钥（SM2 曲线上的点）
 	//
 	// 返回：
 	//   交易 ID
-	CreateRegulatorEncryptedDocument(id string, name string, contents []byte, property string, key []byte) (string, error)
+	CreateRegulatorEncryptedDocument(id string, name string, contents []byte, property string, key *ppks.CurvePoint) (string, error)
 
 	// 创建链下加密数字文档
 	//
@@ -52,12 +53,12 @@ type DocumentServiceInterface interface {
 	//   文档 ID
 	//   文档名称
 	//   文档属性（JSON）
-	//   加密的对称公钥
+	//   对称密钥（SM2 曲线上的点）
 	//   访问策略
 	//
 	// 返回：
 	//   交易 ID
-	CreateOffchainDocument(id string, name string, property string, key []byte, policy string) (string, error)
+	CreateOffchainDocument(id string, name string, property string, key *ppks.CurvePoint, policy string) (string, error)
 
 	// 获取数字文档的元数据
 	//

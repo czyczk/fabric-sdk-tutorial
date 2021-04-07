@@ -9,10 +9,16 @@ import (
 	"github.com/tjfoc/gmsm/sm2"
 )
 
+type keySwitchKeys struct {
+	EncryptionAlgorithm string          // The encryption algorithm used by the keys
+	CollectivePublicKey *sm2.PublicKey  // The collective public key to be used in the key switch process
+	PrivateKey          *sm2.PrivateKey // The private key to be used in the key switch process
+	PublicKey           *sm2.PublicKey  // The public key to be used in the key switch process
+}
+
 var SDKInstance *fabsdk.FabricSDK
 var ResMgmtClientInstances map[string]map[string]*resmgmt.Client            // A lookup takes `orgName` followed by `username`.
 var MSPClientInstances map[string]map[string]*msp.Client                    // A lookup takes `orgName` followed by `username`.
 var ChannelClientInstances map[string]map[string]map[string]*channel.Client // A lookup takes `channelID` followed by `orgName` and `username`.
 var LedgerClientInstances map[string]map[string]map[string]*ledger.Client   // A lookup takes `channelID` followed by `orgName` and `username`.
-var SM2PrivateKey *sm2.PrivateKey                                           // SM2 private key of the current user
-var SM2PublicKey *sm2.PublicKey                                             // SM2 public key of the current user
+var KeySwitchKeys keySwitchKeys                                             // The keys to be used in the key switch process

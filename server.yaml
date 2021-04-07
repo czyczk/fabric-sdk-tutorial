@@ -5,7 +5,9 @@ channels:
   - mychannel
 port: 8081
 isKeySwitchServer: true
-sm2Keys:
+keySwitchKeys:
+    encryptionAlgorithm: "SM2"
+    collectivePublicKey: "sm2keys/collPubKey.pem"
     privateKey: "sm2keys/User1@org1.lab805.com/sk"
     publicKey: "sm2keys/User1@org1.lab805.com/User1@org1.lab805.com.pem"
 

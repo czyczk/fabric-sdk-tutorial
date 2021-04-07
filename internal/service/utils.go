@@ -20,12 +20,12 @@ type Info struct {
 
 const eventTimeout time.Duration = 20
 
-// Registers an event with a channel client.
+// RegisterEvent registers an event using a channel client.
 //
 // Returns:
 //   the registration (used to unregister the event)
 //   the event channel
-func registerEvent(client *channel.Client, chaincodeID, eventID string) (fab.Registration, <-chan *fab.CCEvent, error) {
+func RegisterEvent(client *channel.Client, chaincodeID, eventID string) (fab.Registration, <-chan *fab.CCEvent, error) {
 	reg, notifier, err := client.RegisterChaincodeEvent(chaincodeID, eventID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to register chaincode event: %v", err)
@@ -45,7 +45,7 @@ func showEventResult(notifier <-chan *fab.CCEvent, eventID string) error {
 	return nil
 }
 
-// A general error handler
+// getClassifiedError is a general error handler that converts some errors returned from the chaincode to the predefined errors.
 func getClassifiedError(chaincodeFcn string, err error) error {
 	if err == nil {
 		return nil

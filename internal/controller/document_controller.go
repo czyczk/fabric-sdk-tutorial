@@ -9,9 +9,12 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
+	"github.com/XiaoYao-austin/ppks"
 	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/tjfoc/gmsm/sm2"
 )
 
 // A DocumentController contains a group name and a `DocumentService` instance. It also implements the interface `Controller`.
@@ -69,14 +72,10 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 		}
 	}
 
-	// Check key and policy if it's not a plain resource
-	key := []byte(c.PostForm("key"))
+	// Check policy if it's not a plain resource
 	policy := c.PostForm("policy")
 
 	if resourceType != data.Plain {
-		if len(key) == 0 {
-			*pel = append(*pel, "对称密钥的密文不能为空。")
-		}
 		if len(policy) == 0 {
 			*pel = append(*pel, "策略不能为空。")
 		}
@@ -90,9 +89,24 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	// Generate an ID
 	sfNode, err := snowflake.NewNode(1)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID"))
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
 	}
 	id := sfNode.Generate().String()
+
+	// A symmetric key should be generated to encrypt the document if the resourse type is Encrypted or Offchain (later used in the service function and returned as part of the result).
+	var key *ppks.CurvePoint
+	if resourceType == data.Encrypted || resourceType == data.Offchain {
+		key = ppks.GenPoint()
+	}
+
+	// The key is now a `*ppks.CurvePoint`. Cast it to a `*sm2.PublicKey` so that it can be converted to PEM bytes
+	var keyAsPublicKey *sm2.PublicKey
+	*keyAsPublicKey = sm2.PublicKey(*key)
+	var keyPEM []byte
+	keyPEM, err = sm2keyutils.ConvertPublicKeyToPEM(keyAsPublicKey)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法序列化对称公钥。"))
+	}
 
 	// Invoke the service function according to the resource type
 	var txID string
@@ -108,10 +122,12 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	}
 
 	// Check error type and generate the corresponding response
+	// The symmetric key will be included if it's not empty
 	if err == nil {
 		info := ResourceCreationInfo{
-			ResourceID:    id,
-			TransactionID: txID,
+			ResourceID:           id,
+			TransactionID:        txID,
+			SymmetricKeyMaterial: string(keyPEM),
 		}
 		c.JSON(http.StatusOK, info)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {

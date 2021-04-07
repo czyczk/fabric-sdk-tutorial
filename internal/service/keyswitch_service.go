@@ -1,6 +1,7 @@
 package service
 
 import (
+	"crypto"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -35,8 +36,8 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 
 	// 将公钥序列化为定长字节切片
 	ksPubKey := [64]byte{}
-	copy(ksPubKey[:32], global.SM2PublicKey.X.Bytes())
-	copy(ksPubKey[32:], global.SM2PublicKey.Y.Bytes())
+	copy(ksPubKey[:32], global.KeySwitchKeys.PublicKey.X.Bytes())
+	copy(ksPubKey[32:], global.KeySwitchKeys.PublicKey.Y.Bytes())
 
 	// 组装一个 KeySwitchTrigger 对象，并调用链码
 	ksTrigger := keyswitch.KeySwitchTrigger{
@@ -47,7 +48,7 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 
 	ksTriggerBytes, err := json.Marshal(ksTrigger)
 	if err != nil {
-		return "", errors.Wrapf(err, "无法序列化链码参数")
+		return "", errors.Wrap(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createKeySwitchTrigger"
@@ -90,11 +91,11 @@ func (s *KeySwitchService) AwaitKeySwitchResults(keySwitchSessionID string, numE
 
 	// 尝试监听事件 "ks_${keySwitchSessionID}_result"。事件内容为 "ks_${keySwitchSessionID}_result_${creator}"。若失败则提前返回。
 	eventID := "ks_" + keySwitchSessionID + "_result"
-	reg, notifier, err := registerEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
+	reg, notifier, err := RegisterEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
 	defer s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "无法监听密钥置换结果事件")
+		return nil, errors.Wrap(err, "无法监听密钥置换结果事件")
 	}
 
 	// 接收 channel 内容（一个密钥置换会话 ID），对每个 ID 新开一个 Go routine 调用链码获取一次置换份额，并将结果放入列表。若在时限内未能接收到预期数量的 ID，则等待已发送的 Go routine 结束后，放弃此次结果，并返回超时错误。
@@ -162,7 +163,7 @@ eventHandler:
 			// 只有收到的事件数量小于预期值才报超时错误，否则只是还有查询未完成，过一会自然会完成。
 			if len(receivedIDs) < numExpected {
 				wg.Wait()
-				return nil, fmt.Errorf("等待超时")
+				return nil, errorcode.ErrorGatewayTimeout
 			}
 		default:
 			time.Sleep(50)
@@ -193,7 +194,7 @@ func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, shar
 
 	keySwitchResultBytes, err := json.Marshal(keySwitchResult)
 	if err != nil {
-		return "", errors.Wrapf(err, "无法序列化链码参数")
+		return "", errors.Wrap(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createKeySwitchResult"
@@ -214,7 +215,15 @@ func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, shar
 // 获取集合权威公钥。
 //
 // 返回：
-//   集合权威公钥
-func (s *KeySwitchService) GetCollectiveAuthorityPublicKey() ([]byte, error) {
-	return nil, errorcode.ErrorNotImplemented
+//   集合权威公钥（SM2）
+func (s *KeySwitchService) GetCollectiveAuthorityPublicKey() (*crypto.PublicKey, error) {
+	// 当前设计为从单例 `global.KSCollPubKey` 中获取一个预指定的集合公钥。
+	if global.KeySwitchKeys.CollectivePublicKey == nil {
+		return nil, fmt.Errorf("集合公钥未指定")
+	}
+
+	var ret *crypto.PublicKey
+	*ret = *global.KeySwitchKeys.CollectivePublicKey
+
+	return ret, nil
 }

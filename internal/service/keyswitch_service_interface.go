@@ -1,5 +1,7 @@
 package service
 
+import "crypto"
+
 // KeySwitchServiceInterface 定义了有关于密钥置换的服务的接口
 type KeySwitchServiceInterface interface {
 	// 创建密文访问申请/密钥置换触发器。
@@ -37,5 +39,5 @@ type KeySwitchServiceInterface interface {
 	//
 	// 返回：
 	//   集合权威公钥
-	GetCollectiveAuthorityPublicKey() ([]byte, error)
+	GetCollectiveAuthorityPublicKey() (*crypto.PublicKey, error)
 }
