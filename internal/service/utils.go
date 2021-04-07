@@ -45,8 +45,8 @@ func showEventResult(notifier <-chan *fab.CCEvent, eventID string) error {
 	return nil
 }
 
-// getClassifiedError is a general error handler that converts some errors returned from the chaincode to the predefined errors.
-func getClassifiedError(chaincodeFcn string, err error) error {
+// GetClassifiedError is a general error handler that converts some errors returned from the chaincode to the predefined errors.
+func GetClassifiedError(chaincodeFcn string, err error) error {
 	if err == nil {
 		return nil
 	} else if strings.HasSuffix(err.Error(), errorcode.CodeForbidden) {

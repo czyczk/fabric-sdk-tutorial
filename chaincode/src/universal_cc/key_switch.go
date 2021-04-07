@@ -60,10 +60,16 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取创建者: %v", err))
 	}
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	timestamp, err := getTimeFromStub(stub)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获得时间戳: %v", err))
+	}
+
+	// 检查用于密钥置换的公钥是否为空
+	if ksTrigger.KeySwitchPK == "" {
+		return shim.Error("用于密钥置换的公钥未指定")
 	}
 
 	if authSessionID != "" {
@@ -173,7 +179,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		KeySwitchSessionID: ksSessionID,
 		ResourceID:         ksTrigger.ResourceID,
 		AuthSessionID:      authSessionID,
-		Creator:            creator,
+		Creator:            creatorAsBase64,
 		KeySwitchPK:        ksTrigger.KeySwitchPK,
 		Timestamp:          timestamp,
 		ValidationResult:   validationResult,
@@ -238,7 +244,7 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 	ksResultStored := keyswitch.KeySwitchResultStored{
 		KeySwitchSessionID: ksSessionID,
 		Share:              ksResult.Share,
-		Creator:            creator,
+		Creator:            creatorAsBase64,
 		Timestamp:          timestamp,
 	}
 	data, err := json.Marshal(ksResultStored)

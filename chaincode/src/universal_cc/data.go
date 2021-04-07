@@ -58,7 +58,8 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 	}
 
 	hashStored := sha256.Sum256(dataBytes)
-	if hashStored != plainData.Metadata.Hash {
+	hashStoredBase64 := base64.StdEncoding.EncodeToString(hashStored[:])
+	if hashStoredBase64 != plainData.Metadata.Hash {
 		return shim.Error("哈希不匹配")
 	}
 
@@ -67,6 +68,7 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取创建者: %v", err))
 	}
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	timestamp, err := getTimeFromStub(stub)
 	if err != nil {
@@ -80,9 +82,9 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 		Hash:         plainData.Metadata.Hash,
 		Size:         plainData.Metadata.Size,
 		Extensions:   plainData.Metadata.Extensions,
-		Creator:      creator,
+		Creator:      creatorAsBase64,
 		Timestamp:    timestamp,
-		HashStored:   hashStored,
+		HashStored:   hashStoredBase64,
 		SizeStored:   sizeStored,
 	}
 
@@ -103,7 +105,6 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 	// 建立索引
 	// creator~resourceid 绑定创建者与资源 ID
 	ckObjectType := "creator~resourceid"
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 	ckCreatorResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{creatorAsBase64, resourceID})
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
@@ -181,6 +182,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	}
 
 	hashStored := sha256.Sum256(dataBytes)
+	hashStoredBase64 := base64.StdEncoding.EncodeToString(hashStored[:])
 	sizeStored := len(dataBytes)
 
 	// 获取创建者与时间戳
@@ -188,6 +190,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取创建者: %v", err))
 	}
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	timestamp, err := getTimeFromStub(stub)
 	if err != nil {
@@ -201,9 +204,9 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 		Hash:         encryptedData.Metadata.Hash,
 		Size:         encryptedData.Metadata.Size,
 		Extensions:   encryptedData.Metadata.Extensions,
-		Creator:      creator,
+		Creator:      creatorAsBase64,
 		Timestamp:    timestamp,
-		HashStored:   hashStored,
+		HashStored:   hashStoredBase64,
 		SizeStored:   uint64(sizeStored),
 	}
 
@@ -214,7 +217,12 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	}
 
 	dbKeyKey := getKeyForResKey(resourceID)
-	if err = stub.PutState(dbKeyKey, encryptedData.Key); err != nil {
+	keyDecoded, err := base64.StdEncoding.DecodeString(encryptedData.Key)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析密钥: %v", err))
+	}
+
+	if err = stub.PutState(dbKeyKey, keyDecoded); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储密钥: %v", err))
 	}
 
@@ -234,7 +242,6 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	// 建立索引
 	// creator~resourceid 绑定创建者与资源 ID
 	ckObjectType := "creator~resourceid"
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 	ckCreatorResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{creatorAsBase64, resourceID})
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
@@ -310,6 +317,7 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取创建者: %v", err))
 	}
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	timestamp, err := getTimeFromStub(stub)
 	if err != nil {
@@ -323,14 +331,19 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 		Hash:         offchainData.Metadata.Hash,
 		Size:         offchainData.Metadata.Size,
 		Extensions:   offchainData.Metadata.Extensions,
-		Creator:      creator,
+		Creator:      creatorAsBase64,
 		Timestamp:    timestamp,
-		HashStored:   [32]byte{},
+		HashStored:   "",
 		SizeStored:   0,
 	}
 
 	dbKeykey := getKeyForResKey(resourceID)
-	if err = stub.PutState(dbKeykey, offchainData.Key); err != nil {
+	keyDecoded, err := base64.StdEncoding.DecodeString(offchainData.Key)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法存储密钥: %v", err))
+	}
+
+	if err = stub.PutState(dbKeykey, keyDecoded); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储密钥: %v", err))
 	}
 
@@ -350,7 +363,6 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 	// 建立索引
 	// creator~resourceid 绑定创建者与资源 ID
 	ckObjectType := "creator~resourceid"
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 	ckCreatorResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{creatorAsBase64, resourceID})
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))

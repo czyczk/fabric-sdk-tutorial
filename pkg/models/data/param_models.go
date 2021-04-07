@@ -56,7 +56,7 @@ func NewResourceTypeFromString(enumString string) (ret ResourceType, err error) 
 type ResMetadata struct {
 	ResourceType ResourceType `json:"resourceType"` // 资源加密类别
 	ResourceID   string       `json:"resourceID"`   // 资源 ID
-	Hash         [32]byte     `json:"hash"`         // 资源的明文该有的哈希值（SHA256）
+	Hash         string       `json:"hash"`         // 资源的明文该有的哈希值（SHA256）（[32]byte 的 Base64 编码）
 	Size         uint64       `json:"size"`         // 资源的明文该有的大小
 	Extensions   string       `json:"extensions"`   // 扩展字段。以 JSON 形式表示。
 }

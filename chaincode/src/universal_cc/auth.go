@@ -67,6 +67,7 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取创建者: %v", err))
 	}
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	timestamp, err := getTimeFromStub(stub)
 	if err != nil {
@@ -81,7 +82,7 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 		AuthSessionID: authSessionID,
 		ResourceID:    authRequest.ResourceID,
 		Extensions:    authRequest.Extensions,
-		Creator:       creator,
+		Creator:       creatorAsBase64,
 		Timestamp:     timestamp,
 	}
 	authRequestStoredByte, err := json.Marshal(authRequestStored)
@@ -96,9 +97,9 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 
 	// 建立索引
 	// resourcecreator~authsessionid 绑定资源创建者和auth会话ID
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(metaDataStored.Creator)
+	resCreator := metaDataStored.Creator
 	indexName := "resourcecreator~authsessionid"
-	indexKey, err := stub.CreateCompositeKey(indexName, []string{creatorAsBase64, authSessionID})
+	indexKey, err := stub.CreateCompositeKey(indexName, []string{resCreator, authSessionID})
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", indexName, err))
 	}
@@ -123,7 +124,7 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 		return shim.Error("参数数量不正确。应为 1 或 2 个")
 	}
 
-	// 解析第0个参数为 auth.AuthResponse
+	// 解析第 0 个参数为 auth.AuthResponse
 	response := []byte(args[0])
 	var authResponse auth.AuthResponse
 	err := json.Unmarshal(response, &authResponse)
@@ -186,6 +187,7 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取创建者: %v", err))
 	}
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	timestamp, err := getTimeFromStub(stub)
 	if err != nil {
@@ -193,14 +195,14 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	}
 
 	// 检查该交易的创建者是否为资源创建者
-	if string(creator) != string(Metadata.Creator) {
-		return shim.Error("errorcode.CodeForbidden")
+	if base64.StdEncoding.EncodeToString(creator) != Metadata.Creator {
+		return shim.Error(errorcode.CodeForbidden)
 	}
 
 	// 构建 AuthResponseStored 并存储上链
 	authResponseStored := auth.AuthResponseStored{AuthSessionID: authResponse.AuthSessionID,
 		Result:    authResponse.Result,
-		Creator:   creator,
+		Creator:   creatorAsBase64,
 		Timestamp: timestamp,
 	}
 	data, err := json.Marshal(authResponseStored)
@@ -215,8 +217,8 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 
 	// 删除 resourcecreator~authsessionid 索引
 	indexName := "resourcecreator~authsessionid"
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(Metadata.Creator)
-	indexKey, err := stub.CreateCompositeKey(indexName, []string{creatorAsBase64, authResponse.AuthSessionID})
+	resCreator := Metadata.Creator
+	indexKey, err := stub.CreateCompositeKey(indexName, []string{resCreator, authResponse.AuthSessionID})
 	err = stub.DelState(indexKey)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法删除索引 '%v': %v", indexName, err))

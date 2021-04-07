@@ -38,6 +38,6 @@ type KeySwitchServiceInterface interface {
 	// 获取集合权威公钥。
 	//
 	// 返回：
-	//   集合权威公钥
+	//   集合权威公钥（SM2）
 	GetCollectiveAuthorityPublicKey() (*crypto.PublicKey, error)
 }

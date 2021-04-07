@@ -2,6 +2,7 @@ package service
 
 import (
 	"crypto"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -43,7 +44,7 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 	ksTrigger := keyswitch.KeySwitchTrigger{
 		ResourceID:    resourceID,
 		AuthSessionID: authSessionID,
-		KeySwitchPK:   ksPubKey,
+		KeySwitchPK:   base64.StdEncoding.EncodeToString(ksPubKey[:]),
 	}
 
 	ksTriggerBytes, err := json.Marshal(ksTrigger)
@@ -60,7 +61,7 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", getClassifiedError(chaincodeFcn, err)
+		return "", GetClassifiedError(chaincodeFcn, err)
 	} else {
 		return string(resp.TransactionID), nil
 	}
@@ -142,7 +143,7 @@ eventHandler:
 				resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
 
 				if err != nil {
-					chanError <- getClassifiedError(chaincodeFcn, err)
+					chanError <- GetClassifiedError(chaincodeFcn, err)
 					return
 				}
 
@@ -187,9 +188,10 @@ func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, shar
 		return "", fmt.Errorf("密钥置换会话 ID 不能为空")
 	}
 
+	shareAsBase64 := base64.StdEncoding.EncodeToString(share[:])
 	keySwitchResult := keyswitch.KeySwitchResult{
 		KeySwitchSessionID: keySwitchSessionID,
-		Share:              share,
+		Share:              shareAsBase64,
 	}
 
 	keySwitchResultBytes, err := json.Marshal(keySwitchResult)
@@ -206,7 +208,7 @@ func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, shar
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", getClassifiedError(chaincodeFcn, err)
+		return "", GetClassifiedError(chaincodeFcn, err)
 	} else {
 		return string(resp.TransactionID), nil
 	}

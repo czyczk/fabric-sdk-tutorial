@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/auth"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"github.com/google/uuid"
@@ -317,7 +318,10 @@ func TestCreateAuthResponseWithOthersResource(t *testing.T) {
 	authSessionID := string(resp.Payload)
 	sampleAuthResponse.AuthSessionID = authSessionID
 	resp = createAuthResponseHelper(stub, sampleAuthResponse)
+
+	// 状态应为 ERROR 且错误内容为 `codeForbidden`
 	expectResponseStatusERROR(t, &resp)
+	expectStringEndsWith(t, errorcode.CodeForbidden, resp.Message)
 }
 
 func TestCreateAuthResponseIndexStatus(t *testing.T) {
@@ -435,7 +439,10 @@ func TestGetAuthRequestWithNonExistentSessionID(t *testing.T) {
 	targetFunction := "getAuthRequest"
 	authSessionID := "01"
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(authSessionID)})
+
+	// Expect the response status to be ERROR and containing error message of `errorcode.CodeNotFound`.
 	expectResponseStatusERROR(t, &resp)
+	expectStringEndsWith(t, errorcode.CodeNotFound, resp.Message)
 }
 
 func getSampleAuthRequest1(resourceID string) auth.AuthRequest {

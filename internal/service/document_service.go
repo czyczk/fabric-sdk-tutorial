@@ -21,7 +21,7 @@ import (
 // DocumentService 用于管理数字文档。
 type DocumentService struct {
 	ServiceInfo      *Info
-	KeySwitchService *KeySwitchServiceInterface
+	KeySwitchService KeySwitchServiceInterface
 }
 
 // CreateDocument 创建数字文档。
@@ -54,6 +54,7 @@ func (s *DocumentService) CreateDocument(id string, name string, contents []byte
 
 	// 计算哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(documentBytes)
+	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
 	extensions := make(map[string]string)
 	extensions["name"] = name
@@ -65,7 +66,7 @@ func (s *DocumentService) CreateDocument(id string, name string, contents []byte
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
 		ResourceID:   id,
-		Hash:         hash,
+		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   string(extensionsBytes),
 	}
@@ -89,7 +90,7 @@ func (s *DocumentService) CreateDocument(id string, name string, contents []byte
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", getClassifiedError(chaincodeFcn, err)
+		return "", GetClassifiedError(chaincodeFcn, err)
 	} else {
 		return string(resp.TransactionID), nil
 	}
@@ -161,6 +162,7 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(documentBytes)
+	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
 	extensions := make(map[string]string)
 	extensions["name"] = name
@@ -172,7 +174,7 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
 		ResourceID:   id,
-		Hash:         hash,
+		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   string(extensionsBytes),
 	}
@@ -191,7 +193,7 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 		return "", errors.Wrapf(err, "无法序列化链码参数")
 	}
 
-	chaincodeFcn := "createPlainData"
+	chaincodeFcn := "createEncryptedData"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
@@ -200,7 +202,7 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", getClassifiedError(chaincodeFcn, err)
+		return "", GetClassifiedError(chaincodeFcn, err)
 	} else {
 		return string(resp.TransactionID), nil
 	}
@@ -251,9 +253,9 @@ func (s *DocumentService) GetDocumentMetadata(id string) (*data.ResMetadataStore
 		Args:        [][]byte{[]byte(id)},
 	}
 
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
+	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
 	if err != nil {
-		return nil, getClassifiedError(chaincodeFcn, err)
+		return nil, GetClassifiedError(chaincodeFcn, err)
 	} else {
 		var resMetadataStored data.ResMetadataStored
 		if err = json.Unmarshal(resp.Payload, &resMetadataStored); err != nil {
@@ -287,9 +289,9 @@ func (s *DocumentService) GetDocument(id string) (*common.Document, error) {
 		Args:        [][]byte{[]byte(id)},
 	}
 
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
+	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
 	if err != nil {
-		return nil, getClassifiedError(chaincodeFcn, err)
+		return nil, GetClassifiedError(chaincodeFcn, err)
 	} else {
 		var document common.Document
 		if err = json.Unmarshal(resp.Payload, &document); err != nil {
@@ -309,7 +311,7 @@ func (s *DocumentService) GetDocument(id string) (*common.Document, error) {
 // 返回：
 //   解密后的文档
 func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int) (*common.Document, error) {
-	return nil, fmt.Errorf(errorcode.CodeNotImplemented)
+	return nil, errorcode.ErrorNotImplemented
 }
 
 // GetRegulatorEncryptedDocument 获取由监管者公钥加密的文档。函数将获取数据本体并尝试使用调用者的公钥解密后，返回明文。
@@ -320,7 +322,7 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 //  返回：
 //    解密后的文档
 func (s *DocumentService) GetRegulatorEncryptedDocument(id string) (*common.Document, error) {
-	return nil, fmt.Errorf(errorcode.CodeNotImplemented)
+	return nil, errorcode.ErrorNotImplemented
 }
 
 // ListDocumentIDsByCreator 获取所有调用者创建的数字文档的资源 ID。
@@ -328,7 +330,7 @@ func (s *DocumentService) GetRegulatorEncryptedDocument(id string) (*common.Docu
 // 返回：
 //   资源 ID 列表
 func (s *DocumentService) ListDocumentIDsByCreator() ([]string, error) {
-	return nil, fmt.Errorf(errorcode.CodeNotImplemented)
+	return nil, errorcode.ErrorNotImplemented
 }
 
 // ListDocumentIDsByPartialName 获取名称包含所提供的部分名称的数字文档的资源 ID。
@@ -336,5 +338,5 @@ func (s *DocumentService) ListDocumentIDsByCreator() ([]string, error) {
 // 返回：
 //   资源 ID 列表
 func (s *DocumentService) ListDocumentIDsByPartialName(partialName string) ([]string, error) {
-	return nil, fmt.Errorf(errorcode.CodeNotImplemented)
+	return nil, errorcode.ErrorNotImplemented
 }

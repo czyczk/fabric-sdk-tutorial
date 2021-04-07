@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"math/bits"
 	"testing"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
@@ -99,7 +98,7 @@ func TestCreatePlainDataWithCorruptHashAndSize(t *testing.T) {
 
 	// Prepare the args
 	samplePlainDataCorruptHash := getSamplePlainData1()
-	samplePlainDataCorruptHash.Metadata.Hash[13] = bits.Reverse8(samplePlainDataCorruptHash.Metadata.Hash[13])
+	samplePlainDataCorruptHash.Metadata.Hash = "cbabcbabc"
 	samplePlainDataCorruptHashBytes, _ := json.Marshal(samplePlainDataCorruptHash)
 
 	samplePlainDataCorruptSize := getSamplePlainData2()
@@ -108,7 +107,7 @@ func TestCreatePlainDataWithCorruptHashAndSize(t *testing.T) {
 
 	// Invoke with dataCorruptHash and expect the response status to be ERROR
 	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), samplePlainDataCorruptHashBytes})
-	expectResponseStatusOK(t, &resp)
+	expectResponseStatusERROR(t, &resp)
 
 	// Invoke with dataCorruptSize and expect the response status to be ERROR
 	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), samplePlainDataCorruptSizeBytes})
@@ -939,11 +938,12 @@ func TestListDocumentIDsByPartialNameWithExcessiveParameters(t *testing.T) {
 // 名称: "Sample Plain Data 1"
 // 内容: base64(data1)
 func getSamplePlainData1() data.PlainData {
+	hashBytes := sha256.Sum256([]byte(data1))
 	return data.PlainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Plain,
 			ResourceID:   "001",
-			Hash:         sha256.Sum256([]byte(data1)),
+			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data1))),
 			Extensions:   "{\"name\":\"Sample Plain Data 1\"}",
 		},
@@ -956,11 +956,12 @@ func getSamplePlainData1() data.PlainData {
 // 名称: "示例明文数据2"
 // 内容: base64(data2)
 func getSamplePlainData2() data.PlainData {
+	hashBytes := sha256.Sum256([]byte(data2))
 	return data.PlainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Plain,
 			ResourceID:   "002",
-			Hash:         sha256.Sum256([]byte(data2)),
+			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data2))),
 			Extensions:   "{\"name\":\"示例明文数据2\"}",
 		},
@@ -973,11 +974,12 @@ func getSamplePlainData2() data.PlainData {
 // 名称: "示例明文数据3"
 // 内容: base64(data3)
 func getSamplePlainData3() data.PlainData {
+	hashBytes := sha256.Sum256([]byte(data3))
 	return data.PlainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Plain,
 			ResourceID:   "003",
-			Hash:         sha256.Sum256([]byte(data3)),
+			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data3))),
 			Extensions:   "{\"name\":\"示例明文数据3\"}",
 		},
@@ -990,17 +992,18 @@ func getSamplePlainData3() data.PlainData {
 // 名称: "Sample Encrypted Data 1"
 // 内容：base64(encrypt(data1))
 func getSampleEncryptedData1() data.EncryptedData {
+	hashBytes := sha256.Sum256([]byte(data1))
 	return data.EncryptedData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Encrypted,
 			ResourceID:   "101",
-			Hash:         sha256.Sum256([]byte(data1)),
+			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data1))),
 			Extensions:   "{\"name\":\"Sample Encrypted Data 1\"}",
 		},
 		// TODO: 需要用对称密钥加密
 		Data:   base64.StdEncoding.EncodeToString([]byte(data1)),
-		Key:    []byte("123456"),
+		Key:    base64.StdEncoding.EncodeToString([]byte("123456")),
 		Policy: `(DeptType == "computer" && DeptLevel == 2)`,
 	}
 }
@@ -1010,17 +1013,18 @@ func getSampleEncryptedData1() data.EncryptedData {
 // 名称: "示例加密数据2"
 // 内容：base64(encrypt(data2))
 func getSampleEncryptedData2() data.EncryptedData {
+	hashBytes := sha256.Sum256([]byte(data2))
 	return data.EncryptedData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Encrypted,
 			ResourceID:   "102",
-			Hash:         sha256.Sum256([]byte(data2)),
+			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data2))),
 			Extensions:   "{\"name\":\"示例加密数据2\"}",
 		},
 		// TODO: 需要用对称密钥加密
 		Data:   base64.StdEncoding.EncodeToString([]byte(data2)),
-		Key:    []byte("123456"),
+		Key:    base64.StdEncoding.EncodeToString([]byte("123456")),
 		Policy: `(DeptType == "computer" && DeptLevel == 1)`,
 	}
 }
@@ -1029,15 +1033,16 @@ func getSampleEncryptedData2() data.EncryptedData {
 // 资源 ID: "001"
 // 名称: "Sample Offchain Data 1"
 func getSampleOffchainData1() data.OffchainData {
+	hashBytes := sha256.Sum256([]byte(data1))
 	return data.OffchainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Offchain,
 			ResourceID:   "201",
-			Hash:         sha256.Sum256([]byte(data1)),
+			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data1))),
 			Extensions:   "{\"name\":\"Sample Offchain Data 1\"}",
 		},
-		Key: []byte("123456"),
+		Key: base64.StdEncoding.EncodeToString([]byte("123456")),
 		// TODO: 测试时填充
 		Policy: "Encryption strategy",
 	}
@@ -1047,15 +1052,16 @@ func getSampleOffchainData1() data.OffchainData {
 // 资源 ID: "002"
 // 名称: "示例链下数据2"
 func getSampleOffchainData2() data.OffchainData {
+	hashBytes := sha256.Sum256([]byte(data2))
 	return data.OffchainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Offchain,
 			ResourceID:   "202",
-			Hash:         sha256.Sum256([]byte(data2)),
+			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data2))),
 			Extensions:   "{\"name\":\"示例链下数据2\"}",
 		},
-		Key: []byte("123456"),
+		Key: base64.StdEncoding.EncodeToString([]byte("123456")),
 		// TODO: 测试时填充
 		Policy: "Encryption strategy",
 	}
