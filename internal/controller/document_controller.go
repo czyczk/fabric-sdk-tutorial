@@ -84,28 +84,31 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	// Early return after extracting common parameters if the error list is not empty
 	if len(*pel) > 0 {
 		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		return
 	}
 
 	// Generate an ID
 	sfNode, err := snowflake.NewNode(1)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
+		return
 	}
 	id := sfNode.Generate().String()
 
 	// A symmetric key should be generated to encrypt the document if the resourse type is Encrypted or Offchain (later used in the service function and returned as part of the result).
 	var key *ppks.CurvePoint
+	// The key is now a `*ppks.CurvePoint`. Cast it to a `*sm2.PublicKey` so that it can be converted to PEM bytes
+	keyAsPublicKey := (*sm2.PublicKey)(key)
+	var keyPEM []byte
+	// Generate the key and convert it into the useful type
 	if resourceType == data.Encrypted || resourceType == data.Offchain {
 		key = ppks.GenPoint()
-	}
 
-	// The key is now a `*ppks.CurvePoint`. Cast it to a `*sm2.PublicKey` so that it can be converted to PEM bytes
-	var keyAsPublicKey *sm2.PublicKey
-	*keyAsPublicKey = sm2.PublicKey(*key)
-	var keyPEM []byte
-	keyPEM, err = sm2keyutils.ConvertPublicKeyToPEM(keyAsPublicKey)
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法序列化对称公钥。"))
+		keyPEM, err = sm2keyutils.ConvertPublicKeyToPEM(keyAsPublicKey)
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法序列化对称公钥。"))
+			return
+		}
 	}
 
 	// Invoke the service function according to the resource type
@@ -147,6 +150,7 @@ func (dc *DocumentController) handleGetDocumentMetadata(c *gin.Context) {
 	// Early return if there's parameter error
 	if len(*pel) != 0 {
 		c.AbortWithStatusJSON(http.StatusBadRequest, *pel)
+		return
 	}
 
 	resDataMetadata, err := dc.DocumentSvc.GetDocumentMetadata(id)
@@ -177,6 +181,7 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	if resourceType == data.Offchain {
 		*pel = append(*pel, "资源类型不能为链下。")
 		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		return
 	}
 
 	// Extract and check document ID
@@ -198,6 +203,7 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	// Early return if the error list is not empty
 	if len(*pel) > 0 {
 		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		return
 	}
 
 	// Invoke the service function according to the resource type
