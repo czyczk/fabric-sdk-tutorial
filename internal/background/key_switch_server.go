@@ -1,4 +1,4 @@
-package ksserver
+package background
 
 import (
 	"encoding/base64"
@@ -20,8 +20,8 @@ import (
 )
 
 type KeySwitchServer struct {
-	ServiceInfo            service.Info
-	KeySwitchService       *service.KeySwitchServiceInterface
+	ServiceInfo            *service.Info
+	KeySwitchService       service.KeySwitchServiceInterface
 	wg                     sync.WaitGroup
 	chanQuit               chan int
 	chanKeySwitchSessionID chan string
@@ -32,7 +32,7 @@ type KeySwitchServer struct {
 	isStopping             bool
 }
 
-func NewKeySwitchServer(serviceInfo service.Info, keySwitchService *service.KeySwitchServiceInterface, numWorkers int) *KeySwitchServer {
+func NewKeySwitchServer(serviceInfo *service.Info, keySwitchService service.KeySwitchServiceInterface, numWorkers int) *KeySwitchServer {
 	return &KeySwitchServer{
 		ServiceInfo:            serviceInfo,
 		KeySwitchService:       keySwitchService,
@@ -74,6 +74,7 @@ func (s *KeySwitchServer) Start() error {
 	// Start #NumWorkers Go routines with each running a worker.
 	log.Tracef("正在创建 %v 个密钥置换工作单元...\n", s.NumWorkers)
 	for id := 0; id < s.NumWorkers; id++ {
+		s.wg.Add(1)
 		go s.createKeySwitchServerWorker(id, notifier)
 	}
 
@@ -85,8 +86,6 @@ func (s *KeySwitchServer) Start() error {
 }
 
 func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessionIDNotifier <-chan *fab.CCEvent) {
-	s.wg.Add(1)
-
 	for {
 		select {
 		case event := <-chanKeySwitchSessionIDNotifier:
@@ -100,10 +99,16 @@ func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessi
 
 			log.Debugf("密钥置换工作单元 #%v 收到触发器，会话 ID: %v。\n", id, keySwitchTriggerStored.KeySwitchSessionID)
 
+			// Check if the validation result is true. Ignore the trigger if it's false.
+			if !keySwitchTriggerStored.ValidationResult {
+				log.Debugf("密钥置换工作单元 #%v: 未通过验证，将忽略该会话。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID)
+				continue
+			}
+
 			// Parse the target public key
 			targetPubKeyBytes, err := base64.StdEncoding.DecodeString(keySwitchTriggerStored.KeySwitchPK)
 			if err != nil || len(targetPubKeyBytes) != 64 {
-				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析目标密钥", id))
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析目标密钥。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
 			}
 			if len(targetPubKeyBytes) != 64 {
@@ -116,14 +121,14 @@ func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessi
 
 			targetPubKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&targetPubKeyX, &targetPubKeyY)
 			if err != nil {
-				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析目标密钥", id))
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析目标密钥。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
 			}
 
 			// Invoke the chaincode function to retrieve the encrypted symmetric key
 			encryptedKeyBytes, err := s.getResourceKeyFromCC(keySwitchTriggerStored.ResourceID)
 			if err != nil {
-				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取资源 '%v' 的加密密钥", id, keySwitchTriggerStored.ResourceID))
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取资源 '%v' 的加密密钥。会话 ID: %v", id, keySwitchTriggerStored.ResourceID, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
 			}
 			var curvePoint *ppks.CurvePoint
@@ -135,11 +140,26 @@ func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessi
 			*curvePoint = ppks.CurvePoint(*encryptedKey)
 
 			// Do share calculation
+			timeBeforeShareCalc := time.Now()
 			share, err := ppks.ShareCal(targetPubKey, curvePoint, global.KeySwitchKeys.PrivateKey)
+			timeAfterShareCalc := time.Now()
+			timeDiffShareCalc := timeAfterShareCalc.Sub(timeBeforeShareCalc)
+			log.Debugf("密钥置换工作单元 #%v 完成份额计算，耗时 %v。会话 ID: %v", id, timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
 
-			// TODO: Invoke the service function to save the result onto the chain
+			// Invoke the service function to save the result onto the chain
+			// Only share.K is used
+			shareBytes := make([]byte, 64)
+			copy(shareBytes[:32], share.K.X.Bytes())
+			copy(shareBytes[32:], share.K.Y.Bytes())
 
+			timeBeforeUploading := time.Now()
+			txID, err := s.KeySwitchService.CreateKeySwitchResult(keySwitchTriggerStored.KeySwitchSessionID, shareBytes)
+			timeAfterUploading := time.Now()
+			timeDiffUploading := timeAfterUploading.Sub(timeBeforeUploading)
+			log.Debugf("密钥置换工作单元 #%v 完成份额结果上链，耗时 %v。会话 ID: %v。交易 ID: %v", id, timeDiffUploading, keySwitchTriggerStored.KeySwitchSessionID, txID)
 		case <-s.chanQuit:
+			// Break the for loop when receiving a quit signal
+			log.Debugf("密钥置换工作单元 #%v 收到退出信号。", id)
 			s.wg.Done()
 			break
 		default:
@@ -168,7 +188,7 @@ func (s *KeySwitchServer) Stop() (*sync.WaitGroup, error) {
 	}
 
 	// Unregister the chaincode event
-	s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(s.reg)
+	s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(*s.reg)
 
 	s.isStarted = false
 

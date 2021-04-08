@@ -13,7 +13,7 @@ type ServerInfo struct {
 	Channels          []string               `yaml:"channels"`
 	Port              int                    `yaml:"port"`
 	IsKeySwitchServer bool                   `yaml:"isKeySwitchServer"`
-	KeySwitchKeys     *KeySwitchKeyLocations `yaml:"sm2Keys"`
+	KeySwitchKeys     *KeySwitchKeyLocations `yaml:"keySwitchKeys"`
 }
 
 // LoadServerInfo loads the server config file (in YAML) which contains info needed to start a server.

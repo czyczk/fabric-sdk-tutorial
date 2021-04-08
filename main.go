@@ -1,18 +1,23 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"os/signal"
 	"runtime"
-	"sync"
+	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/appinit"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/background"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/controller"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/networkinfo"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 )
@@ -156,12 +161,6 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			}
 		}
 
-		// Prepare the channels for key switch go routines. They will be of use if the app is enabled as a key switch server.
-		ksServerJobsChan := make(chan string)
-		ksServerQuitChan := make(chan int)
-		var ksServerWg sync.WaitGroup
-		defer ksServerWg.Wait()
-
 		// Prepare to load key switch keys
 		if serverInfo.KeySwitchKeys == nil || serverInfo.KeySwitchKeys.CollectivePublicKey == "" {
 			return fmt.Errorf("未指定密钥置换集合公钥")
@@ -176,14 +175,6 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		}
 
 		appinit.LoadKeySwitchServerKeys(serverInfo.KeySwitchKeys)
-
-		if isKeySwitchServer {
-			// Start #LogicalCPUs go routines to listen key switch triggers
-			for i := 0; i < runtime.NumCPU(); i++ {
-				ksServerWg.Add(1)
-				// TODO: Start a key switch trigger listener
-			}
-		}
 
 		// Instantiate a screw service
 		serviceInfo := &service.Info{
@@ -202,9 +193,22 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		keySwitchSvc := &service.KeySwitchService{ServiceInfo: universalCcServiceInfo}
 
 		// Instantiate a document service
-		documentSvc := &service.DocumentService{ServiceInfo: universalCcServiceInfo, KeySwitchSvc: keySwitchSvc}
+		documentSvc := &service.DocumentService{
+			ServiceInfo:      universalCcServiceInfo,
+			KeySwitchService: keySwitchSvc,
+		}
 
 		// TODO: Instantiate a auth service
+
+		// Prepare a key switch server. It will be of use if the app is enabled as a key switch server.
+		ksServer := background.NewKeySwitchServer(serviceInfo, keySwitchSvc, runtime.NumCPU())
+		if isKeySwitchServer {
+			// Start the server to listen key switch triggers
+			err := ksServer.Start()
+			if err != nil {
+				return err
+			}
+		}
 
 		// Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID
 		respMsg, err := screwSvc.TransferAndShowEvent("Org1", "Org2", 10)
@@ -245,9 +249,47 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		controller.RegisterHandlers(apiv1Group, pingPongController)
 		controller.RegisterHandlers(apiv1Group, screwController)
 		controller.RegisterHandlers(apiv1Group, documentController)
-		router.Run(fmt.Sprintf(":%v", serverInfo.Port))
 
-		// TODO: Listen to Ctrl+C signal and send #LogicalCPUs quit signals to `ksServerQuitChan`
+		// Start the HTTP server
+		httpServer := &http.Server{
+			Addr:    fmt.Sprintf(":%v", serverInfo.Port),
+			Handler: router,
+		}
+
+		chanError := make(chan error)
+		go func() {
+			if err := httpServer.ListenAndServe(); err != nil {
+				chanError <- errors.Wrap(err, "无法启动 HTTP 服务器")
+			}
+		}()
+
+		// Listen Ctrl+C signals. On receiving a signal stops the app elegantly
+		chanQuit := make(chan os.Signal)
+		signal.Notify(chanQuit, os.Interrupt)
+		select {
+		case err := <-chanError:
+			return err
+		case <-chanQuit:
+			log.Infoln("收到 Ctrl+C 信号，正在退出程序...")
+
+			// Stop the HTTP server elegantly
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			log.Infoln("正在停止 HTTP 服务器...")
+			if err := httpServer.Shutdown(ctx); err != nil {
+				return errors.Wrap(err, "无法正常停止 HTTP 服务器")
+			}
+
+			// Stop the key switch server if enabled
+			if isKeySwitchServer {
+				log.Infoln("正在停止密钥置换服务器...")
+				wg, err := ksServer.Stop()
+				defer wg.Wait()
+				if err != nil {
+					return err
+				}
+			}
+		}
 
 		return nil
 	}

@@ -183,12 +183,12 @@ eventHandler:
 //
 // 返回：
 //   交易 ID
-func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, share [64]byte) (string, error) {
+func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, share []byte) (string, error) {
 	if strings.TrimSpace(keySwitchSessionID) == "" {
 		return "", fmt.Errorf("密钥置换会话 ID 不能为空")
 	}
 
-	shareAsBase64 := base64.StdEncoding.EncodeToString(share[:])
+	shareAsBase64 := base64.StdEncoding.EncodeToString(share)
 	keySwitchResult := keyswitch.KeySwitchResult{
 		KeySwitchSessionID: keySwitchSessionID,
 		Share:              shareAsBase64,
