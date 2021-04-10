@@ -52,7 +52,6 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 
 	// Extract and check common parameters
 	name := c.PostForm("name")
-	name = pel.AppendIfEmptyOrBlankSpaces(name, "文档名称不能为空。")
 
 	// Property is optional, but it must be valid (can be unmarshaled to a map) if provided.
 	propertyBytes := []byte(c.PostForm("property"))

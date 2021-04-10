@@ -183,13 +183,12 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		}
 
 		screwSvc := &service.ScrewService{ServiceInfo: serviceInfo}
-
-		// Instantiate a key switch service
 		universalCcServiceInfo := &service.Info{
 			ChaincodeID:   "universalCc",
 			ChannelClient: global.ChannelClientInstances["mychannel"][orgName][userID],
 		}
 
+		// Instantiate a key switch service
 		keySwitchSvc := &service.KeySwitchService{ServiceInfo: universalCcServiceInfo}
 
 		// Instantiate a document service
@@ -197,6 +196,9 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			ServiceInfo:      universalCcServiceInfo,
 			KeySwitchService: keySwitchSvc,
 		}
+
+		// Instantiate an auth service
+		authSvc := &service.AuthService{}
 
 		// TODO: Instantiate a auth service
 
@@ -242,6 +244,16 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			DocumentSvc: documentSvc,
 		}
 
+		authController := &controller.AuthController{
+			GroupName: "/auth",
+			AuthSvc:   authSvc,
+		}
+
+		keySwitchController := &controller.KeySwitchController{
+			GroupName:    "/ks",
+			KeyswitchSvc: keySwitchSvc,
+		}
+
 		// Register controller handlers
 		router := gin.Default()
 		router.Use(controller.CORSMiddleware())
@@ -249,6 +261,8 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		controller.RegisterHandlers(apiv1Group, pingPongController)
 		controller.RegisterHandlers(apiv1Group, screwController)
 		controller.RegisterHandlers(apiv1Group, documentController)
+		controller.RegisterHandlers(apiv1Group, authController)
+		controller.RegisterHandlers(apiv1Group, keySwitchController)
 
 		// Start the HTTP server
 		httpServer := &http.Server{
