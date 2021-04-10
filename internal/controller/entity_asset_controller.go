@@ -227,7 +227,7 @@ func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
 }
 
 func (ec *EntityAssetController) handleTransferAsset(c *gin.Context) {
-	id := c.PostForm("id")
+	id := c.Param("id")
 
 	// check entity asset ID
 	pel := &ParameterErrorList{}
