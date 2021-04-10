@@ -16,10 +16,11 @@ type AuthServiceInterface interface {
 	//
 	// 参数：
 	//   授权会话 ID
+	//   批复结果
 	//
 	// 返回：
 	//   交易 ID
-	CreateAuthResponse(authSessionID string) (string, error)
+	CreateAuthResponse(authSessionID string, result bool) (string, error)
 
 	// 列出用户可批复但未批复的授权会话 ID。
 	//
