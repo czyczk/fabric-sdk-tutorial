@@ -3,6 +3,7 @@ package service
 import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"github.com/XiaoYao-austin/ppks"
 )
 
 // EntityAssetServiceInterface 定义了用于管理实体资产的服务的接口。
@@ -31,7 +32,7 @@ type EntityAssetServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateEncryptedEntityAsset(id string, name string, componentsIDs []string, property string, key []byte, policy string) (string, error)
+	CreateEncryptedEntityAsset(id string, name string, componentsIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error)
 
 	// 创建一条资产移交记录。
 	//

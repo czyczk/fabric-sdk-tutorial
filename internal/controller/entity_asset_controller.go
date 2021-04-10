@@ -17,29 +17,28 @@ import (
 	"github.com/tjfoc/gmsm/sm2"
 )
 
-// A DocumentController contains a group name and a `DocumentService` instance. It also implements the interface `Controller`.
-type DocumentController struct {
+// A EntityAssetController contains a group name and a `EntityService` instance. It also implements the interface `Controller`.
+type EntityAssetController struct {
 	GroupName      string
-	DocumentSvc    service.DocumentServiceInterface
 	EntityAssetSvc service.EntityAssetServiceInterface
 }
 
 // GetGroupName returns the group name.
-func (c *DocumentController) GetGroupName() string {
+func (c *EntityAssetController) GetGroupName() string {
 	return c.GroupName
 }
 
-// GetEndpointMap implements part of the interface `Controller`. It returns the API endpoints and handlers which are defined and managed by DocumentController.
-func (c *DocumentController) GetEndpointMap() EndpointMap {
+// GetEndpointMap implements part of the interface `Controller`. It returns the API endpoints and handlers which are defined and managed by EntityAssetController.
+func (c *EntityAssetController) GetEndpointMap() EndpointMap {
 	return EndpointMap{
-		urlMethodPair{"document", "POST"}:             []gin.HandlerFunc{c.handleCreateDocument},
-		urlMethodPair{"documents/list", "GET"}:        []gin.HandlerFunc{c.handleListDocumentIDs},
-		urlMethodPair{"document/:id/metadata", "GET"}: []gin.HandlerFunc{c.handleGetDocumentMetadata},
-		urlMethodPair{"document/:id", "GET"}:          []gin.HandlerFunc{c.handleGetDocument},
+		urlMethodPair{"", "POST"}:             []gin.HandlerFunc{c.handleCreateAsset},
+		urlMethodPair{":id/metadata", "GET"}:  []gin.HandlerFunc{c.handleGetAssetMetadata},
+		urlMethodPair{":id", "GET"}:           []gin.HandlerFunc{c.handleGetAsset},
+		urlMethodPair{":id/transfer", "POST"}: []gin.HandlerFunc{c.handleTransferAsset},
 	}
 }
 
-func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
+func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 	resourceTypeStr := c.PostForm("resourceType")
 
 	// Validity check
@@ -51,9 +50,13 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	if err != nil {
 		*pel = append(*pel, "资源类型不合法。")
 	}
+	if resourceType == data.Offchain || resourceType == data.RegulatorEncrypted {
+		*pel = append(*pel, "资源类型不能为链下和监管者加密文档")
+	}
 
 	// Extract and check common parameters
 	name := c.PostForm("name")
+	name = pel.AppendIfEmptyOrBlankSpaces(name, "文档名称不能为空。")
 
 	// Property is optional, but it must be valid (can be unmarshaled to a map) if provided.
 	propertyBytes := []byte(c.PostForm("property"))
@@ -65,12 +68,15 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 		}
 	}
 
-	// Check contents if it's not an offchain resource
-	contents := []byte(c.PostForm("contents"))
-	if resourceType != data.Offchain {
-		if len(contents) == 0 {
-			*pel = append(*pel, "文档内容不能为空。")
-		}
+	// Check componentsIDs
+	componentsIDsByte := []byte(c.PostForm("componentsIDs"))
+	if len(componentsIDsByte) == 0 {
+		*pel = append(*pel, "组件的序列号不能为空。")
+	}
+	var componentsIDs []string
+	err = json.Unmarshal(componentsIDsByte, &componentsIDs)
+	if err != nil {
+		*pel = append(*pel, "组件的序列号不合法。")
 	}
 
 	// Check policy if it's not a plain resource
@@ -96,13 +102,13 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	}
 	id := sfNode.Generate().String()
 
-	// A symmetric key should be generated to encrypt the document if the resourse type is Encrypted or Offchain (later used in the service function and returned as part of the result).
+	// A symmetric key should be generated to encrypt the document if the resourse type is Encrypted (later used in the service function and returned as part of the result).
 	var key *ppks.CurvePoint
 	// The key is now a `*ppks.CurvePoint`. Cast it to a `*sm2.PublicKey` so that it can be converted to PEM bytes
 	var keyAsPublicKey *sm2.PublicKey
 	var keyPEM []byte
 	// Generate the key and convert it into the useful type
-	if resourceType == data.Encrypted || resourceType == data.Offchain {
+	if resourceType == data.Encrypted {
 		key = ppks.GenPoint()
 		keyAsPublicKey = (*sm2.PublicKey)(key)
 		keyPEM, err = sm2keyutils.ConvertPublicKeyToPEM(keyAsPublicKey)
@@ -116,13 +122,9 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	var txID string
 	switch resourceType {
 	case data.Plain:
-		txID, err = dc.DocumentSvc.CreateDocument(id, name, contents, string(propertyBytes))
+		txID, err = ec.EntityAssetSvc.CreateEntityAsset(id, name, componentsIDs, string(propertyBytes))
 	case data.Encrypted:
-		txID, err = dc.DocumentSvc.CreateEncryptedDocument(id, name, contents, string(propertyBytes), key, policy)
-	case data.RegulatorEncrypted:
-		txID, err = dc.DocumentSvc.CreateRegulatorEncryptedDocument(id, name, contents, string(propertyBytes), key)
-	case data.Offchain:
-		txID, err = dc.DocumentSvc.CreateOffchainDocument(id, name, string(propertyBytes), key, policy)
+		txID, err = ec.EntityAssetSvc.CreateEncryptedEntityAsset(id, name, componentsIDs, string(propertyBytes), key, policy)
 	}
 
 	// Check error type and generate the corresponding response
@@ -141,12 +143,12 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	}
 }
 
-func (dc *DocumentController) handleGetDocumentMetadata(c *gin.Context) {
+func (ec *EntityAssetController) handleGetAssetMetadata(c *gin.Context) {
 	id := c.Param("id")
 
 	// Validity check
 	pel := &ParameterErrorList{}
-	id = pel.AppendIfEmptyOrBlankSpaces(id, "数字文档 ID 不能为空。")
+	id = pel.AppendIfEmptyOrBlankSpaces(id, "实体 ID 不能为空。")
 
 	// Early return if there's parameter error
 	if len(*pel) != 0 {
@@ -154,7 +156,7 @@ func (dc *DocumentController) handleGetDocumentMetadata(c *gin.Context) {
 		return
 	}
 
-	resDataMetadata, err := dc.DocumentSvc.GetDocumentMetadata(id)
+	resDataMetadata, err := ec.EntityAssetSvc.GetEntityAssetMetadata(id)
 	if err == nil {
 		c.JSON(http.StatusOK, resDataMetadata)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
@@ -166,7 +168,7 @@ func (dc *DocumentController) handleGetDocumentMetadata(c *gin.Context) {
 	}
 }
 
-func (dc *DocumentController) handleGetDocument(c *gin.Context) {
+func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
 	resourceTypeStr := c.Query("resourceType")
 
 	// Validity check
@@ -177,15 +179,11 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	if err != nil {
 		*pel = append(*pel, "资源类型不合法。")
 	}
-
-	// Early return if the resource type is "Offchain"
-	if resourceType == data.Offchain {
-		*pel = append(*pel, "资源类型不能为链下。")
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
-		return
+	if resourceType == data.Offchain || resourceType == data.RegulatorEncrypted {
+		*pel = append(*pel, "资源类型不能为链下和监管者加密文档。")
 	}
 
-	// Extract and check document ID
+	// Extract and check entity asset ID
 	id := c.Param("id")
 	id = pel.AppendIfEmptyOrBlankSpaces(id, "文档 ID 不能为空。")
 
@@ -208,19 +206,17 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	}
 
 	// Invoke the service function according to the resource type
-	var document *common.Document
+	var entityAsset *common.EntityAsset
 	switch resourceType {
 	case data.Plain:
-		document, err = dc.DocumentSvc.GetDocument(id)
+		entityAsset, err = ec.EntityAssetSvc.GetEntityAsset(id)
 	case data.Encrypted:
-		document, err = dc.DocumentSvc.GetEncryptedDocument(id, keySwitchSessionID, numSharesExpected)
-	case data.RegulatorEncrypted:
-		document, err = dc.DocumentSvc.GetRegulatorEncryptedDocument(id)
+		entityAsset, err = ec.EntityAssetSvc.GetEncryptedEntityAsset(id, keySwitchSessionID, numSharesExpected)
 	}
 
 	// Check error type and generate the corresponding response
 	if err == nil {
-		c.JSON(http.StatusOK, document)
+		c.JSON(http.StatusOK, entityAsset)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
 		c.Writer.WriteHeader(http.StatusNotFound)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
@@ -230,40 +226,46 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	}
 }
 
-func (dc *DocumentController) handleListDocumentIDs(c *gin.Context) {
-	name := c.Query("name")
-	entityAssetID := c.Query("entityAssetID")
+func (ec *EntityAssetController) handleTransferAsset(c *gin.Context) {
+	id := c.Param("id")
 
-	// check name
-	if len(name) > 0 {
-		resourceIDs, err := dc.DocumentSvc.ListDocumentIDsByPartialName(name)
-		// Check error type and generate the corresponding response
-		if err == nil {
-			c.JSON(http.StatusOK, resourceIDs)
-		} else if errors.Cause(err) == errorcode.ErrorNotFound {
-			c.Writer.WriteHeader(http.StatusNotFound)
-		} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-			c.Writer.WriteHeader(http.StatusNotImplemented)
-		} else {
-			c.String(http.StatusInternalServerError, err.Error())
-		}
-	}
-	// check enrityAssetID
-	if len(entityAssetID) > 0 {
-		documentIDs, err := dc.DocumentSvc.ListDocumentIDsByPartialName(entityAssetID)
-		// Check error type and generate the corresponding response
-		if err == nil {
-			c.JSON(http.StatusOK, documentIDs)
-		} else if errors.Cause(err) == errorcode.ErrorNotFound {
-			c.Writer.WriteHeader(http.StatusNotFound)
-		} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-			c.Writer.WriteHeader(http.StatusNotImplemented)
-		} else {
-			c.String(http.StatusInternalServerError, err.Error())
-		}
-	}
-	if len(name) == 0 && len(entityAssetID) == 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, "name 和 entityAssetID 不能同时为空")
+	// check entity asset ID
+	pel := &ParameterErrorList{}
+	id = pel.AppendIfEmptyOrBlankSpaces(id, "实体 ID 不能为空。")
+
+	// check new owner
+	newOwner := c.PostForm("newOwner")
+	newOwner = pel.AppendIfEmptyOrBlankSpaces(newOwner, "新的拥有者不能为空。")
+
+	// Early return if there's parameter error
+	if len(*pel) != 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, *pel)
 		return
+	}
+
+	// Generate a transferRecordID
+	sfNode, err := snowflake.NewNode(1)
+	if err != nil {
+		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
+		return
+	}
+	transferRecordID := sfNode.Generate().String()
+
+	// Invoke the service function
+	txID, err := ec.EntityAssetSvc.TransferEntityAsset(transferRecordID, id, newOwner)
+
+	// Check error type and generate the corresponding response
+	if err == nil {
+		info := ResourceCreationInfo{
+			ResourceID:    transferRecordID,
+			TransactionID: txID,
+		}
+		c.JSON(http.StatusOK, info)
+	} else if errors.Cause(err) == errorcode.ErrorNotFound {
+		c.Writer.WriteHeader(http.StatusNotFound)
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
+		c.Writer.WriteHeader(http.StatusNotImplemented)
+	} else {
+		c.String(http.StatusInternalServerError, err.Error())
 	}
 }
