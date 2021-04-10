@@ -198,6 +198,12 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			KeySwitchService: keySwitchSvc,
 		}
 
+		// Instantiate an entity asset service
+		entityAssetSvc := &service.EntityAssetService{
+			ServiceInfo:      universalCcServiceInfo,
+			KeySwitchService: keySwitchSvc,
+		}
+
 		// TODO: Instantiate a auth service
 
 		// Prepare a key switch server. It will be of use if the app is enabled as a key switch server.
@@ -238,8 +244,15 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 
 		// Instantiate a document controller
 		documentController := &controller.DocumentController{
-			GroupName:   "/document",
-			DocumentSvc: documentSvc,
+			GroupName:      "/",
+			DocumentSvc:    documentSvc,
+			EntityAssetSvc: entityAssetSvc,
+		}
+
+		// Instantiate a entity controller
+		entityAssetController := &controller.EntityAssetController{
+			GroupName:      "/asset",
+			EntityAssetSvc: entityAssetSvc,
 		}
 
 		// Register controller handlers
@@ -249,6 +262,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		controller.RegisterHandlers(apiv1Group, pingPongController)
 		controller.RegisterHandlers(apiv1Group, screwController)
 		controller.RegisterHandlers(apiv1Group, documentController)
+		controller.RegisterHandlers(apiv1Group, entityAssetController)
 
 		// Start the HTTP server
 		httpServer := &http.Server{
