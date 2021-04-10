@@ -263,7 +263,8 @@ func (dc *DocumentController) handleListDocumentIDs(c *gin.Context) {
 			c.String(http.StatusInternalServerError, err.Error())
 		}
 	}
-
-	c.AbortWithStatusJSON(http.StatusBadRequest, "name 和 entityAssetID 不能同时为空")
-	return
+	if len(name) == 0 && len(entityAssetID) == 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, "name 和 entityAssetID 不能同时为空")
+		return
+	}
 }

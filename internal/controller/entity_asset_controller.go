@@ -144,7 +144,7 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 }
 
 func (ec *EntityAssetController) handleGetAssetMetadata(c *gin.Context) {
-	id := c.Param("entityAssetID")
+	id := c.Param("id")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -184,7 +184,7 @@ func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
 	}
 
 	// Extract and check entity asset ID
-	id := c.Param("entityAssetID")
+	id := c.Param("id")
 	id = pel.AppendIfEmptyOrBlankSpaces(id, "文档 ID 不能为空。")
 
 	// Extract conditional parameters
@@ -227,7 +227,7 @@ func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
 }
 
 func (ec *EntityAssetController) handleTransferAsset(c *gin.Context) {
-	id := c.PostForm("entityAssetID")
+	id := c.PostForm("id")
 
 	// check entity asset ID
 	pel := &ParameterErrorList{}
