@@ -54,11 +54,27 @@ type EntityAssetServiceInterface interface {
 	//   资产资源元数据
 	GetEntityAssetMetadata(id string) (*data.ResMetadataStored, error)
 
+	// 获取明文实体资产。
+	//
+	// 参数：
+	//   资产 ID
+	//
+	// 返回：
+	//   实体资产条目本体
 	GetEntityAsset(id string) (*common.EntityAsset, error)
 
+	// 获取加密实体资产。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。
+	//
+	// 参数：
+	//   资产 ID
+	//   密钥置换会话 ID
+	//   预期的份额数量
+	//
+	// 返回：
+	//   解密后的实体资产条目
 	GetEncryptedEntityAsset(id string, keySwitchSessionID string, numSharesExpected int) (*common.EntityAsset, error)
 
-	// 用于列出与该实体资源有关的文档。
+	// 用于列出与该实体资产有关的文档。
 	//
 	// 参数：
 	//   实体资产 ID
