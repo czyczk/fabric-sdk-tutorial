@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -12,9 +13,12 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
+	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/tjfoc/gmsm/sm2"
 )
 
 // KeySwitchService 实现了 `KeySwitchServiceInterface` 接口，提供有关于密钥置换的服务
@@ -65,6 +69,106 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 	} else {
 		return string(resp.TransactionID), nil
 	}
+}
+
+// 创建密钥置换结果。
+//
+// 参数：
+//   密钥置换会话 ID
+//   个人份额
+//
+// 返回：
+//   交易 ID
+func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, share []byte) (string, error) {
+	if strings.TrimSpace(keySwitchSessionID) == "" {
+		return "", fmt.Errorf("密钥置换会话 ID 不能为空")
+	}
+
+	shareAsBase64 := base64.StdEncoding.EncodeToString(share)
+	keySwitchResult := keyswitch.KeySwitchResult{
+		KeySwitchSessionID: keySwitchSessionID,
+		Share:              shareAsBase64,
+	}
+
+	keySwitchResultBytes, err := json.Marshal(keySwitchResult)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化链码参数")
+	}
+
+	chaincodeFcn := "createKeySwitchResult"
+	channelReq := channel.Request{
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{keySwitchResultBytes},
+	}
+
+	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
+	if err != nil {
+		return "", GetClassifiedError(chaincodeFcn, err)
+	} else {
+		return string(resp.TransactionID), nil
+	}
+}
+
+// 获取解密后的对称密钥材料。
+//
+// 参数：
+//   所获的份额
+//   加密后的对称密钥材料
+//   目标用户用于密钥置换的私钥
+//
+// 返回：
+//   解密后的对称密钥材料
+func (s *KeySwitchService) GetDecryptedKey(shares [][]byte, encryptedKey []byte, targetPrivateKey *sm2.PrivateKey) (*ppks.CurvePoint, error) {
+	// 组建一个 CipherVector。将每份 share 转化为 CurvePoint 后，作为 CipherText 的 K，将 CipherText 放入 CipherVector。
+	var cipherVector ppks.CipherVector
+	for _, share := range shares {
+		if len(share) != 64 {
+			return nil, fmt.Errorf("份额长度不正确，应为 64 字节")
+		}
+		var pointX, pointY big.Int
+		_ = pointX.SetBytes(share[:32])
+		_ = pointY.SetBytes(share[32:])
+		pubKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&pointX, &pointY)
+		if err != nil {
+			return nil, err
+		}
+		point := (*ppks.CurvePoint)(pubKey)
+		cipherText := ppks.CipherText{
+			K: *point,
+		}
+		cipherVector = append(cipherVector, cipherText)
+	}
+
+	// 解析加密后的密钥材料，将其转化为一个 CurvePoint 后作为 CipherText 的 K
+	if len(encryptedKey) != 64 {
+		return nil, fmt.Errorf("加密后的对称密钥材料长度不正确，应为 64 字节")
+	}
+	var pointX, pointY big.Int
+	_ = pointX.SetBytes(encryptedKey[:32])
+	_ = pointY.SetBytes(encryptedKey[32:])
+
+	encryptedKeyAsPubKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&pointX, &pointY)
+	if err != nil {
+		return nil, err
+	}
+	encryptedKeyAsCipherText := ppks.CipherText{
+		K: (ppks.CurvePoint)(*encryptedKeyAsPubKey),
+	}
+
+	// 密钥置换
+	shareReplacedCipherText, err := ppks.ShareReplace(&cipherVector, &encryptedKeyAsCipherText)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法进行密钥置换")
+	}
+
+	// 用用户的私钥解密 CipherText
+	decryptedKey, err := ppks.PointDecrypt(shareReplacedCipherText, targetPrivateKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解密对称密钥材料")
+	}
+
+	return decryptedKey, nil
 }
 
 // 等待并收集密钥置换结果。
@@ -173,45 +277,6 @@ eventHandler:
 
 	wg.Wait()
 	return ret, nil
-}
-
-// 创建密钥置换结果。
-//
-// 参数：
-//   密钥置换会话 ID
-//   个人份额
-//
-// 返回：
-//   交易 ID
-func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, share []byte) (string, error) {
-	if strings.TrimSpace(keySwitchSessionID) == "" {
-		return "", fmt.Errorf("密钥置换会话 ID 不能为空")
-	}
-
-	shareAsBase64 := base64.StdEncoding.EncodeToString(share)
-	keySwitchResult := keyswitch.KeySwitchResult{
-		KeySwitchSessionID: keySwitchSessionID,
-		Share:              shareAsBase64,
-	}
-
-	keySwitchResultBytes, err := json.Marshal(keySwitchResult)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
-	}
-
-	chaincodeFcn := "createKeySwitchResult"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{keySwitchResultBytes},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
-	}
 }
 
 // 获取集合权威公钥。

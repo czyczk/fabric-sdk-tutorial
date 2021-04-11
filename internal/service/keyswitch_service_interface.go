@@ -1,6 +1,11 @@
 package service
 
-import "crypto"
+import (
+	"crypto"
+
+	"github.com/XiaoYao-austin/ppks"
+	"github.com/tjfoc/gmsm/sm2"
+)
 
 // KeySwitchServiceInterface 定义了有关于密钥置换的服务的接口
 type KeySwitchServiceInterface interface {
@@ -14,6 +19,27 @@ type KeySwitchServiceInterface interface {
 	//   交易 ID
 	CreateKeySwitchTrigger(resourceID string, authSessionID string) (string, error)
 
+	// 创建密钥置换结果。
+	//
+	// 参数：
+	//   密钥置换会话 ID
+	//   个人份额
+	//
+	// 返回：
+	//   交易 ID
+	CreateKeySwitchResult(keySwitchSessionID string, share []byte) (string, error)
+
+	// 获取解密后的对称密钥材料。
+	//
+	// 参数：
+	//   所获的份额
+	//   加密后的对称密钥材料
+	//   目标用户用于密钥置换的私钥
+	//
+	// 返回：
+	//   解密后的对称密钥材料
+	GetDecryptedKey(shares [][]byte, encryptedKey []byte, targetPrivateKey *sm2.PrivateKey) (*ppks.CurvePoint, error)
+
 	// 等待并收集密钥置换结果。
 	//
 	// 参数：
@@ -24,16 +50,6 @@ type KeySwitchServiceInterface interface {
 	// 返回：
 	//   预期个数的份额列表
 	AwaitKeySwitchResults(keySwitchSessionID string, numExpected int, timeout ...int) ([][]byte, error)
-
-	// 创建密钥置换结果。
-	//
-	// 参数：
-	//   密钥置换会话 ID
-	//   个人份额
-	//
-	// 返回：
-	//   交易 ID
-	CreateKeySwitchResult(keySwitchSessionID string, share []byte) (string, error)
 
 	// 获取集合权威公钥。
 	//
