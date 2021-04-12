@@ -2,17 +2,18 @@ package controller
 
 import (
 	"encoding/base64"
+	"net/http"
+
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	"net/http"
 )
 
 // A DocumentController contains a group name and a `DocumentService` instance. It also implements the interface `Controller`.
 type KeySwitchController struct {
 	GroupName    string
-	KeyswitchSvc service.KeySwitchServiceInterface
+	KeySwitchSvc service.KeySwitchServiceInterface
 }
 
 // GetGroupName returns the group name.
@@ -34,12 +35,12 @@ func (kc *KeySwitchController) handleCreateKeySwitchTrigger(c *gin.Context) {
 	// Validity check
 	pel := &ParameterErrorList{}
 
-	resourceID = pel.AppendIfEmptyOrBlankSpaces(resourceID, "资源ID不能为空。")
+	resourceID = pel.AppendIfEmptyOrBlankSpaces(resourceID, "资源 ID 不能为空。")
 
 	// Extract and check common parameters
 	authSessionID := c.PostForm("authSessionID")
 
-	txID, err := kc.KeyswitchSvc.CreateKeySwitchTrigger(resourceID, authSessionID)
+	txID, err := kc.KeySwitchSvc.CreateKeySwitchTrigger(resourceID, authSessionID)
 
 	// Check error type and generate the corresponding response
 	// The symmetric key will be included if it's not empty
@@ -81,9 +82,9 @@ func (kc *KeySwitchController) handleAwaitListKeySwitchResults(c *gin.Context) {
 	var shares [][]byte
 	var err error
 	if timeout == "" {
-		shares, err = kc.KeyswitchSvc.AwaitKeySwitchResults(keySwitchSessionID, numExpectedInt)
+		shares, err = kc.KeySwitchSvc.AwaitKeySwitchResults(keySwitchSessionID, numExpectedInt)
 	} else {
-		shares, err = kc.KeyswitchSvc.AwaitKeySwitchResults(keySwitchSessionID, numExpectedInt, timeoutInt)
+		shares, err = kc.KeySwitchSvc.AwaitKeySwitchResults(keySwitchSessionID, numExpectedInt, timeoutInt)
 	}
 
 	// Check error type and generate the corresponding response

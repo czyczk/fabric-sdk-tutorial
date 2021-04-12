@@ -55,5 +55,5 @@ type KeySwitchServiceInterface interface {
 	//
 	// 返回：
 	//   集合权威公钥（SM2）
-	GetCollectiveAuthorityPublicKey() (*crypto.PublicKey, error)
+	GetCollectiveAuthorityPublicKey() (crypto.PublicKey, error)
 }

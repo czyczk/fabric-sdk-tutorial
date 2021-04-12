@@ -79,3 +79,20 @@ func (pel *ParameterErrorList) AppendIfNotUint(str string, errMsg string) uint {
 
 	return uint(intResult)
 }
+
+// AppendIfNotBool appends the error message specified if `str` is not a bool.
+//
+// Parameters:
+//   the string to be checked
+//   the error message to append
+//
+// Returns:
+//   the parsed bool
+func (pel *ParameterErrorList) AppendIfNotBool(str string, errMsg string) bool {
+	boolResult, err := strconv.ParseBool(str)
+	if err != nil {
+		*pel = append(*pel, errMsg)
+	}
+
+	return boolResult
+}

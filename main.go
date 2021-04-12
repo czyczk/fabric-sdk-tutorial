@@ -126,6 +126,7 @@ func getInitFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context)
 }
 
 func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context) error {
+	log.SetLevel(log.DebugLevel)
 	serveFunc := func(c *cli.Context) error {
 		// Create a Fabric SDK instance
 		err := appinit.SetupSDK(*sdkConfigPath)
@@ -204,7 +205,10 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			KeySwitchService: keySwitchSvc,
 		}
 
-		// TODO: Instantiate a auth service
+		// Instantiate an auth service
+		authSvc := &service.AuthService{
+			ServiceInfo: universalCcServiceInfo,
+		}
 
 		// Prepare a key switch server. It will be of use if the app is enabled as a key switch server.
 		ksServer := background.NewKeySwitchServer(serviceInfo, keySwitchSvc, runtime.NumCPU())
@@ -255,16 +259,31 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			EntityAssetSvc: entityAssetSvc,
 		}
 
+		// Instantiate an auth controller
+		authController := &controller.AuthController{
+			GroupName: "/auth",
+			AuthSvc:   authSvc,
+		}
+
+		// Instantiate a key switch controller
+		keySwitchController := &controller.KeySwitchController{
+			GroupName:    "/ks",
+			KeySwitchSvc: keySwitchSvc,
+		}
+
 		// Register controller handlers
 		router := gin.Default()
 		router.Use(controller.CORSMiddleware())
 		apiv1Group := router.Group("/api/v1")
-		controller.RegisterHandlers(apiv1Group, pingPongController)
-		controller.RegisterHandlers(apiv1Group, screwController)
-		controller.RegisterHandlers(apiv1Group, documentController)
-		controller.RegisterHandlers(apiv1Group, entityAssetController)
+		_ = controller.RegisterHandlers(apiv1Group, pingPongController)
+		_ = controller.RegisterHandlers(apiv1Group, screwController)
+		_ = controller.RegisterHandlers(apiv1Group, documentController)
+		_ = controller.RegisterHandlers(apiv1Group, entityAssetController)
+		_ = controller.RegisterHandlers(apiv1Group, authController)
+		_ = controller.RegisterHandlers(apiv1Group, keySwitchController)
 
 		// Start the HTTP server
+		log.Infoln(fmt.Sprintf("正在端口 %v 上启动 HTTP 服务器...", serverInfo.Port))
 		httpServer := &http.Server{
 			Addr:    fmt.Sprintf(":%v", serverInfo.Port),
 			Handler: router,
@@ -274,6 +293,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		go func() {
 			if err := httpServer.ListenAndServe(); err != nil {
 				chanError <- errors.Wrap(err, "无法启动 HTTP 服务器")
+				return
 			}
 		}()
 

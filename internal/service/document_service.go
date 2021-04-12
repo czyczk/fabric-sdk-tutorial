@@ -155,7 +155,7 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 		return "", err
 	}
 	var collPubKeyInSM2 *sm2.PublicKey
-	*collPubKeyInSM2 = (*collPubKey).(sm2.PublicKey)
+	collPubKeyInSM2 = collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
@@ -264,7 +264,7 @@ func (s *DocumentService) CreateOffchainDocument(id string, name string, propert
 		return "", err
 	}
 	var collPubKeyInSM2 *sm2.PublicKey
-	*collPubKeyInSM2 = (*collPubKey).(sm2.PublicKey)
+	collPubKeyInSM2 = collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
@@ -405,7 +405,7 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 		return nil, fmt.Errorf("该资源不是加密资源")
 	}
 
-	chaincodeFcn := "getEncryptedData"
+	chaincodeFcn := "getData"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,

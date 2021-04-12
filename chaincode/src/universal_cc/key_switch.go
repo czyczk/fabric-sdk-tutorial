@@ -36,6 +36,9 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 
 	// 第1个参数解析为 eventID
 	eventID := args[1]
+	if eventID == "" {
+		return shim.Error("事件 ID 不能为空")
+	}
 
 	// 获取ksSessionID
 	ksSessionID := stub.GetTxID()
@@ -94,7 +97,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		}
 
 		// 验证 AuthRequestStored.Creator 是否等于链码调用者 Creator
-		if string(authRequestStored.Creator) != string(creator) {
+		if authRequestStored.Creator != creatorAsBase64 {
 			return shim.Error("不是申请授权者本人")
 		}
 

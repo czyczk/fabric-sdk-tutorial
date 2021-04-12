@@ -110,8 +110,10 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 	}
 
 	// 发事件
-	if err = stub.SetEvent(eventID, []byte(authSessionID)); err != nil {
-		return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
+	if eventID != "" {
+		if err = stub.SetEvent(eventID, []byte(authSessionID)); err != nil {
+			return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
+		}
 	}
 
 	return shim.Success([]byte(authSessionID))
@@ -228,8 +230,10 @@ func (uc *UniversalCC) createAuthResponse(stub shim.ChaincodeStubInterface, args
 	txID := stub.GetTxID()
 
 	// 发事件
-	if err = stub.SetEvent(eventID, []byte(txID)); err != nil {
-		return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
+	if eventID != "" {
+		if err = stub.SetEvent(eventID, []byte(txID)); err != nil {
+			return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
+		}
 	}
 	return shim.Success([]byte(txID))
 }

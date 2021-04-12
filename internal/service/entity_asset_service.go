@@ -156,7 +156,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, 
 		return "", err
 	}
 	var collPubKeyInSM2 *sm2.PublicKey
-	*collPubKey = (*collPubKey).(sm2.PublicKey)
+	collPubKey = collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
@@ -314,7 +314,7 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		return nil, fmt.Errorf("该资源不是加密资源")
 	}
 
-	chaincodeFcn := "getEncryptedData"
+	chaincodeFcn := "getData"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,

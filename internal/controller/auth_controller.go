@@ -1,12 +1,12 @@
 package controller
 
 import (
+	"net/http"
+
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
-	"net/http"
-	"strconv"
 )
 
 // A DocumentController contains a group name and a `DocumentService` instance. It also implements the interface `Controller`.
@@ -29,12 +29,11 @@ func (c *AuthController) GetEndpointMap() EndpointMap {
 }
 
 func (ac *AuthController) handleCreateAuthRequest(c *gin.Context) {
-	resourceID := c.PostForm("resourceID")
-
 	// Validity check
 	pel := &ParameterErrorList{}
 
-	resourceID = pel.AppendIfEmptyOrBlankSpaces(resourceID, "资源ID不能为空。")
+	resourceID := c.PostForm("resourceID")
+	resourceID = pel.AppendIfEmptyOrBlankSpaces(resourceID, "资源 ID 不能为空。")
 
 	reason := c.PostForm("reason")
 
@@ -61,28 +60,23 @@ func (ac *AuthController) handleCreateAuthRequest(c *gin.Context) {
 }
 
 func (ac *AuthController) handleCreateAuthResponse(c *gin.Context) {
-	resourceID := c.PostForm("resourceID")
-
 	// Validity check
 	pel := &ParameterErrorList{}
 
-	resourceID = pel.AppendIfEmptyOrBlankSpaces(resourceID, "资源ID不能为空。")
+	authSessionID := c.PostForm("authSessionID")
+	authSessionID = pel.AppendIfEmptyOrBlankSpaces(authSessionID, "授权会话 ID 不能为空。")
 
 	result := c.PostForm("result")
-	result_bool, err := strconv.ParseBool(result)
-	if err != nil {
-		*pel = append(*pel, "result须为 bool 值。")
-	}
-	if len(result) == 0 {
-		*pel = append(*pel, "result不能为空。")
-	}
+	result = pel.AppendIfEmptyOrBlankSpaces(result, "授权结果不能为空。")
+	resultBool := pel.AppendIfNotBool(result, "授权结果须为 bool 值。")
+
 	// Early return after extracting common parameters if the error list is not empty
 	if len(*pel) > 0 {
 		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
-	txID, err := ac.AuthSvc.CreateAuthResponse(resourceID, result_bool)
+	txID, err := ac.AuthSvc.CreateAuthResponse(authSessionID, resultBool)
 	// Check error type and generate the corresponding response
 	// The symmetric key will be included if it's not empty
 	if err == nil {

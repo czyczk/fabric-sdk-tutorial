@@ -1,5 +1,7 @@
 package service
 
+import "gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
+
 // AuthServiceInterface 定义了用于管理访问权请求的服务的接口。
 type AuthServiceInterface interface {
 	// 创建访问权申请。
@@ -29,6 +31,6 @@ type AuthServiceInterface interface {
 	//   书签（上次访问位置）
 	//
 	// 返回：
-	//   授权会话 ID
-	ListPendingAuthSessionIDsByResourceCreator(pageSize int, bookmark string) ([]string, error)
+	//   带分页书签的授权会话 ID 列表
+	ListPendingAuthSessionIDsByResourceCreator(pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error)
 }

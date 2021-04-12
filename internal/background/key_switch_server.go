@@ -62,7 +62,7 @@ func (s *KeySwitchServer) Start() error {
 
 	// Register the event chaincode and pass the chan object to the workers to be created.
 	eventID := "ks_trigger"
-	log.Tracef("正在尝试监听事件 '%v'...\n", eventID)
+	log.Debugf("正在尝试监听事件 '%v'...\n", eventID)
 	reg, notifier, err := service.RegisterEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
 	if err != nil {
 		s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
@@ -72,7 +72,7 @@ func (s *KeySwitchServer) Start() error {
 	s.reg = &reg
 
 	// Start #NumWorkers Go routines with each running a worker.
-	log.Tracef("正在创建 %v 个密钥置换工作单元...\n", s.NumWorkers)
+	log.Debugf("正在创建 %v 个密钥置换工作单元...\n", s.NumWorkers)
 	for id := 0; id < s.NumWorkers; id++ {
 		s.wg.Add(1)
 		go s.createKeySwitchServerWorker(id, notifier)
@@ -86,6 +86,9 @@ func (s *KeySwitchServer) Start() error {
 }
 
 func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessionIDNotifier <-chan *fab.CCEvent) {
+	log.Debugf("密钥置换工作单元 %v 已创建。", id)
+
+workerLoop:
 	for {
 		select {
 		case event := <-chanKeySwitchSessionIDNotifier:
@@ -161,9 +164,9 @@ func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessi
 			// Break the for loop when receiving a quit signal
 			log.Debugf("密钥置换工作单元 #%v 收到退出信号。", id)
 			s.wg.Done()
-			break
+			break workerLoop
 		default:
-			time.Sleep(50 * time.Second)
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 }

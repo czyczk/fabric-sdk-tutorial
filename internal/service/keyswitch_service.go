@@ -57,10 +57,11 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 	}
 
 	chaincodeFcn := "createKeySwitchTrigger"
+	eventID := "ks_trigger"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{ksTriggerBytes},
+		Args:        [][]byte{ksTriggerBytes, []byte(eventID)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
@@ -283,14 +284,13 @@ eventHandler:
 //
 // 返回：
 //   集合权威公钥（SM2）
-func (s *KeySwitchService) GetCollectiveAuthorityPublicKey() (*crypto.PublicKey, error) {
+func (s *KeySwitchService) GetCollectiveAuthorityPublicKey() (crypto.PublicKey, error) {
 	// 当前设计为从单例 `global.KSCollPubKey` 中获取一个预指定的集合公钥。
 	if global.KeySwitchKeys.CollectivePublicKey == nil {
 		return nil, fmt.Errorf("集合公钥未指定")
 	}
 
-	var ret *crypto.PublicKey
-	*ret = *global.KeySwitchKeys.CollectivePublicKey
+	ret := crypto.PublicKey(global.KeySwitchKeys.CollectivePublicKey)
 
 	return ret, nil
 }
