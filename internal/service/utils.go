@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/event"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
 	"strings"
 	"time"
 
@@ -16,6 +18,8 @@ import (
 type Info struct {
 	ChaincodeID   string
 	ChannelClient *channel.Client
+	EventClient   *event.Client
+	LedgerClient  *ledger.Client
 }
 
 const eventTimeout time.Duration = 20
@@ -25,7 +29,7 @@ const eventTimeout time.Duration = 20
 // Returns:
 //   the registration (used to unregister the event)
 //   the event channel
-func RegisterEvent(client *channel.Client, chaincodeID, eventID string) (fab.Registration, <-chan *fab.CCEvent, error) {
+func RegisterEvent(client *event.Client, chaincodeID, eventID string) (fab.Registration, <-chan *fab.CCEvent, error) {
 	reg, notifier, err := client.RegisterChaincodeEvent(chaincodeID, eventID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to register chaincode event: %v", err)

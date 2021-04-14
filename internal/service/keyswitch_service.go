@@ -197,7 +197,7 @@ func (s *KeySwitchService) AwaitKeySwitchResults(keySwitchSessionID string, numE
 
 	// 尝试监听事件 "ks_${keySwitchSessionID}_result"。事件内容为 "ks_${keySwitchSessionID}_result_${creator}"。若失败则提前返回。
 	eventID := "ks_" + keySwitchSessionID + "_result"
-	reg, notifier, err := RegisterEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
+	reg, notifier, err := RegisterEvent(s.ServiceInfo.EventClient, s.ServiceInfo.ChaincodeID, eventID)
 	defer s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
 
 	if err != nil {
