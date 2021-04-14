@@ -2,6 +2,7 @@ package appinit
 
 import (
 	"fmt"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/event"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
@@ -113,7 +114,43 @@ func InstantiateChannelClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID 
 	}
 	global.ChannelClientInstances[channelID][orgName][userID] = channelClient
 
-	log.Printf("已在通道 '%v' 上为 %v@%v 创建通道客户端。", channelID, userID, orgName)
+	log.Printf("已在通道 '%v' 上为 %v@%v 创建通道客户端。\n", channelID, userID, orgName)
+
+	return nil
+}
+
+// InstantiateEventClient creates an event client on the specified channel for the specified user in the specified org. The event client will be available as singletons in `global.EventClientInstances`.
+// Parameters:
+//   initialized Fabric SDK instance
+//   channel ID
+//   organization name
+//   user ID
+func InstantiateEventClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID string) error {
+	if global.EventClientInstances == nil {
+		global.EventClientInstances = make(map[string]map[string]map[string]*event.Client)
+	}
+
+	if global.EventClientInstances[channelID] == nil {
+		global.EventClientInstances[channelID] = make(map[string]map[string]*event.Client)
+	}
+
+	if global.EventClientInstances[channelID][orgName] == nil {
+		global.EventClientInstances[channelID][orgName] = make(map[string]*event.Client)
+	}
+
+	if global.EventClientInstances[channelID][orgName][userID] != nil {
+		return fmt.Errorf("%v@%v 在通道 '%v' 上的事件客户端已实例化", userID, orgName, channelID)
+	}
+
+	// Creates an event client instance. Event clients can register chaincode events on specific channel.
+	clientCtx := sdk.ChannelContext(channelID, fabsdk.WithUser(userID), fabsdk.WithOrg(orgName))
+	eventClient, err := event.New(clientCtx, event.WithBlockEvents())
+	if err != nil {
+		return errors.Wrapf(err, "无法在通道 '%v' 上为 %v@%v 创建事件客户端", channelID, userID, orgName)
+	}
+	global.EventClientInstances[channelID][orgName][userID] = eventClient
+
+	log.Printf("已在通道 '%v' 上为 %v@%v 创建事件客户端。\n", channelID, userID, orgName)
 
 	return nil
 }
@@ -149,7 +186,7 @@ func InstantiateLedgerClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID s
 	}
 	global.LedgerClientInstances[channelID][orgName][userID] = ledgerClient
 
-	log.Printf("已在通道 '%v' 上为 %v@%v 创建账本客户端。", channelID, userID, orgName)
+	log.Printf("已在通道 '%v' 上为 %v@%v 创建账本客户端。\n", channelID, userID, orgName)
 
 	return nil
 }
