@@ -198,7 +198,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	}
 
 	// 发事件
-	err = stub.SetEvent(eventID, []byte{})
+	err = stub.SetEvent(eventID, data)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
 	}
