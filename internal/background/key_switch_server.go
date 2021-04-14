@@ -63,7 +63,7 @@ func (s *KeySwitchServer) Start() error {
 	// Register the event chaincode and pass the chan object to the workers to be created.
 	eventID := "ks_trigger"
 	log.Debugf("正在尝试监听事件 '%v'...\n", eventID)
-	reg, notifier, err := service.RegisterEvent(s.ServiceInfo.ChannelClient, s.ServiceInfo.ChaincodeID, eventID)
+	reg, notifier, err := service.RegisterEvent(s.ServiceInfo.EventClient, s.ServiceInfo.ChaincodeID, eventID)
 	if err != nil {
 		s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
 		return errors.Wrap(err, "无法监听密钥置换触发器")
@@ -96,7 +96,7 @@ workerLoop:
 			// First parse the event payload
 			var keySwitchTriggerStored keyswitch.KeySwitchTriggerStored
 			if err := json.Unmarshal(event.Payload, &keySwitchTriggerStored); err != nil {
-				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析事件内容\n", id))
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析事件内容", id))
 				continue
 			}
 
@@ -116,6 +116,7 @@ workerLoop:
 			}
 			if len(targetPubKeyBytes) != 64 {
 				log.Errorf("密钥置换工作单元 #%v 无法解析目标密钥: 密钥长度不正确。\n", id)
+				continue
 			}
 
 			targetPubKeyX, targetPubKeyY := big.Int{}, big.Int{}
@@ -140,7 +141,11 @@ workerLoop:
 			_ = curvePointY.SetBytes(encryptedKeyBytes[32:])
 
 			encryptedKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&curvePointX, &curvePointY)
-			*curvePoint = ppks.CurvePoint(*encryptedKey)
+			if err != nil {
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取资源 '%v' 的加密密钥。会话 ID: %v", id, keySwitchTriggerStored.ResourceID, keySwitchTriggerStored.KeySwitchSessionID))
+				continue
+			}
+			curvePoint = (*ppks.CurvePoint)(encryptedKey)
 
 			// Do share calculation
 			timeBeforeShareCalc := time.Now()

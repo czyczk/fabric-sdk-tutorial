@@ -160,6 +160,14 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			if err = appinit.InstantiateChannelClient(global.SDKInstance, channelID, orgName, userID); err != nil {
 				return err
 			}
+
+			if err = appinit.InstantiateEventClient(global.SDKInstance, channelID, orgName, userID); err != nil {
+				return err
+			}
+
+			if err = appinit.InstantiateLedgerClient(global.SDKInstance, channelID, orgName, userID); err != nil {
+				return err
+			}
 		}
 
 		// Prepare to load key switch keys
@@ -175,12 +183,17 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 
 		}
 
-		appinit.LoadKeySwitchServerKeys(serverInfo.KeySwitchKeys)
+		err = appinit.LoadKeySwitchServerKeys(serverInfo.KeySwitchKeys)
+		if err != nil {
+			return err
+		}
 
 		// Instantiate a screw service
 		serviceInfo := &service.Info{
 			ChaincodeID:   "screwCc",
 			ChannelClient: global.ChannelClientInstances["mychannel"][orgName][userID],
+			EventClient:   global.EventClientInstances["mychannel"][orgName][userID],
+			LedgerClient:  global.LedgerClientInstances["mychannel"][orgName][userID],
 		}
 
 		screwSvc := &service.ScrewService{ServiceInfo: serviceInfo}
@@ -189,6 +202,8 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		universalCcServiceInfo := &service.Info{
 			ChaincodeID:   "universalCc",
 			ChannelClient: global.ChannelClientInstances["mychannel"][orgName][userID],
+			EventClient:   global.EventClientInstances["mychannel"][orgName][userID],
+			LedgerClient:  global.LedgerClientInstances["mychannel"][orgName][userID],
 		}
 
 		keySwitchSvc := &service.KeySwitchService{ServiceInfo: universalCcServiceInfo}
@@ -211,7 +226,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		}
 
 		// Prepare a key switch server. It will be of use if the app is enabled as a key switch server.
-		ksServer := background.NewKeySwitchServer(serviceInfo, keySwitchSvc, runtime.NumCPU())
+		ksServer := background.NewKeySwitchServer(universalCcServiceInfo, keySwitchSvc, runtime.NumCPU())
 		if isKeySwitchServer {
 			// Start the server to listen key switch triggers
 			err := ksServer.Start()
