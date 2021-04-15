@@ -76,17 +76,11 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 	}
 
 	if authSessionID != "" {
-
-		// 如果 authSessionID 不为空值，则获取 AuthResponseStored，并解析成 JSON 对象
-		authResp := uc.getAuthResponseHelper(stub, []string{authSessionID})
-		var authResponseStored auth.AuthResponseStored
-		err = json.Unmarshal(authResp.Payload, &authResponseStored)
-		if err != nil {
-			return shim.Error(fmt.Sprintf("AuthResponseStored 无法解析成 JSON 对象: %v", err))
-		}
-
-		// 获取 AuthRequestStored，验证其中资源 ID 是否相同
+		// 获取 AuthRequestStored，验证其中资源 ID 是否相同。若请求不存在，则另外报错。
 		authReq := uc.getAuthRequest(stub, []string{authSessionID})
+		if authReq.Payload == nil {
+			return shim.Error("该授权会话不存在")
+		}
 		var authRequestStored auth.AuthRequestStored
 		err = json.Unmarshal(authReq.Payload, &authRequestStored)
 		if err != nil {
@@ -101,6 +95,17 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 			return shim.Error("不是申请授权者本人")
 		}
 
+		// 如果 authSessionID 不为空值，则获取 AuthResponseStored，并解析成 JSON 对象。若批复不存在，则另外报错。
+		authResp := uc.getAuthResponseHelper(stub, []string{authSessionID})
+		if authResp.Payload == nil {
+			return shim.Error("该授权会话申请未得到批复")
+		}
+		var authResponseStored auth.AuthResponseStored
+		err = json.Unmarshal(authResp.Payload, &authResponseStored)
+		if err != nil {
+			return shim.Error(fmt.Sprintf("AuthResponseStored 无法解析成 JSON 对象: %v", err))
+		}
+
 		// 根据 AuthResponseStored 中的结果得到最终判断结果
 		if authResponseStored.Result == true {
 			validationResult = true
@@ -108,7 +113,6 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 			return shim.Error(errorcode.CodeForbidden)
 		}
 	} else {
-
 		// 如果 authSessionID 为空值，执行 abac
 		// 获取当前客户端的证书
 		cert, err := cid.GetX509Certificate(stub)
