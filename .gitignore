@@ -17,3 +17,6 @@ fabric-sdk-tutorial
 
 # IDEA file
 .idea/
+
+# VSCode files
+.vscode
