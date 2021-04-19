@@ -34,6 +34,9 @@ run-init:
 run-serve:
 	@./fabric-sdk-tutorial serve
 
+run-serve-u1o2:
+	@./fabric-sdk-tutorial serve -c "server-u1o2.yaml"
+
 ##### CLEAN
 clean: env-down
 	@echo "Cleaning up..."
