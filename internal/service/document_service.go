@@ -154,18 +154,15 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 	if err != nil {
 		return "", err
 	}
-	var collPubKeyInSM2 *sm2.PublicKey
-	collPubKeyInSM2 = collPubKey.(*sm2.PublicKey)
+	collPubKeyInSM2 := collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
-	// 只使用左侧点 K 的信息作为加密后的对称密钥
-	encryptedKeyBytes := make([]byte, 64)
-	copy(encryptedKeyBytes[:32], encryptedKey.K.X.Bytes())
-	copy(encryptedKeyBytes[32:], encryptedKey.K.Y.Bytes())
+	// 序列化加密后的 key
+	encryptedKeyBytes := SerializeEncryptedKey(encryptedKey)
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(documentBytes)
@@ -263,18 +260,15 @@ func (s *DocumentService) CreateOffchainDocument(id string, name string, propert
 	if err != nil {
 		return "", err
 	}
-	var collPubKeyInSM2 *sm2.PublicKey
-	collPubKeyInSM2 = collPubKey.(*sm2.PublicKey)
+	collPubKeyInSM2 := collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
-	// 只使用左侧点 K 的信息作为加密后的对称密钥
-	encryptedKeyBytes := make([]byte, 64)
-	copy(encryptedKeyBytes[:32], encryptedKey.K.X.Bytes())
-	copy(encryptedKeyBytes[32:], encryptedKey.K.Y.Bytes())
+	// 序列化加密后的 key
+	encryptedKeyBytes := SerializeEncryptedKey(encryptedKey)
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(documentBytes)
@@ -485,6 +479,9 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKey, global.KeySwitchKeys.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("无法解密对称密钥")
+	}
 
 	// 用对称密钥解密 encryptedDocumentBytes
 	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))

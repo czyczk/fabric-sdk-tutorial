@@ -17,7 +17,7 @@ import (
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
 )
 
@@ -121,44 +121,44 @@ func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, shar
 // 返回：
 //   解密后的对称密钥材料
 func (s *KeySwitchService) GetDecryptedKey(shares [][]byte, encryptedKey []byte, targetPrivateKey *sm2.PrivateKey) (*ppks.CurvePoint, error) {
-	// 组建一个 CipherVector。将每份 share 转化为 CurvePoint 后，作为 CipherText 的 K，将 CipherText 放入 CipherVector。
+	// 组建一个 CipherVector。将每份 share 转化为两个 CurvePoint 后，分别作为 CipherText 的 K 和 C，将 CipherText 放入 CipherVector。
 	var cipherVector ppks.CipherVector
 	for _, share := range shares {
-		if len(share) != 64 {
-			return nil, fmt.Errorf("份额长度不正确，应为 64 字节")
+		if len(share) != 128 {
+			return nil, fmt.Errorf("份额长度不正确，应为 128 字节")
 		}
+
 		var pointX, pointY big.Int
 		_ = pointX.SetBytes(share[:32])
-		_ = pointY.SetBytes(share[32:])
-		pubKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&pointX, &pointY)
+		_ = pointY.SetBytes(share[32:64])
+		pubKeyK, err := sm2keyutils.ConvertBigIntegersToPublicKey(&pointX, &pointY)
 		if err != nil {
 			return nil, err
 		}
-		point := (*ppks.CurvePoint)(pubKey)
+		pointK := (*ppks.CurvePoint)(pubKeyK)
+
+		_ = pointX.SetBytes(share[64:96])
+		_ = pointY.SetBytes(share[96:])
+		pubKeyC, err := sm2keyutils.ConvertBigIntegersToPublicKey(&pointX, &pointY)
+		if err != nil {
+			return nil, err
+		}
+		pointC := (*ppks.CurvePoint)(pubKeyC)
 		cipherText := ppks.CipherText{
-			K: *point,
+			K: *pointK,
+			C: *pointC,
 		}
 		cipherVector = append(cipherVector, cipherText)
 	}
 
-	// 解析加密后的密钥材料，将其转化为一个 CurvePoint 后作为 CipherText 的 K
-	if len(encryptedKey) != 64 {
-		return nil, fmt.Errorf("加密后的对称密钥材料长度不正确，应为 64 字节")
-	}
-	var pointX, pointY big.Int
-	_ = pointX.SetBytes(encryptedKey[:32])
-	_ = pointY.SetBytes(encryptedKey[32:])
-
-	encryptedKeyAsPubKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&pointX, &pointY)
+	// 解析加密后的密钥材料
+	encryptedKeyAsCipherText, err := UnserializeEncryptedKey(encryptedKey)
 	if err != nil {
 		return nil, err
 	}
-	encryptedKeyAsCipherText := ppks.CipherText{
-		K: (ppks.CurvePoint)(*encryptedKeyAsPubKey),
-	}
 
 	// 密钥置换
-	shareReplacedCipherText, err := ppks.ShareReplace(&cipherVector, &encryptedKeyAsCipherText)
+	shareReplacedCipherText, err := ppks.ShareReplace(&cipherVector, encryptedKeyAsCipherText)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法进行密钥置换")
 	}
@@ -214,7 +214,7 @@ eventHandler:
 	for {
 		select {
 		case eventVal := <-notifier:
-			logrus.Infof("收到事件 {'%v': '%s'}", eventID, eventVal)
+			log.Debugf("收到事件 {'%v': '%s'}", eventID, eventVal.Payload)
 			dbKeyParts := strings.Split(string(eventVal.Payload), "_")
 			if len(dbKeyParts) != 4 {
 				wg.Wait()
@@ -222,8 +222,8 @@ eventHandler:
 			}
 			receivedIDs = append(receivedIDs, dbKeyParts[1])
 
+			wg.Add(1)
 			go func(chanErr chan error) {
-				wg.Add(1)
 				defer wg.Done()
 
 				chaincodeFcn := "getKeySwitchResult"
@@ -272,7 +272,7 @@ eventHandler:
 				return nil, errorcode.ErrorGatewayTimeout
 			}
 		default:
-			time.Sleep(50)
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 

@@ -135,33 +135,38 @@ workerLoop:
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取资源 '%v' 的加密密钥。会话 ID: %v", id, keySwitchTriggerStored.ResourceID, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
 			}
-			var curvePoint *ppks.CurvePoint
-			curvePointX, curvePointY := big.Int{}, big.Int{}
-			_ = curvePointX.SetBytes(encryptedKeyBytes[:32])
-			_ = curvePointY.SetBytes(encryptedKeyBytes[32:])
 
-			encryptedKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&curvePointX, &curvePointY)
+			curvePoints, err := service.UnserializeEncryptedKey(encryptedKeyBytes)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取资源 '%v' 的加密密钥。会话 ID: %v", id, keySwitchTriggerStored.ResourceID, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
 			}
-			curvePoint = (*ppks.CurvePoint)(encryptedKey)
 
 			// Do share calculation
 			timeBeforeShareCalc := time.Now()
-			share, err := ppks.ShareCal(targetPubKey, curvePoint, global.KeySwitchKeys.PrivateKey)
+			share, err := ppks.ShareCal(targetPubKey, &curvePoints.K, global.KeySwitchKeys.PrivateKey)
+			if err != nil {
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取用户的密钥置换密钥。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
+				continue
+			}
 			timeAfterShareCalc := time.Now()
 			timeDiffShareCalc := timeAfterShareCalc.Sub(timeBeforeShareCalc)
 			log.Debugf("密钥置换工作单元 #%v 完成份额计算，耗时 %v。会话 ID: %v", id, timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
 
 			// Invoke the service function to save the result onto the chain
-			// Only share.K is used
-			shareBytes := make([]byte, 64)
+			// share.K and share.C each takes up 64 bytes
+			shareBytes := make([]byte, 128)
 			copy(shareBytes[:32], share.K.X.Bytes())
-			copy(shareBytes[32:], share.K.Y.Bytes())
+			copy(shareBytes[32:64], share.K.Y.Bytes())
+			copy(shareBytes[64:96], share.C.X.Bytes())
+			copy(shareBytes[96:], share.C.Y.Bytes())
 
 			timeBeforeUploading := time.Now()
 			txID, err := s.KeySwitchService.CreateKeySwitchResult(keySwitchTriggerStored.KeySwitchSessionID, shareBytes)
+			if err != nil {
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法将份额结果上链。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
+				continue
+			}
 			timeAfterUploading := time.Now()
 			timeDiffUploading := timeAfterUploading.Sub(timeBeforeUploading)
 			log.Debugf("密钥置换工作单元 #%v 完成份额结果上链，耗时 %v。会话 ID: %v。交易 ID: %v", id, timeDiffUploading, keySwitchTriggerStored.KeySwitchSessionID, txID)
