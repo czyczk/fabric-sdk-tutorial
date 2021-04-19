@@ -162,7 +162,7 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
-	encryptedKeyBytes := SerializeEncryptedKey(encryptedKey)
+	encryptedKeyBytes := SerializeCipherText(encryptedKey)
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(documentBytes)
@@ -268,7 +268,7 @@ func (s *DocumentService) CreateOffchainDocument(id string, name string, propert
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
-	encryptedKeyBytes := SerializeEncryptedKey(encryptedKey)
+	encryptedKeyBytes := SerializeCipherText(encryptedKey)
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(documentBytes)

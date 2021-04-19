@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
@@ -128,31 +126,15 @@ func (s *KeySwitchService) GetDecryptedKey(shares [][]byte, encryptedKey []byte,
 			return nil, fmt.Errorf("份额长度不正确，应为 128 字节")
 		}
 
-		var pointX, pointY big.Int
-		_ = pointX.SetBytes(share[:32])
-		_ = pointY.SetBytes(share[32:64])
-		pubKeyK, err := sm2keyutils.ConvertBigIntegersToPublicKey(&pointX, &pointY)
+		cipherText, err := DeserializeCipherText(share)
 		if err != nil {
 			return nil, err
 		}
-		pointK := (*ppks.CurvePoint)(pubKeyK)
-
-		_ = pointX.SetBytes(share[64:96])
-		_ = pointY.SetBytes(share[96:])
-		pubKeyC, err := sm2keyutils.ConvertBigIntegersToPublicKey(&pointX, &pointY)
-		if err != nil {
-			return nil, err
-		}
-		pointC := (*ppks.CurvePoint)(pubKeyC)
-		cipherText := ppks.CipherText{
-			K: *pointK,
-			C: *pointC,
-		}
-		cipherVector = append(cipherVector, cipherText)
+		cipherVector = append(cipherVector, *cipherText)
 	}
 
 	// 解析加密后的密钥材料
-	encryptedKeyAsCipherText, err := UnserializeEncryptedKey(encryptedKey)
+	encryptedKeyAsCipherText, err := DeserializeCipherText(encryptedKey)
 	if err != nil {
 		return nil, err
 	}

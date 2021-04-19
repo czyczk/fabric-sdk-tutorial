@@ -136,7 +136,7 @@ workerLoop:
 				continue
 			}
 
-			curvePoints, err := service.UnserializeEncryptedKey(encryptedKeyBytes)
+			curvePoints, err := service.DeserializeCipherText(encryptedKeyBytes)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取资源 '%v' 的加密密钥。会话 ID: %v", id, keySwitchTriggerStored.ResourceID, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
@@ -155,11 +155,7 @@ workerLoop:
 
 			// Invoke the service function to save the result onto the chain
 			// share.K and share.C each takes up 64 bytes
-			shareBytes := make([]byte, 128)
-			copy(shareBytes[:32], share.K.X.Bytes())
-			copy(shareBytes[32:64], share.K.Y.Bytes())
-			copy(shareBytes[64:96], share.C.X.Bytes())
-			copy(shareBytes[96:], share.C.Y.Bytes())
+			shareBytes := service.SerializeCipherText(share)
 
 			timeBeforeUploading := time.Now()
 			txID, err := s.KeySwitchService.CreateKeySwitchResult(keySwitchTriggerStored.KeySwitchSessionID, shareBytes)
