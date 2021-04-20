@@ -163,11 +163,8 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, 
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
-
-	// 只使用左侧点 K 的信息作为加密后的对称密钥
-	encryptedKeyBytes := make([]byte, 64)
-	copy(encryptedKeyBytes[:32], encryptedKey.K.X.Bytes())
-	copy(encryptedKeyBytes[32:], encryptedKey.K.Y.Bytes())
+	// 序列化加密后的 key
+	encryptedKeyBytes := SerializeCipherText(encryptedKey)
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(assetBytes)
@@ -194,7 +191,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, 
 	encryptedData := data.EncryptedData{
 		Metadata: metadata,
 		Data:     base64.StdEncoding.EncodeToString(encryptedAssetBytes),
-		Key:      base64.StdEncoding.EncodeToString(encryptedAssetBytes),
+		Key:      base64.StdEncoding.EncodeToString(encryptedKeyBytes),
 		Policy:   policy,
 	}
 
@@ -394,6 +391,9 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 	}
 
 	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKey, global.KeySwitchKeys.PrivateKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解密对称密钥")
+	}
 
 	// 用对称密钥解密 encryptedDocumentBytes
 	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))

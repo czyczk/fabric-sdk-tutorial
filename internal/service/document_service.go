@@ -480,7 +480,7 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 
 	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKey, global.KeySwitchKeys.PrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("无法解密对称密钥")
+		return nil, errors.Wrap(err, "无法解密对称密钥")
 	}
 
 	// 用对称密钥解密 encryptedDocumentBytes
