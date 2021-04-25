@@ -3,6 +3,7 @@ package service
 import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
 )
 
@@ -106,7 +107,12 @@ type DocumentServiceInterface interface {
 
 	// 获取名称包含所提供的部分名称的数字文档的资源 ID。
 	//
+	// 参数：
+	//   部分名称
+	//   分页大小
+	//   分页书签
+	//
 	// 返回：
-	//   资源 ID 列表
-	ListDocumentIDsByPartialName(partialName string) ([]string, error)
+	//   带分页的资源 ID 列表
+	ListDocumentIDsByPartialName(partialName string, pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error)
 }

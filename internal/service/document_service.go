@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
@@ -16,6 +17,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
@@ -556,15 +558,20 @@ func (s *DocumentService) ListDocumentIDsByCreator() ([]string, error) {
 
 // ListDocumentIDsByPartialName 获取名称包含所提供的部分名称的数字文档的资源 ID。
 //
+// 参数：
+//   部分名称
+//   分页大小
+//   分页书签
+//
 // 返回：
-//   资源 ID 列表
-func (s *DocumentService) ListDocumentIDsByPartialName(partialName string) ([]string, error) {
+//   带分页的资源 ID 列表
+func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error) {
 	// 调用 listDocumentIDsByPartialName 拿到一个 ID 列表
 	chaincodeFcn := "listDocumentIDsByPartialName"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{},
+		Args:        [][]byte{[]byte(partialName), []byte(strconv.Itoa(pageSize)), []byte(bookmark)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
@@ -573,13 +580,13 @@ func (s *DocumentService) ListDocumentIDsByPartialName(partialName string) ([]st
 		return nil, err
 	}
 
-	var resourceIDs []string
+	var resourceIDs query.ResourceIDsWithPagination
 	err = json.Unmarshal(resp.Payload, &resourceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析结果列表")
 	}
 
-	return resourceIDs, nil
+	return &resourceIDs, nil
 }
 
 // 对称密钥的生成是由 curvePoint 导出的 256 位信息，可用于创建 AES256 block

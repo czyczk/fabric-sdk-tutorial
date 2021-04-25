@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/bwmarrin/snowflake"
@@ -231,39 +233,45 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 }
 
 func (dc *DocumentController) handleListDocumentIDs(c *gin.Context) {
-	name := c.Query("name")
-	entityAssetID := c.Query("entityAssetID")
+	// Extract and check parameters
+	name := strings.TrimSpace(c.Query("name"))
+	entityAssetID := strings.TrimSpace(c.Query("entityAssetID"))
+	pageSizeStr := c.Query("pageSize")
+	bookmark := strings.TrimSpace(c.Query("bookmark"))
 
-	// check name
-	if len(name) > 0 {
-		resourceIDs, err := dc.DocumentSvc.ListDocumentIDsByPartialName(name)
-		// Check error type and generate the corresponding response
-		if err == nil {
-			c.JSON(http.StatusOK, resourceIDs)
-		} else if errors.Cause(err) == errorcode.ErrorNotFound {
-			c.Writer.WriteHeader(http.StatusNotFound)
-		} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-			c.Writer.WriteHeader(http.StatusNotImplemented)
-		} else {
-			c.String(http.StatusInternalServerError, err.Error())
-		}
+	pel := &ParameterErrorList{}
+	pageSize := 10
+	if strings.TrimSpace(pageSizeStr) != "" {
+		pageSize = pel.AppendIfNotPositiveInt(pageSizeStr, "分页大小应为正整数。")
 	}
-	// check enrityAssetID
-	if len(entityAssetID) > 0 {
-		documentIDs, err := dc.DocumentSvc.ListDocumentIDsByPartialName(entityAssetID)
-		// Check error type and generate the corresponding response
-		if err == nil {
-			c.JSON(http.StatusOK, documentIDs)
-		} else if errors.Cause(err) == errorcode.ErrorNotFound {
-			c.Writer.WriteHeader(http.StatusNotFound)
-		} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-			c.Writer.WriteHeader(http.StatusNotImplemented)
-		} else {
-			c.String(http.StatusInternalServerError, err.Error())
-		}
-	}
-	if len(name) == 0 && len(entityAssetID) == 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, "name 和 entityAssetID 不能同时为空")
+
+	// Early return if the error list is not empty
+	if len(*pel) > 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
+	}
+
+	var resourceIDs *query.ResourceIDsWithPagination
+	var err error
+	if len(name) > 0 {
+		// ListDocumentIDsByPartialName
+		resourceIDs, err = dc.DocumentSvc.ListDocumentIDsByPartialName(name, pageSize, bookmark)
+	} else if len(entityAssetID) > 0 {
+		// ListDocumentIDsByEntityID
+		resourceIDs, err = dc.EntityAssetSvc.ListDocumentIDsByEntityID(entityAssetID, pageSize, bookmark)
+	} else {
+		c.AbortWithStatusJSON(http.StatusBadRequest, "name 和 entityAssetID 不能同时为空。")
+		return
+	}
+
+	// Check error type and generate the corresponding response
+	if err == nil {
+		c.JSON(http.StatusOK, resourceIDs)
+	} else if errors.Cause(err) == errorcode.ErrorNotFound {
+		c.Writer.WriteHeader(http.StatusNotFound)
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
+		c.Writer.WriteHeader(http.StatusNotImplemented)
+	} else {
+		c.String(http.StatusInternalServerError, err.Error())
 	}
 }

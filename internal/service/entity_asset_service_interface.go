@@ -3,6 +3,7 @@ package service
 import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
 )
 
@@ -78,8 +79,10 @@ type EntityAssetServiceInterface interface {
 	//
 	// 参数：
 	//   实体资产 ID
+	//   分页大小
+	//   分页书签
 	//
 	// 返回：
-	//   资源 ID 列表
-	ListDocumentIDsByEntityID(id string) ([]string, error)
+	//   带分页的资源 ID 列表
+	ListDocumentIDsByEntityID(id string, pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error)
 }

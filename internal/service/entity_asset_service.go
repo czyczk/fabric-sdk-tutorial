@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
@@ -16,6 +17,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
@@ -431,16 +433,18 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 //
 // 参数：
 //   实体资产 ID
+//   分页大小
+//   分页书签
 //
 // 返回：
-//   资源 ID 列表
-func (s *EntityAssetService) ListDocumentIDsByEntityID(id string) ([]string, error) {
+//   带分页的资源 ID 列表
+func (s *EntityAssetService) ListDocumentIDsByEntityID(id string, pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error) {
 	// 调用链码函数 listDocumentIDsByEntityID 获取有该资产
 	chaincodeFcn := "listDocumentIDsByEntityID"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
+		Args:        [][]byte{[]byte(id), []byte(strconv.Itoa(pageSize)), []byte(bookmark)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
@@ -449,11 +453,11 @@ func (s *EntityAssetService) ListDocumentIDsByEntityID(id string) ([]string, err
 		return nil, errors.Wrap(err, "无法获取相关文档")
 	}
 
-	var resourceIDs []string
+	var resourceIDs query.ResourceIDsWithPagination
 	err = json.Unmarshal(resp.Payload, &resourceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析结果列表")
 	}
 
-	return resourceIDs, nil
+	return &resourceIDs, nil
 }
