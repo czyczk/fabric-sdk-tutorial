@@ -45,18 +45,23 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 	pel := &ParameterErrorList{}
 
 	resourceTypeStr = pel.AppendIfEmptyOrBlankSpaces(resourceTypeStr, "资源类型不能为空。")
-
-	resourceType, err := data.NewResourceTypeFromString(resourceTypeStr)
-	if err != nil {
-		*pel = append(*pel, "资源类型不合法。")
-	}
-	if resourceType == data.Offchain || resourceType == data.RegulatorEncrypted {
-		*pel = append(*pel, "资源类型不能为链下和监管者加密文档")
+	var resourceType data.ResourceType
+	var err error
+	if resourceTypeStr != "" {
+		resourceType, err = data.NewResourceTypeFromString(resourceTypeStr)
+		if err != nil {
+			*pel = append(*pel, "资源类型不合法。")
+		} else {
+			// The resource type can't be "Offchain" or "RegulatorEncrypted"
+			if resourceType == data.Offchain || resourceType == data.RegulatorEncrypted {
+				*pel = append(*pel, "资源类型不能为链下或监管者加密。")
+			}
+		}
 	}
 
 	// Extract and check common parameters
 	name := c.PostForm("name")
-	name = pel.AppendIfEmptyOrBlankSpaces(name, "文档名称不能为空。")
+	name = pel.AppendIfEmptyOrBlankSpaces(name, "实体资产名称不能为空。")
 
 	// Property is optional, but it must be valid (can be unmarshaled to a map) if provided.
 	propertyBytes := []byte(c.PostForm("property"))
@@ -69,14 +74,15 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 	}
 
 	// Check componentsIDs
-	componentsIDsByte := []byte(c.PostForm("componentsIDs"))
-	if len(componentsIDsByte) == 0 {
-		*pel = append(*pel, "组件的序列号不能为空。")
-	}
+	componentsIDsBytes := []byte(c.PostForm("componentsIDs"))
 	var componentsIDs []string
-	err = json.Unmarshal(componentsIDsByte, &componentsIDs)
-	if err != nil {
-		*pel = append(*pel, "组件的序列号不合法。")
+	if len(componentsIDsBytes) == 0 {
+		*pel = append(*pel, "组件的序列号不能为空。")
+	} else {
+		err = json.Unmarshal(componentsIDsBytes, &componentsIDs)
+		if err != nil {
+			*pel = append(*pel, "组件的序列号不合法。")
+		}
 	}
 
 	// Check policy if it's not a plain resource
@@ -175,17 +181,23 @@ func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
 	pel := &ParameterErrorList{}
 
 	resourceTypeStr = pel.AppendIfEmptyOrBlankSpaces(resourceTypeStr, "资源类型不能为空。")
-	resourceType, err := data.NewResourceTypeFromString(resourceTypeStr)
-	if err != nil {
-		*pel = append(*pel, "资源类型不合法。")
-	}
-	if resourceType == data.Offchain || resourceType == data.RegulatorEncrypted {
-		*pel = append(*pel, "资源类型不能为链下和监管者加密文档。")
+	var resourceType data.ResourceType
+	var err error
+	if resourceTypeStr != "" {
+		resourceType, err = data.NewResourceTypeFromString(resourceTypeStr)
+		if err != nil {
+			*pel = append(*pel, "资源类型不合法。")
+		} else {
+			// The resource type can't be "Offchain" or "RegulatorEncrypted"
+			if resourceType == data.Offchain || resourceType == data.RegulatorEncrypted {
+				*pel = append(*pel, "资源类型不能为链下和监管者加密。")
+			}
+		}
 	}
 
 	// Extract and check entity asset ID
 	id := c.Param("id")
-	id = pel.AppendIfEmptyOrBlankSpaces(id, "文档 ID 不能为空。")
+	id = pel.AppendIfEmptyOrBlankSpaces(id, "实体资产 ID 不能为空。")
 
 	// Extract conditional parameters
 	var keySwitchSessionID string
@@ -231,7 +243,7 @@ func (ec *EntityAssetController) handleTransferAsset(c *gin.Context) {
 
 	// check entity asset ID
 	pel := &ParameterErrorList{}
-	id = pel.AppendIfEmptyOrBlankSpaces(id, "实体 ID 不能为空。")
+	id = pel.AppendIfEmptyOrBlankSpaces(id, "实体资产 ID 不能为空。")
 
 	// check new owner
 	newOwner := c.PostForm("newOwner")

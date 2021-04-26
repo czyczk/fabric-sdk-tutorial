@@ -49,6 +49,8 @@ func (kc *KeySwitchController) handleCreateKeySwitchTrigger(c *gin.Context) {
 			TransactionID: txID,
 		}
 		c.JSON(http.StatusOK, info)
+	} else if errors.Cause(err) == errorcode.ErrorForbidden {
+		c.Writer.WriteHeader(http.StatusForbidden)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
 		c.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {

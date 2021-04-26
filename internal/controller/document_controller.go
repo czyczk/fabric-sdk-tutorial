@@ -48,10 +48,13 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	pel := &ParameterErrorList{}
 
 	resourceTypeStr = pel.AppendIfEmptyOrBlankSpaces(resourceTypeStr, "资源类型不能为空。")
-
-	resourceType, err := data.NewResourceTypeFromString(resourceTypeStr)
-	if err != nil {
-		*pel = append(*pel, "资源类型不合法。")
+	var resourceType data.ResourceType
+	var err error
+	if resourceTypeStr != "" {
+		resourceType, err = data.NewResourceTypeFromString(resourceTypeStr)
+		if err != nil {
+			*pel = append(*pel, "资源类型不合法。")
+		}
 	}
 
 	// Extract and check common parameters
@@ -175,16 +178,18 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	pel := &ParameterErrorList{}
 
 	resourceTypeStr = pel.AppendIfEmptyOrBlankSpaces(resourceTypeStr, "资源类型不能为空。")
-	resourceType, err := data.NewResourceTypeFromString(resourceTypeStr)
-	if err != nil {
-		*pel = append(*pel, "资源类型不合法。")
-	}
-
-	// Early return if the resource type is "Offchain"
-	if resourceType == data.Offchain {
-		*pel = append(*pel, "资源类型不能为链下。")
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
-		return
+	var resourceType data.ResourceType
+	var err error
+	if resourceTypeStr != "" {
+		resourceType, err = data.NewResourceTypeFromString(resourceTypeStr)
+		if err != nil {
+			*pel = append(*pel, "资源类型不合法。")
+		} else {
+			if resourceType == data.Offchain {
+				// The resource type can't be "Offchain"
+				*pel = append(*pel, "资源类型不能为链下。")
+			}
+		}
 	}
 
 	// Extract and check document ID
