@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/x509"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hyperledger/fabric-chaincode-go/pkg/cid"
@@ -54,6 +55,15 @@ func getKeyForKeySwitchResponse(keySwitchSessionID string, resultCreatorAsBase64
 
 func getKeyPrefixForKeySwitchResponse(keySwitchSessionID string) string {
 	return fmt.Sprintf("ks_%s_result", keySwitchSessionID)
+}
+
+func extractResourceIDFromKeyForResMetadata(dbKey string) (string, error) {
+	parts := strings.Split(dbKey, "_")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("不合法的数据库键")
+	}
+
+	return parts[1], nil
 }
 
 func getTimeFromStub(stub shim.ChaincodeStubInterface) (ret time.Time, err error) {

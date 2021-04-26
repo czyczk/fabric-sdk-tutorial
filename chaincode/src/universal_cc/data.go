@@ -114,10 +114,7 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 	}
 
 	// name~resourceid 绑定元数据中 name 字段与资源 ID
-	extensionsMap := make(map[string]string)
-	if err = json.Unmarshal([]byte(plainData.Metadata.Extensions), &extensionsMap); err != nil {
-		return shim.Error(fmt.Sprintf("无法解析 name 字段: %v", err))
-	}
+	extensionsMap := plainData.Metadata.Extensions
 	name, ok := extensionsMap["name"]
 	if !ok {
 		return shim.Error("找不到 name 字段")
@@ -251,10 +248,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	}
 
 	// name~resourceid 绑定元数据中 name 字段与资源 ID
-	extensionsMap := make(map[string]string)
-	if err = json.Unmarshal([]byte(encryptedData.Metadata.Extensions), &extensionsMap); err != nil {
-		return shim.Error(fmt.Sprintf("无法解析 name 字段: %v", err))
-	}
+	extensionsMap := encryptedData.Metadata.Extensions
 	name, ok := extensionsMap["name"]
 	if !ok {
 		return shim.Error("找不到 name 字段")
@@ -372,10 +366,7 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 	}
 
 	// name~resourceid 绑定元数据中 name 字段与资源 ID
-	extensionsMap := make(map[string]string)
-	if err = json.Unmarshal([]byte(offchainData.Metadata.Extensions), &extensionsMap); err != nil {
-		return shim.Error(fmt.Sprintf("无法解析 name 字段: %v", err))
-	}
+	extensionsMap := offchainData.Metadata.Extensions
 	name, ok := extensionsMap["name"]
 	if !ok {
 		return shim.Error("找不到 name 字段")
@@ -631,6 +622,7 @@ func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInter
 			"extensions.name": map[string]interface{}{
 				"$regex": partialName,
 			},
+			"extensions.dataType": "document",
 		},
 	}
 	queryConditionsBytes, err := json.Marshal(queryConditions)
@@ -646,7 +638,7 @@ func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInter
 
 	defer it.Close()
 
-	// 遍历迭代器，获取所有的 key 作为 resourceID，组成列表
+	// 遍历迭代器，获取所有的 key 并抽取其中的 resourceID，组成列表
 	resourceIDs := []string{}
 	for it.HasNext() {
 		entry, err := it.Next()
@@ -654,7 +646,12 @@ func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInter
 			return shim.Error(fmt.Sprintf("无法执行关于关键词 '%v' 的富查询: %v", partialName, err))
 		}
 
-		resourceIDs = append(resourceIDs, entry.Key)
+		resourceID, err := extractResourceIDFromKeyForResMetadata(entry.Key)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+
+		resourceIDs = append(resourceIDs, resourceID)
 	}
 
 	// 记录书签位置

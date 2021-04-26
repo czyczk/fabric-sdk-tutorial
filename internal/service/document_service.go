@@ -63,18 +63,15 @@ func (s *DocumentService) CreateDocument(id string, name string, contents []byte
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
 	extensions := make(map[string]string)
+	extensions["dataType"] = "document"
 	extensions["name"] = name
-	extensionsBytes, err := json.Marshal(extensions)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化扩展字段")
-	}
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
 		ResourceID:   id,
 		Hash:         hashBase64,
 		Size:         uint64(size),
-		Extensions:   string(extensionsBytes),
+		Extensions:   extensions,
 	}
 
 	// 组装要传入链码的参数，其中数据本体转换为 Base64 编码
@@ -171,18 +168,15 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
 	extensions := make(map[string]string)
+	extensions["dataType"] = "document"
 	extensions["name"] = name
-	extensionsBytes, err := json.Marshal(extensions)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化扩展字段")
-	}
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Encrypted,
 		ResourceID:   id,
 		Hash:         hashBase64,
 		Size:         uint64(size),
-		Extensions:   string(extensionsBytes),
+		Extensions:   extensions,
 	}
 
 	// TODO: policy 要强制加上 regulator
@@ -277,18 +271,15 @@ func (s *DocumentService) CreateOffchainDocument(id string, name string, propert
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
 	extensions := make(map[string]string)
+	extensions["dataType"] = "document"
 	extensions["name"] = name
-	extensionsBytes, err := json.Marshal(extensions)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化扩展字段")
-	}
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
 		ResourceID:   id,
 		Hash:         hashBase64,
 		Size:         uint64(size),
-		Extensions:   string(extensionsBytes),
+		Extensions:   extensions,
 	}
 
 	// TODO: policy 要强制加上 regulator
