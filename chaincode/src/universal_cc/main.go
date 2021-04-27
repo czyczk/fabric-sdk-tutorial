@@ -74,6 +74,9 @@ func (uc *UniversalCC) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 		return uc.getRegulatorKeyHistory(stub, args)
 	case "updateRegulatorKey":
 		return uc.updateRegulatorKey(stub, args)
+	// identity.go
+	case "getDepartmentIdentity":
+		return uc.getDepartmentIdentity(stub, args)
 	}
 
 	return shim.Error("未知的链码函数调用")

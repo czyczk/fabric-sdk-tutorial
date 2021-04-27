@@ -40,7 +40,7 @@ type EntityAssetService struct {
 //
 // 返回：
 //   交易 ID
-func (s *EntityAssetService) CreateEntityAsset(id string, name string, componenetsIDs []string, property string) (string, error) {
+func (s *EntityAssetService) CreateEntityAsset(id string, name string, componentIDs []string, property string) (string, error) {
 	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
 	if strings.TrimSpace(id) == "" {
 		return "", fmt.Errorf("资产 ID 不能为空")
@@ -49,7 +49,7 @@ func (s *EntityAssetService) CreateEntityAsset(id string, name string, componene
 	asset := common.EntityAsset{
 		ID:           id,
 		Name:         name,
-		ComponentIDs: componenetsIDs,
+		ComponentIDs: componentIDs,
 		Property:     property,
 	}
 
@@ -112,7 +112,7 @@ func (s *EntityAssetService) CreateEntityAsset(id string, name string, componene
 //
 // 返回：
 //   交易 ID
-func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, componentsIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error) {
+func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, componentIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error) {
 	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
 	if strings.TrimSpace(id) == "" {
 		return "", fmt.Errorf("资产 ID 不能为空")
@@ -121,7 +121,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, 
 	asset := common.EntityAsset{
 		ID:           id,
 		Name:         name,
-		ComponentIDs: componentsIDs,
+		ComponentIDs: componentIDs,
 		Property:     property,
 	}
 

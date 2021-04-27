@@ -5,20 +5,15 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/auth"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/identity"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/casbin/casbin"
 	"github.com/casbin/casbin/model"
-	"github.com/hyperledger/fabric-ca/lib/attrmgr"
-	"github.com/hyperledger/fabric-chaincode-go/pkg/cid"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
-	"github.com/mitchellh/mapstructure"
 )
 
 func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, args []string) peer.Response {
@@ -114,27 +109,10 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		}
 	} else {
 		// 如果 authSessionID 为空值，执行 abac
-		// 获取当前客户端的证书
-		cert, err := cid.GetX509Certificate(stub)
+		// 从当前客户端的证书上获取部门信息
+		deptIdentity, err := uc.getDepartmentIdentityHelper(stub)
 		if err != nil {
-			return shim.Error(fmt.Sprintf("无法获取证书: %v", err))
-		}
-
-		// 获取当前客户端证书上的属性
-		attri, err := attrmgr.New().GetAttributesFromCert(cert)
-		if err != nil {
-			return shim.Error(fmt.Sprintf("无法获取属性: %v", err))
-		}
-
-		// 将从证书中得到属性的map类型，转为struct类型
-		attr := identity.DepartmentIdentityStored{}
-		mapstructure.Decode(attri.Attrs, &attr)
-		if attri.Attrs["DeptLevel"] != "" {
-			deptLevel, err := strconv.Atoi(attri.Attrs["DeptLevel"])
-			if err != nil {
-				return shim.Error(fmt.Sprintf("DeptLevel 需为正整数: %v", err))
-			}
-			attr.DeptLevel = deptLevel
+			return shim.Error(err.Error())
 		}
 
 		// 根据资源 ID，得到资源的访问策略
@@ -175,7 +153,7 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		m := model.Model{}
 		m.LoadModelFromText(modeltext)
 		e := casbin.NewEnforcer(m)
-		validationResult = e.Enforce(attr, "", "")
+		validationResult = e.Enforce(deptIdentity, "", "")
 		if validationResult == false {
 			return shim.Error(errorcode.CodeForbidden)
 		}

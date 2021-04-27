@@ -74,12 +74,12 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 	}
 
 	// Check componentsIDs
-	componentsIDsBytes := []byte(c.PostForm("componentsIDs"))
-	var componentsIDs []string
-	if len(componentsIDsBytes) == 0 {
+	componentIDsBytes := []byte(c.PostForm("componentIDs"))
+	var componentIDs []string
+	if len(componentIDsBytes) == 0 {
 		*pel = append(*pel, "组件的序列号不能为空。")
 	} else {
-		err = json.Unmarshal(componentsIDsBytes, &componentsIDs)
+		err = json.Unmarshal(componentIDsBytes, &componentIDs)
 		if err != nil {
 			*pel = append(*pel, "组件的序列号不合法。")
 		}
@@ -128,9 +128,9 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 	var txID string
 	switch resourceType {
 	case data.Plain:
-		txID, err = ec.EntityAssetSvc.CreateEntityAsset(id, name, componentsIDs, string(propertyBytes))
+		txID, err = ec.EntityAssetSvc.CreateEntityAsset(id, name, componentIDs, string(propertyBytes))
 	case data.Encrypted:
-		txID, err = ec.EntityAssetSvc.CreateEncryptedEntityAsset(id, name, componentsIDs, string(propertyBytes), key, policy)
+		txID, err = ec.EntityAssetSvc.CreateEncryptedEntityAsset(id, name, componentIDs, string(propertyBytes), key, policy)
 	}
 
 	// Check error type and generate the corresponding response

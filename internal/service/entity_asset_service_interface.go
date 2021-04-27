@@ -19,7 +19,7 @@ type EntityAssetServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateEntityAsset(id string, name string, componenetsIDs []string, property string) (string, error)
+	CreateEntityAsset(id string, name string, componentIDs []string, property string) (string, error)
 
 	// 创建加密的实体资产。
 	//
@@ -33,7 +33,7 @@ type EntityAssetServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateEncryptedEntityAsset(id string, name string, componentsIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error)
+	CreateEncryptedEntityAsset(id string, name string, componentIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error)
 
 	// 创建一条资产移交记录。
 	//

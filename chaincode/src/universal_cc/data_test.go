@@ -939,13 +939,17 @@ func TestListDocumentIDsByPartialNameWithExcessiveParameters(t *testing.T) {
 // 内容: base64(data1)
 func getSamplePlainData1() data.PlainData {
 	hashBytes := sha256.Sum256([]byte(data1))
+	extensionsMap := make(map[string]string)
+	extensionsMap["dataType"] = "document"
+	extensionsMap["name"] = "Sample PlainData 1"
+
 	return data.PlainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Plain,
 			ResourceID:   "001",
 			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data1))),
-			Extensions:   "{\"name\":\"Sample Plain Data 1\"}",
+			Extensions:   extensionsMap,
 		},
 		Data: base64.StdEncoding.EncodeToString([]byte(data1)),
 	}
@@ -957,13 +961,17 @@ func getSamplePlainData1() data.PlainData {
 // 内容: base64(data2)
 func getSamplePlainData2() data.PlainData {
 	hashBytes := sha256.Sum256([]byte(data2))
+	extensionsMap := make(map[string]string)
+	extensionsMap["dataType"] = "document"
+	extensionsMap["name"] = "示例明文数据2"
+
 	return data.PlainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Plain,
 			ResourceID:   "002",
 			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data2))),
-			Extensions:   "{\"name\":\"示例明文数据2\"}",
+			Extensions:   extensionsMap,
 		},
 		Data: base64.StdEncoding.EncodeToString([]byte(data2)),
 	}
@@ -975,13 +983,17 @@ func getSamplePlainData2() data.PlainData {
 // 内容: base64(data3)
 func getSamplePlainData3() data.PlainData {
 	hashBytes := sha256.Sum256([]byte(data3))
+	extensionsMap := make(map[string]string)
+	extensionsMap["dataType"] = "document"
+	extensionsMap["name"] = "示例明文数据3"
+
 	return data.PlainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Plain,
 			ResourceID:   "003",
 			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data3))),
-			Extensions:   "{\"name\":\"示例明文数据3\"}",
+			Extensions:   extensionsMap,
 		},
 		Data: base64.StdEncoding.EncodeToString([]byte(data3)),
 	}
@@ -993,13 +1005,17 @@ func getSamplePlainData3() data.PlainData {
 // 内容：base64(encrypt(data1))
 func getSampleEncryptedData1() data.EncryptedData {
 	hashBytes := sha256.Sum256([]byte(data1))
+	extensionsMap := make(map[string]string)
+	extensionsMap["dataType"] = "document"
+	extensionsMap["name"] = "Sample Encrypted Data 1"
+
 	return data.EncryptedData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Encrypted,
 			ResourceID:   "101",
 			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data1))),
-			Extensions:   "{\"name\":\"Sample Encrypted Data 1\"}",
+			Extensions:   extensionsMap,
 		},
 		// TODO: 需要用对称密钥加密
 		Data:   base64.StdEncoding.EncodeToString([]byte(data1)),
@@ -1014,13 +1030,17 @@ func getSampleEncryptedData1() data.EncryptedData {
 // 内容：base64(encrypt(data2))
 func getSampleEncryptedData2() data.EncryptedData {
 	hashBytes := sha256.Sum256([]byte(data2))
+	extensionsMap := make(map[string]string)
+	extensionsMap["dataType"] = "document"
+	extensionsMap["name"] = "示例加密数据2"
+
 	return data.EncryptedData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Encrypted,
 			ResourceID:   "102",
 			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data2))),
-			Extensions:   "{\"name\":\"示例加密数据2\"}",
+			Extensions:   extensionsMap,
 		},
 		// TODO: 需要用对称密钥加密
 		Data:   base64.StdEncoding.EncodeToString([]byte(data2)),
@@ -1034,13 +1054,17 @@ func getSampleEncryptedData2() data.EncryptedData {
 // 名称: "Sample Offchain Data 1"
 func getSampleOffchainData1() data.OffchainData {
 	hashBytes := sha256.Sum256([]byte(data1))
+	extensionsMap := make(map[string]string)
+	extensionsMap["dataType"] = "document"
+	extensionsMap["name"] = "Sample Offchain Data 1"
+
 	return data.OffchainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Offchain,
 			ResourceID:   "201",
 			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data1))),
-			Extensions:   "{\"name\":\"Sample Offchain Data 1\"}",
+			Extensions:   extensionsMap,
 		},
 		Key: base64.StdEncoding.EncodeToString([]byte("123456")),
 		// TODO: 测试时填充
@@ -1053,13 +1077,17 @@ func getSampleOffchainData1() data.OffchainData {
 // 名称: "示例链下数据2"
 func getSampleOffchainData2() data.OffchainData {
 	hashBytes := sha256.Sum256([]byte(data2))
+	extensionsMap := make(map[string]string)
+	extensionsMap["dataType"] = "document"
+	extensionsMap["name"] = "示例链下数据2"
+
 	return data.OffchainData{
 		Metadata: data.ResMetadata{
 			ResourceType: data.Offchain,
 			ResourceID:   "202",
 			Hash:         base64.StdEncoding.EncodeToString(hashBytes[:]),
 			Size:         uint64(len([]byte(data2))),
-			Extensions:   "{\"name\":\"示例链下数据2\"}",
+			Extensions:   extensionsMap,
 		},
 		Key: base64.StdEncoding.EncodeToString([]byte("123456")),
 		// TODO: 测试时填充

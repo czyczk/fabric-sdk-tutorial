@@ -18,6 +18,7 @@ import (
 
 var testLogger = log.StandardLogger()
 
+// User1@org1.lab805.com
 const exampleCertUser1 = `-----BEGIN CERTIFICATE-----
 MIICKDCCAc6gAwIBAgIRAPstx377NKEjR+ohbQ2J0oUwCgYIKoZIzj0EAwIwcTEL
 MAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNhbiBG
@@ -33,6 +34,13 @@ AwIDSAAwRQIhAO2h+8VLHnxBcbmPsc410N3dDCiSVx0b/2kSm53i801aAiAKZ/AG
 mSmrm0zEPivFjOxDpd72v4tUS+O09sr28k+UPA==
 -----END CERTIFICATE-----`
 
+/**
+ * User2@org1.example.com
+ * attrs: {
+ *    "Department": "computer",
+ *    "Grade": "2"
+ * }
+ */
 const exampleCertUser2 = `-----BEGIN CERTIFICATE-----
 MIIC1TCCAnugAwIBAgIUYzfSJbtsxXJpUjVYLtuH3Aa+2UYwCgYIKoZIzj0EAwIw
 czELMAkGA1UEBhMCVVMxEzARBgNVBAgTCkNhbGlmb3JuaWExFjAUBgNVBAcTDVNh
@@ -50,9 +58,17 @@ LCJoZi5BZmZpbGlhdGlvbiI6IiIsImhmLkVucm9sbG1lbnRJRCI6IlVzZXIyIiwi
 aGYuVHlwZSI6ImNsaWVudCJ9fTAKBggqhkjOPQQDAgNIADBFAiEAm3JbqyvB+aw+
 0E5Mb3PsmiTFK/ZlXRvXDSXNW+YDkbQCIHff/qxbQvKQ5tfrMPuTMPzHh8mJkLD6
 m8oUZXEh5bKi
------END CERTIFICATE-----
-`
+-----END CERTIFICATE-----`
 
+/**
+ * peer0@org1.lab805.com
+ * attrs: {
+ *   "DeptLevel": "2",
+ *   "DeptName": "812",
+ *   "DeptType": "computer",
+ *   "SuperDeptName": "804"
+ * }
+ */
 const exampleCertUser3 = `-----BEGIN CERTIFICATE-----
 MIIDHjCCAsWgAwIBAgIUGTUcF5Bj0nXRt/BtG0SslzZfVgMwCgYIKoZIzj0EAwIw
 ajELMAkGA1UEBhMCVVMxFzAVBgNVBAgTDk5vcnRoIENhcm9saW5hMRQwEgYDVQQK

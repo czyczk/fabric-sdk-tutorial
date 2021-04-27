@@ -225,6 +225,12 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			ServiceInfo: universalCcServiceInfo,
 		}
 
+		// Instantiate an identity service
+		identitySvc := &service.IdentityService{
+			ServiceInfo: universalCcServiceInfo,
+			ServerInfo:  &serverInfo,
+		}
+
 		// Prepare a key switch server. It will be of use if the app is enabled as a key switch server.
 		ksServer := background.NewKeySwitchServer(universalCcServiceInfo, keySwitchSvc, runtime.NumCPU())
 		if isKeySwitchServer {
@@ -286,6 +292,12 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			KeySwitchSvc: keySwitchSvc,
 		}
 
+		// Instantiate an identity controller
+		identityController := &controller.IdentityController{
+			GroupName:   "/identity",
+			IdentitySvc: identitySvc,
+		}
+
 		// Register controller handlers
 		router := gin.Default()
 		router.Use(controller.CORSMiddleware())
@@ -296,6 +308,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		_ = controller.RegisterHandlers(apiv1Group, entityAssetController)
 		_ = controller.RegisterHandlers(apiv1Group, authController)
 		_ = controller.RegisterHandlers(apiv1Group, keySwitchController)
+		_ = controller.RegisterHandlers(apiv1Group, identityController)
 
 		// Start the HTTP server
 		log.Infoln(fmt.Sprintf("正在端口 %v 上启动 HTTP 服务器...", serverInfo.Port))
@@ -313,7 +326,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		}()
 
 		// Listen Ctrl+C signals. On receiving a signal stops the app elegantly
-		chanQuit := make(chan os.Signal)
+		chanQuit := make(chan os.Signal, 1)
 		signal.Notify(chanQuit, os.Interrupt)
 		select {
 		case err := <-chanError:
