@@ -154,8 +154,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, 
 	if err != nil {
 		return "", err
 	}
-	var collPubKeyInSM2 *sm2.PublicKey
-	collPubKey = collPubKey.(*sm2.PublicKey)
+	collPubKeyInSM2 := collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
