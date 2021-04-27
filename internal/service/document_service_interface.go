@@ -101,9 +101,13 @@ type DocumentServiceInterface interface {
 
 	// 获取所有调用者创建的数字文档的资源 ID。
 	//
+	// 参数：
+	//   分页大小
+	//   分页书签
+	//
 	// 返回：
-	//   资源 ID 列表
-	ListDocumentIDsByCreator() ([]string, error)
+	//   带分页的资源 ID 列表
+	ListDocumentIDsByCreator(pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error)
 
 	// 获取名称包含所提供的部分名称的数字文档的资源 ID。
 	//

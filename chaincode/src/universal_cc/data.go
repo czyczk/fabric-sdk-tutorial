@@ -555,16 +555,34 @@ func (uc *UniversalCC) listDocumentIDsByEntityID(stub shim.ChaincodeStubInterfac
 }
 
 func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+	// 检查参数数量
+	lenArgs := len(args)
+	if lenArgs != 2 {
+		return shim.Error("参数数量不正确。应为 2 个")
+	}
+
+	// args = [pageSize int, bookmark string]
+	pageSizeStr := args[0]
+	bookmark := args[1]
+
 	// 获取调用者信息
 	creator, err := getPKDERFromStub(stub)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取调用者信息: %v", err))
 	}
 
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析参数 pageSize，值为 %v。应为正整数", pageSizeStr))
+	}
+	if pageSize <= 0 {
+		return shim.Error(fmt.Sprintf("参数 pageSize 值为 %v。应为正整数", pageSizeStr))
+	}
+
 	// 提供 creator 项以获取迭代器
 	ckObjectType := "creator~resourceid"
 	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
-	it, err := stub.GetStateByPartialCompositeKey(ckObjectType, []string{creatorAsBase64})
+	it, respMetadata, err := stub.GetStateByPartialCompositeKeyWithPagination(ckObjectType, []string{creatorAsBase64}, int32(pageSize), bookmark)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
 	}
@@ -588,12 +606,16 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 	}
 
 	// 序列化结果列表并返回
-	resourceIDsAsBytes, err := json.Marshal(resourceIDs)
+	paginationResult := query.ResourceIDsWithPagination{
+		ResourceIDs: resourceIDs,
+		Bookmark:    respMetadata.Bookmark,
+	}
+	paginationResultAsBytes, err := json.Marshal(paginationResult)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化结果列表: %v", err))
 	}
 
-	return shim.Success(resourceIDsAsBytes)
+	return shim.Success(paginationResultAsBytes)
 }
 
 func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInterface, args []string) peer.Response {

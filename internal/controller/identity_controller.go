@@ -1,8 +1,12 @@
 package controller
 
 import (
+	"net/http"
+
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
 
 type IdentityController struct {
@@ -25,7 +29,14 @@ func (c *IdentityController) GetEndpointMap() EndpointMap {
 }
 
 func (ic *IdentityController) handleGetIdentity(c *gin.Context) {
-
+	userIdentity, err := ic.IdentitySvc.GetIdentityInfo()
+	if err == nil {
+		c.JSON(http.StatusOK, userIdentity)
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
+		c.Writer.WriteHeader(http.StatusNotImplemented)
+	} else {
+		c.String(http.StatusInternalServerError, err.Error())
+	}
 }
 
 func (ic *IdentityController) handleGetDocumentList(c *gin.Context) {
