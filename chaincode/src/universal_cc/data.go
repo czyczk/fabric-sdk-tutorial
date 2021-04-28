@@ -563,7 +563,12 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 
 	// args = [pageSize int, bookmark string]
 	pageSizeStr := args[0]
-	bookmark := args[1]
+	bookmarkAsBase64 := args[1]
+	bookmarkBytes, err := base64.StdEncoding.DecodeString(bookmarkAsBase64)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析书签: %v", err))
+	}
+	bookmark := string(bookmarkBytes)
 
 	// 获取调用者信息
 	creator, err := getPKDERFromStub(stub)
@@ -608,7 +613,7 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 	// 序列化结果列表并返回
 	paginationResult := query.ResourceIDsWithPagination{
 		ResourceIDs: resourceIDs,
-		Bookmark:    respMetadata.Bookmark,
+		Bookmark:    base64.StdEncoding.EncodeToString([]byte(respMetadata.Bookmark)),
 	}
 	paginationResultAsBytes, err := json.Marshal(paginationResult)
 	if err != nil {
@@ -628,7 +633,12 @@ func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInter
 	// args = [partialName string, pageSize int, bookmark string]
 	partialName := args[0]
 	pageSizeStr := args[1]
-	bookmark := args[2]
+	bookmarkAsBase64 := args[2]
+	bookmarkBytes, err := base64.StdEncoding.DecodeString(bookmarkAsBase64)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析书签: %v", err))
+	}
+	bookmark := string(bookmarkBytes)
 
 	pageSize, err := strconv.Atoi(pageSizeStr)
 	if err != nil {
@@ -682,7 +692,7 @@ func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInter
 	// 序列化结果并返回
 	result := query.ResourceIDsWithPagination{
 		ResourceIDs: resourceIDs,
-		Bookmark:    returnedBookmark,
+		Bookmark:    base64.StdEncoding.EncodeToString([]byte(returnedBookmark)),
 	}
 	resultAsBytes, err := json.Marshal(result)
 	if err != nil {

@@ -242,7 +242,7 @@ func (dc *DocumentController) handleListDocumentIDs(c *gin.Context) {
 	name := strings.TrimSpace(c.Query("name"))
 	entityAssetID := strings.TrimSpace(c.Query("entityAssetID"))
 	pageSizeStr := c.Query("pageSize")
-	bookmark := strings.TrimSpace(c.Query("bookmark"))
+	bookmark := processBase64FromURLQuery(c.Query("bookmark"))
 
 	pel := &ParameterErrorList{}
 	pageSize := 10

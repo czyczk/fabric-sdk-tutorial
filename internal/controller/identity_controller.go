@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/http"
+	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
@@ -11,6 +12,7 @@ import (
 
 type IdentityController struct {
 	GroupName   string
+	DocumentSvc service.DocumentServiceInterface
 	IdentitySvc service.IdentityServiceInterface
 }
 
@@ -40,7 +42,33 @@ func (ic *IdentityController) handleGetIdentity(c *gin.Context) {
 }
 
 func (ic *IdentityController) handleGetDocumentList(c *gin.Context) {
+	// Extract and check parameters
+	pageSizeStr := c.Query("pageSize")
+	bookmark := processBase64FromURLQuery(c.Query("bookmark"))
 
+	pel := &ParameterErrorList{}
+	pageSize := 10
+	if strings.TrimSpace(pageSizeStr) != "" {
+		pageSize = pel.AppendIfNotPositiveInt(pageSizeStr, "分页大小应为正整数。")
+	}
+
+	// Early return if the error list is not empty
+	if len(*pel) > 0 {
+		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		return
+	}
+
+	// ListDocumentIDsByCreator
+	resourceIDs, err := ic.DocumentSvc.ListDocumentIDsByCreator(pageSize, bookmark)
+
+	// Check error type and generate the corresponding response
+	if err == nil {
+		c.JSON(http.StatusOK, resourceIDs)
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
+		c.Writer.WriteHeader(http.StatusNotImplemented)
+	} else {
+		c.String(http.StatusInternalServerError, err.Error())
+	}
 }
 
 func (ic *IdentityController) handleGetAuthPendingList(c *gin.Context) {
