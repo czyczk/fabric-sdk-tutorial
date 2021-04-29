@@ -8,9 +8,9 @@ require github.com/stretchr/testify v1.7.0
 
 require github.com/hyperledger/fabric-sdk-go v1.0.0
 
-require github.com/sirupsen/logrus v1.7.0
+require github.com/sirupsen/logrus v1.8.1
 
-require github.com/gin-gonic/gin v1.6.3
+require github.com/gin-gonic/gin v1.7.1
 
 require gopkg.in/yaml.v2 v2.4.0
 
