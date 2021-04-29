@@ -22,4 +22,7 @@ require github.com/bwmarrin/snowflake v0.3.0
 
 require github.com/tjfoc/gmsm v1.4.0
 
-require github.com/XiaoYao-austin/ppks v1.0.0
+require (
+	github.com/XiaoYao-austin/ppks v1.0.0
+	gorm.io/gorm v1.21.9 // indirect
+)
