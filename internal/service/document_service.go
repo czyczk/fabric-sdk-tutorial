@@ -14,7 +14,6 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
@@ -33,24 +32,18 @@ type DocumentService struct {
 // CreateDocument 创建数字文档。
 //
 // 参数：
-//   文档 ID
-//   文档名称
-//   文档内容
-//   文档属性（JSON）
+//   数字文档
 //
 // 返回：
 //   交易 ID
-func (s *DocumentService) CreateDocument(id string, name string, contents []byte, property string) (string, error) {
-	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
-	if strings.TrimSpace(id) == "" {
-		return "", fmt.Errorf("文档 ID 不能为空")
+func (s *DocumentService) CreateDocument(document *common.Document) (string, error) {
+	if document == nil {
+		return "", fmt.Errorf("文档对象不能为 nil")
 	}
 
-	document := common.Document{
-		ID:       id,
-		Name:     name,
-		Contents: contents,
-		Property: property,
+	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
+	if strings.TrimSpace(document.ID) == "" {
+		return "", fmt.Errorf("文档 ID 不能为空")
 	}
 
 	documentBytes, err := json.Marshal(document)
@@ -58,17 +51,15 @@ func (s *DocumentService) CreateDocument(id string, name string, contents []byte
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
 
-	// 计算哈希，获取大小并准备扩展字段
+	// 计算哈希，获取大小并准备可公开的扩展字段
 	hash := sha256.Sum256(documentBytes)
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
-	extensions := make(map[string]string)
-	extensions["dataType"] = "document"
-	extensions["name"] = name
+	extensions := deriveExtensionsMapFromDocument(document)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
-		ResourceID:   id,
+		ResourceID:   document.ID,
 		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   extensions,
@@ -102,26 +93,19 @@ func (s *DocumentService) CreateDocument(id string, name string, contents []byte
 // CreateEncryptedDocument 创建加密数字文档。
 //
 // 参数：
-//   文档 ID
-//   文档名称
-//   文档内容
-//   文档属性（JSON）
+//   数字文档
 //   对称密钥（SM2 曲线上的点）
 //   访问策略
 //
 // 返回：
 //   交易 ID
-func (s *DocumentService) CreateEncryptedDocument(id string, name string, contents []byte, property string, key *ppks.CurvePoint, policy string) (string, error) {
-	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
-	if strings.TrimSpace(id) == "" {
-		return "", fmt.Errorf("文档 ID 不能为空")
+func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key *ppks.CurvePoint, policy string) (string, error) {
+	if document == nil {
+		return "", fmt.Errorf("文档对象不能为 nil")
 	}
-
-	document := common.Document{
-		ID:       id,
-		Name:     name,
-		Contents: contents,
-		Property: property,
+	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
+	if strings.TrimSpace(document.ID) == "" {
+		return "", fmt.Errorf("文档 ID 不能为空")
 	}
 
 	documentBytes, err := json.Marshal(document)
@@ -167,19 +151,15 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 	hash := sha256.Sum256(documentBytes)
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
-	extensions := make(map[string]string)
-	extensions["dataType"] = "document"
-	extensions["name"] = name
+	extensions := deriveExtensionsMapFromDocument(document)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Encrypted,
-		ResourceID:   id,
+		ResourceID:   document.ID,
 		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   extensions,
 	}
-
-	// TODO: policy 要强制加上 regulator
 
 	// 组装要传入链码的参数，其中密文本体和对称密钥的密文转换为 Base64 编码
 	encryptedData := data.EncryptedData{
@@ -208,42 +188,23 @@ func (s *DocumentService) CreateEncryptedDocument(id string, name string, conten
 	}
 }
 
-// CreateRegulatorEncryptedDocument 创建监管者加密数字文档。
-//
-// 参数：
-//   文档 ID
-//   文档名称
-//   文档内容
-//   文档属性（JSON）
-//   对称密钥（SM2 曲线上的点）
-//
-// 返回：
-//   交易 ID
-func (s *DocumentService) CreateRegulatorEncryptedDocument(id string, name string, contents []byte, property string, key *ppks.CurvePoint) (string, error) {
-	return "", errorcode.ErrorNotImplemented
-}
-
 // CreateOffchainDocument 创建链下加密数字文档。
 //
 // 参数：
-//   文档 ID
-//   文档名称
-//   文档属性（JSON）
+//   数字文档
 //   对称密钥（SM2 曲线上的点）
 //   访问策略
 //
 // 返回：
 //   交易 ID
-func (s *DocumentService) CreateOffchainDocument(id string, name string, property string, key *ppks.CurvePoint, policy string) (string, error) {
-	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
-	if strings.TrimSpace(id) == "" {
-		return "", fmt.Errorf("文档 ID 不能为空")
+func (s *DocumentService) CreateOffchainDocument(document *common.Document, key *ppks.CurvePoint, policy string) (string, error) {
+	if document == nil {
+		return "", fmt.Errorf("文档对象不能为 nil")
 	}
 
-	document := common.Document{
-		ID:       id,
-		Name:     name,
-		Property: property,
+	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
+	if strings.TrimSpace(document.ID) == "" {
+		return "", fmt.Errorf("文档 ID 不能为空")
 	}
 
 	documentBytes, err := json.Marshal(document)
@@ -270,13 +231,11 @@ func (s *DocumentService) CreateOffchainDocument(id string, name string, propert
 	hash := sha256.Sum256(documentBytes)
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
-	extensions := make(map[string]string)
-	extensions["dataType"] = "document"
-	extensions["name"] = name
+	extensions := deriveExtensionsMapFromDocument(document)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
-		ResourceID:   id,
+		ResourceID:   document.ID,
 		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   extensions,
@@ -508,17 +467,6 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	return &document, nil
 }
 
-// GetRegulatorEncryptedDocument 获取由监管者公钥加密的文档。函数将获取数据本体并尝试使用调用者的公钥解密后，返回明文。
-//
-// 参数：
-//   文档 ID
-//
-//  返回：
-//    解密后的文档
-func (s *DocumentService) GetRegulatorEncryptedDocument(id string) (*common.Document, error) {
-	return nil, errorcode.ErrorNotImplemented
-}
-
 // ListDocumentIDsByCreator 获取所有调用者创建的数字文档的资源 ID。
 //
 // 参数：
@@ -584,7 +532,21 @@ func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageS
 	return &resourceIDs, nil
 }
 
-// 对称密钥的生成是由 curvePoint 导出的 256 位信息，可用于创建 AES256 block
-func deriveSymmetricKeyBytesFromCurvePoint(curvePoint *ppks.CurvePoint) []byte {
-	return curvePoint.X.Bytes()
+func deriveExtensionsMapFromDocument(document *common.Document) map[string]string {
+	extensions := make(map[string]string)
+	extensions["dataType"] = "document"
+	if document.IsNamePublic {
+		extensions["name"] = document.Name
+	}
+	if document.IsPrecedingDocumentIDPublic {
+		extensions["precedingDocumentID"] = document.PrecedingDocumentID
+	}
+	if document.IsHeadDocumentIDPublic {
+		extensions["headDocumentID"] = document.HeadDocumentID
+	}
+	if document.IsEntityAssetIDPublic {
+		extensions["entityAssetID"] = document.EntityAssetID
+	}
+
+	return extensions
 }

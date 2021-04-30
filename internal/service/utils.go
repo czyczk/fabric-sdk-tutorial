@@ -111,3 +111,8 @@ func DeserializeCipherText(encryptedKeyBytes []byte) (*ppks.CipherText, error) {
 
 	return &encryptedKeyAsCipherText, nil
 }
+
+// 对称密钥的生成是由 curvePoint 导出的 256 位信息，可用于创建 AES256 block
+func deriveSymmetricKeyBytesFromCurvePoint(curvePoint *ppks.CurvePoint) []byte {
+	return curvePoint.X.Bytes()
+}

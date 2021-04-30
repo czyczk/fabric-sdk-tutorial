@@ -12,54 +12,33 @@ type DocumentServiceInterface interface {
 	// 创建数字文档
 	//
 	// 参数：
-	//   文档 ID
-	//   文档名称
-	//   文档内容
-	//   文档属性（JSON）
+	//   数字文档
 	//
 	// 返回：
 	//   交易 ID
-	CreateDocument(id string, name string, contents []byte, property string) (string, error)
+	CreateDocument(document *common.Document) (string, error)
 
 	// 创建加密数字文档
 	//
 	// 参数：
-	//   文档 ID
-	//   文档名称
-	//   文档内容
-	//   文档属性（JSON）
+	//   数字文档
 	//   对称密钥（SM2 曲线上的点）
 	//   访问策略
 	//
 	// 返回：
 	//   交易 ID
-	CreateEncryptedDocument(id string, name string, contents []byte, property string, key *ppks.CurvePoint, policy string) (string, error)
-
-	// 创建监管者加密数字文档
-	//
-	// 参数：
-	//   文档 ID
-	//   文档名称
-	//   文档内容
-	//   文档属性（JSON）
-	//   对称密钥（SM2 曲线上的点）
-	//
-	// 返回：
-	//   交易 ID
-	CreateRegulatorEncryptedDocument(id string, name string, contents []byte, property string, key *ppks.CurvePoint) (string, error)
+	CreateEncryptedDocument(document *common.Document, key *ppks.CurvePoint, policy string) (string, error)
 
 	// 创建链下加密数字文档
 	//
 	// 参数：
-	//   文档 ID
-	//   文档名称
-	//   文档属性（JSON）
+	//   数字文档
 	//   对称密钥（SM2 曲线上的点）
 	//   访问策略
 	//
 	// 返回：
 	//   交易 ID
-	CreateOffchainDocument(id string, name string, property string, key *ppks.CurvePoint, policy string) (string, error)
+	CreateOffchainDocument(document *common.Document, key *ppks.CurvePoint, policy string) (string, error)
 
 	// 获取数字文档的元数据
 	//
@@ -89,15 +68,6 @@ type DocumentServiceInterface interface {
 	// 返回：
 	//   解密后的文档
 	GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int) (*common.Document, error)
-
-	// 获取由监管者公钥加密的文档。函数将获取数据本体并尝试使用调用者的公钥解密后，返回明文。
-	//
-	// 参数：
-	//   文档 ID
-	//
-	//  返回：
-	//    解密后的文档
-	GetRegulatorEncryptedDocument(id string) (*common.Document, error)
 
 	// 获取所有调用者创建的数字文档的资源 ID。
 	//

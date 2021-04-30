@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -58,16 +57,38 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	}
 
 	// Extract and check common parameters
-	name := c.PostForm("name")
+	name := strings.TrimSpace(c.PostForm("name"))
+	if name == "" {
+		*pel = append(*pel, "文档名称不能为空。")
+	}
 
-	// Property is optional, but it must be valid (can be unmarshaled to a map) if provided.
-	propertyBytes := []byte(c.PostForm("property"))
-	property := make(map[string]string)
-	if len(propertyBytes) != 0 {
-		err = json.Unmarshal(propertyBytes, &property)
-		if err != nil {
-			*pel = append(*pel, "属性字段不合法。")
-		}
+	precedingDocumentID := c.PostForm("precedingDocumentID")
+	headDocumentID := c.PostForm("headDocumentID")
+	entityAssetID := c.PostForm("entityAssetID")
+
+	// Whether the properties are public should be specified if it's not a plain resource
+	isNamePublicStr := c.PostForm("isNamePublic")
+	isNamePublic := true
+	if resourceType != data.Plain {
+		isNamePublic = pel.AppendIfNotBool(isNamePublicStr, "必须指定文档公开性。")
+	}
+
+	isPrecedingDocumentIDPublicStr := c.PostForm("isPrecedingDocumentIDPublic")
+	isPrecedingDocumentIDPublic := true
+	if resourceType != data.Plain {
+		isPrecedingDocumentIDPublic = pel.AppendIfNotBool(isPrecedingDocumentIDPublicStr, "必须指定前序文档 ID 公开性。")
+	}
+
+	isHeadDocumentIDPublicStr := c.PostForm("isHeadDocumentIDPublic")
+	isHeadDocumentIDPublic := true
+	if resourceType != data.Plain {
+		isHeadDocumentIDPublic = pel.AppendIfNotBool(isHeadDocumentIDPublicStr, "必须指定头文档 ID 公开性。")
+	}
+
+	isEntityAssetIDPublicStr := c.PostForm("isEntityAssetIDPublic")
+	isEntityAssetIDPublic := true
+	if resourceType != data.Plain {
+		isEntityAssetIDPublic = pel.AppendIfNotBool(isEntityAssetIDPublicStr, "必须指定相关实体资产 ID 公开性。")
 	}
 
 	// Check contents if it's not an offchain resource
@@ -117,17 +138,29 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 		}
 	}
 
+	// Wrap the collected info into a document
+	document := &common.Document{
+		ID:                          id,
+		Name:                        name,
+		PrecedingDocumentID:         precedingDocumentID,
+		HeadDocumentID:              headDocumentID,
+		EntityAssetID:               entityAssetID,
+		IsNamePublic:                isNamePublic,
+		IsPrecedingDocumentIDPublic: isPrecedingDocumentIDPublic,
+		IsHeadDocumentIDPublic:      isHeadDocumentIDPublic,
+		IsEntityAssetIDPublic:       isEntityAssetIDPublic,
+		Contents:                    contents,
+	}
+
 	// Invoke the service function according to the resource type
 	var txID string
 	switch resourceType {
 	case data.Plain:
-		txID, err = dc.DocumentSvc.CreateDocument(id, name, contents, string(propertyBytes))
+		txID, err = dc.DocumentSvc.CreateDocument(document)
 	case data.Encrypted:
-		txID, err = dc.DocumentSvc.CreateEncryptedDocument(id, name, contents, string(propertyBytes), key, policy)
-	case data.RegulatorEncrypted:
-		txID, err = dc.DocumentSvc.CreateRegulatorEncryptedDocument(id, name, contents, string(propertyBytes), key)
+		txID, err = dc.DocumentSvc.CreateEncryptedDocument(document, key, policy)
 	case data.Offchain:
-		txID, err = dc.DocumentSvc.CreateOffchainDocument(id, name, string(propertyBytes), key, policy)
+		txID, err = dc.DocumentSvc.CreateOffchainDocument(document, key, policy)
 	}
 
 	// Check error type and generate the corresponding response
@@ -221,8 +254,6 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 		document, err = dc.DocumentSvc.GetDocument(id)
 	case data.Encrypted:
 		document, err = dc.DocumentSvc.GetEncryptedDocument(id, keySwitchSessionID, numSharesExpected)
-	case data.RegulatorEncrypted:
-		document, err = dc.DocumentSvc.GetRegulatorEncryptedDocument(id)
 	}
 
 	// Check error type and generate the corresponding response
