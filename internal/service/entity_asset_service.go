@@ -33,24 +33,20 @@ type EntityAssetService struct {
 // 创建实体资产。
 //
 // 参数：
-//   资产 ID
-//   资产名称
+//   实体资产
 //   组件 ID 列表
 //   扩展字段（JSON）
 //
 // 返回：
 //   交易 ID
-func (s *EntityAssetService) CreateEntityAsset(id string, name string, componentIDs []string, property string) (string, error) {
-	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
-	if strings.TrimSpace(id) == "" {
-		return "", fmt.Errorf("资产 ID 不能为空")
+func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset, componentIDs []string, property string) (string, error) {
+	if asset == nil {
+		return "", fmt.Errorf("资产对象不能为 nil")
 	}
 
-	asset := common.EntityAsset{
-		ID:           id,
-		Name:         name,
-		ComponentIDs: componentIDs,
-		Property:     property,
+	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
+	if strings.TrimSpace(asset.ID) == "" {
+		return "", fmt.Errorf("资产 ID 不能为空")
 	}
 
 	assetBytes, err := json.Marshal(asset)
@@ -62,13 +58,11 @@ func (s *EntityAssetService) CreateEntityAsset(id string, name string, component
 	hash := sha256.Sum256(assetBytes)
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(assetBytes)
-	extensions := make(map[string]string)
-	extensions["dataType"] = "entityAsset"
-	extensions["name"] = name
+	extensions := deriveExtensionsMapFromAsset(asset)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
-		ResourceID:   id,
+		ResourceID:   asset.ID,
 		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   extensions,
@@ -103,8 +97,7 @@ func (s *EntityAssetService) CreateEntityAsset(id string, name string, component
 // 创建加密的实体资产。
 //
 // 参数：
-//   资产 ID
-//   资产名称
+//   实体资产
 //   组件 ID 列表
 //   扩展字段（JSON）
 //   加密后的对称密钥
@@ -112,17 +105,14 @@ func (s *EntityAssetService) CreateEntityAsset(id string, name string, component
 //
 // 返回：
 //   交易 ID
-func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, componentIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error) {
-	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
-	if strings.TrimSpace(id) == "" {
-		return "", fmt.Errorf("资产 ID 不能为空")
+func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsset, componentIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error) {
+	if asset == nil {
+		return "", fmt.Errorf("资产不能为 nil")
 	}
 
-	asset := common.EntityAsset{
-		ID:           id,
-		Name:         name,
-		ComponentIDs: componentIDs,
-		Property:     property,
+	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
+	if strings.TrimSpace(asset.ID) == "" {
+		return "", fmt.Errorf("资产 ID 不能为空")
 	}
 
 	assetBytes, err := json.Marshal(asset)
@@ -168,19 +158,15 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(id string, name string, 
 	hash := sha256.Sum256(assetBytes)
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(assetBytes)
-	extensions := make(map[string]string)
-	extensions["dataType"] = "entityAsset"
-	extensions["name"] = name
+	extensions := deriveExtensionsMapFromAsset(asset)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Encrypted,
-		ResourceID:   id,
+		ResourceID:   asset.ID,
 		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   extensions,
 	}
-
-	// TODO: policy 要强制加上 regulator
 
 	// 组装要传入链码的参数，其中密文本体和对称密钥的密文转换为 Base64 编码
 	encryptedData := data.EncryptedData{
@@ -453,4 +439,17 @@ func (s *EntityAssetService) ListDocumentIDsByEntityID(id string, pageSize int, 
 	}
 
 	return &resourceIDs, nil
+}
+
+func deriveExtensionsMapFromAsset(asset *common.EntityAsset) map[string]string {
+	extensions := make(map[string]string)
+	extensions["dataType"] = "entityAsset"
+	if asset.IsNamePublic {
+		extensions["name"] = asset.Name
+	}
+	if asset.IsDesignDocumentIDPublic {
+		extensions["designDocumentID"] = asset.DesignDocumentID
+	}
+
+	return extensions
 }
