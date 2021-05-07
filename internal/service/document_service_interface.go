@@ -49,34 +49,37 @@ type DocumentServiceInterface interface {
 	//   元数据
 	GetDocumentMetadata(id string) (*data.ResMetadataStored, error)
 
-	// 获取明文数字文档
+	// 获取明文数字文档，调用前应先获取元数据。
 	//
 	// 参数：
 	//   文档 ID
+	//   文档元数据
 	//
 	// 返回：
 	//   文档本体
-	GetDocument(id string) (*common.Document, error)
+	GetDocument(id string, metadata *data.ResMetadataStored) (*common.Document, error)
 
-	// 获取加密数字文档。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。
+	// 获取加密数字文档。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
 	//
 	// 参数：
 	//   文档 ID
 	//   密钥置换会话 ID
 	//   预期的份额数量
+	//   文档元数据
 	//
 	// 返回：
 	//   解密后的文档
-	GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int) (*common.Document, error)
+	GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.Document, error)
 
-	// GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。
+	// GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。调用前应先获取元数据。
 	//
 	// 参数：
 	//   文档 ID
+	//   文档元数据
 	//
 	// 返回：
 	//   解密后的文档
-	GetDecryptedDocumentFromDB(id string) (*common.Document, error)
+	GetDecryptedDocumentFromDB(id string, metadata *data.ResMetadataStored) (*common.Document, error)
 
 	// 获取所有调用者创建的数字文档的资源 ID。
 	//

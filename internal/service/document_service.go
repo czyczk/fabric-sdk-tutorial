@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tjfoc/gmsm/sm2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // DocumentService 用于管理数字文档。
@@ -244,8 +245,6 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		Extensions:   extensions,
 	}
 
-	// TODO: policy 要强制加上 regulator
-
 	// 组装要传入链码的参数，其中密文本体和对称密钥的密文转换为 Base64 编码
 	encryptedData := data.OffchainData{
 		Metadata: metadata,
@@ -299,21 +298,20 @@ func (s *DocumentService) GetDocumentMetadata(id string) (*data.ResMetadataStore
 	}
 }
 
-// GetDocument 获取明文数字文档。
+// GetDocument 获取明文数字文档，调用前应先获取元数据。
 //
 // 参数：
 //   文档 ID
+//   文档元数据
 //
 // 返回：
 //   文档本体
-func (s *DocumentService) GetDocument(id string) (*common.Document, error) {
+func (s *DocumentService) GetDocument(id string, metadata *data.ResMetadataStored) (*common.Document, error) {
 	// 检查元数据中该资源类型是否为明文资源
-	resMetadataStored, err := s.GetDocumentMetadata(id)
-	if err != nil {
-		return nil, err
-	}
-	if resMetadataStored.ResourceType != data.Plain {
-		return nil, fmt.Errorf("该资源不是明文资源")
+	if metadata.ResourceType != data.Plain {
+		return nil, &ErrorBadRequest{
+			errMsg: "该资源不是明文资源。",
+		}
 	}
 
 	chaincodeFcn := "getData"
@@ -335,23 +333,22 @@ func (s *DocumentService) GetDocument(id string) (*common.Document, error) {
 	}
 }
 
-// GetEncryptedDocument 获取加密数字文档。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。
+// GetEncryptedDocument 获取加密数字文档。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
 //
 // 参数：
 //   文档 ID
 //   密钥置换会话 ID
 //   预期的份额数量
+//   文档元数据
 //
 // 返回：
 //   解密后的文档
-func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int) (*common.Document, error) {
+func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.Document, error) {
 	// 检查元数据中该资源类型是否为密文资源
-	resMetadataStored, err := s.GetDocumentMetadata(id)
-	if err != nil {
-		return nil, err
-	}
-	if resMetadataStored.ResourceType != data.Encrypted {
-		return nil, fmt.Errorf("该资源不是加密资源")
+	if metadata.ResourceType != data.Encrypted {
+		return nil, &ErrorBadRequest{
+			errMsg: "该资源不是加密资源。",
+		}
 	}
 
 	chaincodeFcn := "getData"
@@ -398,6 +395,18 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	encryptedDocumentBytes := resp.Payload
+
+	// 检查加密的内容的大小和哈希是否匹配
+	encryptedSize := uint64(len(encryptedDocumentBytes))
+	if encryptedSize != metadata.SizeStored {
+		return nil, fmt.Errorf("获取的密文大小不正确")
+	}
+
+	encryptedHash := sha256.Sum256(encryptedDocumentBytes)
+	encryptedHashBase64 := base64.StdEncoding.EncodeToString(encryptedHash[:])
+	if encryptedHashBase64 != metadata.HashStored {
+		return nil, fmt.Errorf("获取的密文哈希不匹配")
+	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
 	chaincodeFcn = "listKeySwitchResultsByID"
@@ -460,6 +469,18 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 		return nil, errors.Wrap(err, "无法解密文档")
 	}
 
+	// 检查解密出的内容的大小和哈希是否匹配
+	decryptedSize := uint64(len(documentBytes))
+	if decryptedSize != metadata.Size {
+		return nil, fmt.Errorf("解密后的文档大小不正确")
+	}
+
+	decryptedHash := sha256.Sum256(documentBytes)
+	decryptedHashBase64 := base64.StdEncoding.EncodeToString(decryptedHash[:])
+	if decryptedHashBase64 != metadata.Hash {
+		return nil, fmt.Errorf("解密后的文档哈希不匹配")
+	}
+
 	// 解析 documentBytes 为 common.Document
 	var document common.Document
 	err = json.Unmarshal(documentBytes, &document)
@@ -467,13 +488,16 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 		return nil, fmt.Errorf("获取的数据不是合法的数字文档")
 	}
 
-	// 将解密的文档存入数据库
+	// 将解密的文档存入数据库（若已存在则覆盖）
 	documentDB, err := sqlmodel.NewDocumentFromModel(&document)
 	if err != nil {
 		return nil, err
 	}
 
-	dbResult := s.ServiceInfo.DB.Create(documentDB)
+	dbResult := s.ServiceInfo.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: true,
+	}).Create(documentDB)
 	if dbResult.Error != nil {
 		return nil, errors.Wrap(dbResult.Error, "无法将解密后的文档存入数据库")
 	}
@@ -481,14 +505,22 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	return &document, nil
 }
 
-// GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。
+// GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。调用前应先获取元数据。
 //
 // 参数：
 //   文档 ID
+//   文档元数据
 //
 // 返回：
 //   解密后的文档
-func (s *DocumentService) GetDecryptedDocumentFromDB(id string) (*common.Document, error) {
+func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.ResMetadataStored) (*common.Document, error) {
+	// 检查元数据中该资源类型是否为密文资源
+	if metadata.ResourceType != data.Encrypted {
+		return nil, &ErrorBadRequest{
+			errMsg: "该资源不是加密资源。",
+		}
+	}
+
 	// 从数据库中读取解密后的文档
 	var documentDB sqlmodel.Document
 	dbResult := s.ServiceInfo.DB.Where("id = ?", id).Take(&documentDB)
@@ -501,6 +533,28 @@ func (s *DocumentService) GetDecryptedDocumentFromDB(id string) (*common.Documen
 	}
 
 	document := documentDB.ToModel()
+
+	// 检查解密出的内容的大小和哈希是否匹配
+	documentBytes, err := json.Marshal(document)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法检查文档完整性")
+	}
+
+	decryptedSize := uint64(len(documentBytes))
+	if decryptedSize != metadata.Size {
+		return nil, &ErrorCorruptedDatabaseResult{
+			errMsg: "从数据库获取的文档大小不正确",
+		}
+	}
+
+	decryptedHash := sha256.Sum256(documentBytes)
+	decryptedHashBase64 := base64.StdEncoding.EncodeToString(decryptedHash[:])
+	if decryptedHashBase64 != metadata.Hash {
+		return nil, &ErrorCorruptedDatabaseResult{
+			errMsg: "从数据库获取文档哈希不匹配",
+		}
+	}
+
 	return document, nil
 }
 

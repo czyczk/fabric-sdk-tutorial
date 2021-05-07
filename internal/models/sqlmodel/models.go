@@ -2,6 +2,7 @@ package sqlmodel
 
 import (
 	"database/sql"
+	"fmt"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"github.com/pkg/errors"
@@ -12,16 +13,16 @@ import (
 type Document struct {
 	gorm.Model
 	ID                          int64
-	Name                        string
-	Type                        common.DocumentType
+	Name                        string `gorm:"type:VARCHAR(30) NOT NULL"`
+	Type                        string `gorm:"type:ENUM('DESIGN_DOCUMENT', 'PRODUCTION_DOCUMENT', 'TRANSFER_DOCUMENT', 'USAGE_DOCUMENT', 'REPAIR_DOCUMENT') NOT NULL"`
 	PrecedingDocumentID         sql.NullInt64
 	HeadDocumentID              sql.NullInt64
 	EntityAssetID               sql.NullInt64
-	IsNamePublic                bool
-	IsTypePublic                bool
-	IsPrecedingDocumentIDPublic bool
-	IsHeadDocumentIDPublic      bool
-	IsEntityAssetIDPublic       bool
+	IsNamePublic                bool `gorm:"not null"`
+	IsTypePublic                bool `gorm:"not null"`
+	IsPrecedingDocumentIDPublic bool `gorm:"not null"`
+	IsHeadDocumentIDPublic      bool `gorm:"not null"`
+	IsEntityAssetIDPublic       bool `gorm:"not null"`
 	Contents                    []byte
 }
 
@@ -48,10 +49,12 @@ func (d *Document) ToModel() *common.Document {
 	ret := &common.Document{
 		ID:                          parseInt64ToSnowflakeString(d.ID),
 		Name:                        d.Name,
+		Type:                        getDocumentTypeFromSQLValue(d.Type),
 		PrecedingDocumentID:         parseNullInt64ToSnowflakeString(d.PrecedingDocumentID),
 		HeadDocumentID:              parseNullInt64ToSnowflakeString(d.HeadDocumentID),
 		EntityAssetID:               parseNullInt64ToSnowflakeString(d.EntityAssetID),
 		IsNamePublic:                d.IsNamePublic,
+		IsTypePublic:                d.IsTypePublic,
 		IsPrecedingDocumentIDPublic: d.IsPrecedingDocumentIDPublic,
 		IsHeadDocumentIDPublic:      d.IsHeadDocumentIDPublic,
 		IsEntityAssetIDPublic:       d.IsEntityAssetIDPublic,
@@ -107,12 +110,15 @@ func NewDocumentFromModel(model *common.Document) (*Document, error) {
 	ret := &Document{
 		ID:                          id,
 		Name:                        model.Name,
+		Type:                        getSQLValueFromDocumentType(model.Type),
 		PrecedingDocumentID:         precedingDocumentID,
 		HeadDocumentID:              headDocumentID,
 		EntityAssetID:               entityAssetID,
 		IsNamePublic:                model.IsNamePublic,
+		IsTypePublic:                model.IsTypePublic,
 		IsPrecedingDocumentIDPublic: model.IsPrecedingDocumentIDPublic,
 		IsHeadDocumentIDPublic:      model.IsHeadDocumentIDPublic,
+		IsEntityAssetIDPublic:       model.IsEntityAssetIDPublic,
 		Contents:                    model.Contents,
 	}
 
@@ -157,4 +163,38 @@ func NewEntityAssetFromModel(model *common.EntityAsset) (*EntityAsset, error) {
 	}
 
 	return ret, nil
+}
+
+func getSQLValueFromDocumentType(t common.DocumentType) string {
+	switch t {
+	case common.DesignDocument:
+		return "DESIGN_DOCUMENT"
+	case common.ProductionDocument:
+		return "PRODUCTION_DOCUMENT"
+	case common.TransferDocument:
+		return "TRANSFER_DOCUMENT"
+	case common.UsageDocument:
+		return "USAGE_DOCUMENT"
+	case common.RepairDocument:
+		return "REPAIR_DOCUMENT"
+	default:
+		return fmt.Sprintf("%d", int(t))
+	}
+}
+
+func getDocumentTypeFromSQLValue(v string) common.DocumentType {
+	switch v {
+	case "DESIGN_DOCUMENT":
+		return common.DesignDocument
+	case "PRODUCTION_DOCUMENT":
+		return common.ProductionDocument
+	case "TRANSFER_DOCUMENT":
+		return common.TransferDocument
+	case "USAGE_DOCUMENT":
+		return common.UsageDocument
+	case "REPAIR_DOCUMENT":
+		return common.RepairDocument
+	default:
+		panic("未识别的文档类型")
+	}
 }
