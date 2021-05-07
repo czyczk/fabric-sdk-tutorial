@@ -14,7 +14,6 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
@@ -34,12 +33,10 @@ type EntityAssetService struct {
 //
 // 参数：
 //   实体资产
-//   组件 ID 列表
-//   扩展字段（JSON）
 //
 // 返回：
 //   交易 ID
-func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset, componentIDs []string, property string) (string, error) {
+func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset) (string, error) {
 	if asset == nil {
 		return "", fmt.Errorf("资产对象不能为 nil")
 	}
@@ -98,14 +95,12 @@ func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset, compon
 //
 // 参数：
 //   实体资产
-//   组件 ID 列表
-//   扩展字段（JSON）
 //   加密后的对称密钥
 //   访问策略
 //
 // 返回：
 //   交易 ID
-func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsset, componentIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error) {
+func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsset, key *ppks.CurvePoint, policy string) (string, error) {
 	if asset == nil {
 		return "", fmt.Errorf("资产不能为 nil")
 	}
@@ -194,20 +189,6 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 	} else {
 		return string(resp.TransactionID), nil
 	}
-}
-
-// 创建一条资产移交记录。
-//
-// 参数：
-//   移交记录 ID
-//   资产 ID
-//   新拥有者（身份的 key）
-//
-// 返回：
-//   交易 ID
-func (s *EntityAssetService) TransferEntityAsset(transferRecordID string, entityID string, newOwner string) (string, error) {
-	// 本质上是上链一个 RegulatorEncrypted 类型的数字文档，并创建索引以便关联搜索
-	return "", errorcode.ErrorNotImplemented
 }
 
 // 获取实体资产的元数据。

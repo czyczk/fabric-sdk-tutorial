@@ -14,6 +14,8 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/sqlmodel"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
@@ -21,6 +23,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
 	"github.com/tjfoc/gmsm/sm2"
+	"gorm.io/gorm"
 )
 
 // DocumentService 用于管理数字文档。
@@ -464,7 +467,41 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 		return nil, fmt.Errorf("获取的数据不是合法的数字文档")
 	}
 
+	// 将解密的文档存入数据库
+	documentDB, err := sqlmodel.NewDocumentFromModel(&document)
+	if err != nil {
+		return nil, err
+	}
+
+	dbResult := s.ServiceInfo.DB.Create(documentDB)
+	if dbResult.Error != nil {
+		return nil, errors.Wrap(dbResult.Error, "无法将解密后的文档存入数据库")
+	}
+
 	return &document, nil
+}
+
+// GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。
+//
+// 参数：
+//   文档 ID
+//
+// 返回：
+//   解密后的文档
+func (s *DocumentService) GetDecryptedDocumentFromDB(id string) (*common.Document, error) {
+	// 从数据库中读取解密后的文档
+	var documentDB sqlmodel.Document
+	dbResult := s.ServiceInfo.DB.Where("id = ?", id).Take(&documentDB)
+	if dbResult.Error != nil {
+		if errors.Cause(dbResult.Error) == gorm.ErrRecordNotFound {
+			return nil, errorcode.ErrorNotFound
+		} else {
+			return nil, errors.Wrap(dbResult.Error, "无法从数据库中获取文档")
+		}
+	}
+
+	document := documentDB.ToModel()
+	return document, nil
 }
 
 // ListDocumentIDsByCreator 获取所有调用者创建的数字文档的资源 ID。

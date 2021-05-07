@@ -31,15 +31,14 @@ func (c *EntityAssetController) GetGroupName() string {
 // GetEndpointMap implements part of the interface `Controller`. It returns the API endpoints and handlers which are defined and managed by EntityAssetController.
 func (c *EntityAssetController) GetEndpointMap() EndpointMap {
 	return EndpointMap{
-		urlMethodPair{"", "POST"}:             []gin.HandlerFunc{c.handleCreateAsset},
-		urlMethodPair{":id/metadata", "GET"}:  []gin.HandlerFunc{c.handleGetAssetMetadata},
-		urlMethodPair{":id", "GET"}:           []gin.HandlerFunc{c.handleGetAsset},
-		urlMethodPair{":id/transfer", "POST"}: []gin.HandlerFunc{c.handleTransferAsset},
+		urlMethodPair{"", "POST"}:            []gin.HandlerFunc{c.handleCreateAsset},
+		urlMethodPair{":id/metadata", "GET"}: []gin.HandlerFunc{c.handleGetAssetMetadata},
+		urlMethodPair{":id", "GET"}:          []gin.HandlerFunc{c.handleGetAsset},
 	}
 }
 
-func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
-	resourceTypeStr := c.PostForm("resourceType")
+func (c *EntityAssetController) handleCreateAsset(ctx *gin.Context) {
+	resourceTypeStr := ctx.PostForm("resourceType")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -52,29 +51,22 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 		if err != nil {
 			*pel = append(*pel, "资源类型不合法。")
 		} else {
-			// The resource type can't be "Offchain" or "RegulatorEncrypted"
-			if resourceType == data.Offchain || resourceType == data.RegulatorEncrypted {
-				*pel = append(*pel, "资源类型不能为链下或监管者加密。")
+			// The resource type can't be "Offchain"
+			if resourceType == data.Offchain {
+				*pel = append(*pel, "资源类型不能为链下。")
 			}
 		}
 	}
 
 	// Extract and check common parameters
-	name := c.PostForm("name")
+	name := ctx.PostForm("name")
 	name = pel.AppendIfEmptyOrBlankSpaces(name, "实体资产名称不能为空。")
 
-	// Property is optional, but it must be valid (can be unmarshaled to a map) if provided.
-	propertyBytes := []byte(c.PostForm("property"))
-	property := make(map[string]string)
-	if len(propertyBytes) != 0 {
-		err = json.Unmarshal(propertyBytes, &property)
-		if err != nil {
-			*pel = append(*pel, "属性字段不合法。")
-		}
-	}
+	designDocumentID := ctx.PostForm("designDocumentID")
+	designDocumentID = pel.AppendIfEmptyOrBlankSpaces(designDocumentID, "设计文档 ID 不能为空。")
 
 	// Check componentsIDs
-	componentIDsBytes := []byte(c.PostForm("componentIDs"))
+	componentIDsBytes := []byte(ctx.PostForm("componentIDs"))
 	var componentIDs []string
 	if len(componentIDsBytes) == 0 {
 		*pel = append(*pel, "组件的序列号不能为空。")
@@ -86,24 +78,36 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 	}
 
 	// Check policy if it's not a plain resource
-	policy := c.PostForm("policy")
-
+	policy := ctx.PostForm("policy")
 	if resourceType != data.Plain {
 		if len(policy) == 0 {
 			*pel = append(*pel, "策略不能为空。")
 		}
 	}
 
+	// Whether the properties are public should be specified if it's not a plain asset
+	isNamePublic := true
+	if resourceType != data.Plain {
+		isNamePublicStr := ctx.PostForm("isNamePublic")
+		isNamePublic = pel.AppendIfNotBool(isNamePublicStr, "必须指定资产名称公开性。")
+	}
+
+	isDesignDocumentIDPublic := true
+	if resourceType != data.Plain {
+		isDesignDocumentIDPublicStr := ctx.PostForm("isDesignDocumentIDPublic")
+		isDesignDocumentIDPublic = pel.AppendIfNotBool(isDesignDocumentIDPublicStr, "必须指定设计文档 ID 公开性。")
+	}
+
 	// Early return after extracting common parameters if the error list is not empty
 	if len(*pel) > 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
 	// Generate an ID
 	sfNode, err := snowflake.NewNode(1)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
+		ctx.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
 		return
 	}
 	id := sfNode.Generate().String()
@@ -119,18 +123,28 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 		keyAsPublicKey = (*sm2.PublicKey)(key)
 		keyPEM, err = sm2keyutils.ConvertPublicKeyToPEM(keyAsPublicKey)
 		if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法序列化对称公钥。"))
+			ctx.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法序列化对称公钥。"))
 			return
 		}
+	}
+
+	// Wrap the collected info into an asset
+	asset := &common.EntityAsset{
+		ID:                       id,
+		Name:                     name,
+		DesignDocumentID:         designDocumentID,
+		IsNamePublic:             isNamePublic,
+		IsDesignDocumentIDPublic: isDesignDocumentIDPublic,
+		ComponentIDs:             componentIDs,
 	}
 
 	// Invoke the service function according to the resource type
 	var txID string
 	switch resourceType {
 	case data.Plain:
-		txID, err = ec.EntityAssetSvc.CreateEntityAsset(id, name, componentIDs, string(propertyBytes))
+		txID, err = c.EntityAssetSvc.CreateEntityAsset(asset)
 	case data.Encrypted:
-		txID, err = ec.EntityAssetSvc.CreateEncryptedEntityAsset(id, name, componentIDs, string(propertyBytes), key, policy)
+		txID, err = c.EntityAssetSvc.CreateEncryptedEntityAsset(asset, key, policy)
 	}
 
 	// Check error type and generate the corresponding response
@@ -141,16 +155,16 @@ func (ec *EntityAssetController) handleCreateAsset(c *gin.Context) {
 			TransactionID:        txID,
 			SymmetricKeyMaterial: string(keyPEM),
 		}
-		c.JSON(http.StatusOK, info)
+		ctx.JSON(http.StatusOK, info)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (ec *EntityAssetController) handleGetAssetMetadata(c *gin.Context) {
-	id := c.Param("id")
+func (c *EntityAssetController) handleGetAssetMetadata(ctx *gin.Context) {
+	id := ctx.Param("id")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -158,24 +172,24 @@ func (ec *EntityAssetController) handleGetAssetMetadata(c *gin.Context) {
 
 	// Early return if there's parameter error
 	if len(*pel) != 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, *pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, *pel)
 		return
 	}
 
-	resDataMetadata, err := ec.EntityAssetSvc.GetEntityAssetMetadata(id)
+	resDataMetadata, err := c.EntityAssetSvc.GetEntityAssetMetadata(id)
 	if err == nil {
-		c.JSON(http.StatusOK, resDataMetadata)
+		ctx.JSON(http.StatusOK, resDataMetadata)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
-		c.Writer.WriteHeader(http.StatusNotFound)
+		ctx.Writer.WriteHeader(http.StatusNotFound)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
-	resourceTypeStr := c.Query("resourceType")
+func (c *EntityAssetController) handleGetAsset(ctx *gin.Context) {
+	resourceTypeStr := ctx.Query("resourceType")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -188,15 +202,15 @@ func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
 		if err != nil {
 			*pel = append(*pel, "资源类型不合法。")
 		} else {
-			// The resource type can't be "Offchain" or "RegulatorEncrypted"
-			if resourceType == data.Offchain || resourceType == data.RegulatorEncrypted {
-				*pel = append(*pel, "资源类型不能为链下和监管者加密。")
+			// The resource type can't be "Offchain"
+			if resourceType == data.Offchain {
+				*pel = append(*pel, "资源类型不能为链下。")
 			}
 		}
 	}
 
 	// Extract and check entity asset ID
-	id := c.Param("id")
+	id := ctx.Param("id")
 	id = pel.AppendIfEmptyOrBlankSpaces(id, "实体资产 ID 不能为空。")
 
 	// Extract conditional parameters
@@ -204,16 +218,16 @@ func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
 	var numSharesExpected int
 
 	if resourceType == data.Encrypted {
-		keySwitchSessionID = c.Query("keySwitchSessionID")
+		keySwitchSessionID = ctx.Query("keySwitchSessionID")
 		keySwitchSessionID = pel.AppendIfEmptyOrBlankSpaces(keySwitchSessionID, "密钥置换会话 ID 不能为空。")
 
-		numSharesExpectedString := c.Query("numSharesExpected")
+		numSharesExpectedString := ctx.Query("numSharesExpected")
 		numSharesExpected = pel.AppendIfNotInt(numSharesExpectedString, "期待的份额数量应为正整数。")
 	}
 
 	// Early return if the error list is not empty
 	if len(*pel) > 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
@@ -221,63 +235,19 @@ func (ec *EntityAssetController) handleGetAsset(c *gin.Context) {
 	var entityAsset *common.EntityAsset
 	switch resourceType {
 	case data.Plain:
-		entityAsset, err = ec.EntityAssetSvc.GetEntityAsset(id)
+		entityAsset, err = c.EntityAssetSvc.GetEntityAsset(id)
 	case data.Encrypted:
-		entityAsset, err = ec.EntityAssetSvc.GetEncryptedEntityAsset(id, keySwitchSessionID, numSharesExpected)
+		entityAsset, err = c.EntityAssetSvc.GetEncryptedEntityAsset(id, keySwitchSessionID, numSharesExpected)
 	}
 
 	// Check error type and generate the corresponding response
 	if err == nil {
-		c.JSON(http.StatusOK, entityAsset)
+		ctx.JSON(http.StatusOK, entityAsset)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
-		c.Writer.WriteHeader(http.StatusNotFound)
+		ctx.Writer.WriteHeader(http.StatusNotFound)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
-	}
-}
-
-func (ec *EntityAssetController) handleTransferAsset(c *gin.Context) {
-	id := c.Param("id")
-
-	// check entity asset ID
-	pel := &ParameterErrorList{}
-	id = pel.AppendIfEmptyOrBlankSpaces(id, "实体资产 ID 不能为空。")
-
-	// check new owner
-	newOwner := c.PostForm("newOwner")
-	newOwner = pel.AppendIfEmptyOrBlankSpaces(newOwner, "新的拥有者不能为空。")
-
-	// Early return if there's parameter error
-	if len(*pel) != 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, *pel)
-		return
-	}
-
-	// Generate a transferRecordID
-	sfNode, err := snowflake.NewNode(1)
-	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
-		return
-	}
-	transferRecordID := sfNode.Generate().String()
-
-	// Invoke the service function
-	txID, err := ec.EntityAssetSvc.TransferEntityAsset(transferRecordID, id, newOwner)
-
-	// Check error type and generate the corresponding response
-	if err == nil {
-		info := ResourceCreationInfo{
-			ResourceID:    transferRecordID,
-			TransactionID: txID,
-		}
-		c.JSON(http.StatusOK, info)
-	} else if errors.Cause(err) == errorcode.ErrorNotFound {
-		c.Writer.WriteHeader(http.StatusNotFound)
-	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
-	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }

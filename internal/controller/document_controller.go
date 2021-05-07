@@ -40,8 +40,8 @@ func (c *DocumentController) GetEndpointMap() EndpointMap {
 	}
 }
 
-func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
-	resourceTypeStr := c.PostForm("resourceType")
+func (c *DocumentController) handleCreateDocument(ctx *gin.Context) {
+	resourceTypeStr := ctx.PostForm("resourceType")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -57,42 +57,58 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	}
 
 	// Extract and check common parameters
-	name := strings.TrimSpace(c.PostForm("name"))
+	name := strings.TrimSpace(ctx.PostForm("name"))
 	if name == "" {
 		*pel = append(*pel, "文档名称不能为空。")
 	}
 
-	precedingDocumentID := c.PostForm("precedingDocumentID")
-	headDocumentID := c.PostForm("headDocumentID")
-	entityAssetID := c.PostForm("entityAssetID")
-
-	// Whether the properties are public should be specified if it's not a plain resource
-	isNamePublicStr := c.PostForm("isNamePublic")
-	isNamePublic := true
-	if resourceType != data.Plain {
-		isNamePublic = pel.AppendIfNotBool(isNamePublicStr, "必须指定文档公开性。")
+	documentTypeStr := strings.TrimSpace(ctx.PostForm("documentType"))
+	documentTypeStr = pel.AppendIfEmptyOrBlankSpaces(documentTypeStr, "文档类型不能为空。")
+	var documentType common.DocumentType
+	if documentTypeStr != "" {
+		documentType, err = common.NewDocumentTypeFromString(documentTypeStr)
+		if err != nil {
+			*pel = append(*pel, "文档类型不合法。")
+		}
 	}
 
-	isPrecedingDocumentIDPublicStr := c.PostForm("isPrecedingDocumentIDPublic")
+	precedingDocumentID := ctx.PostForm("precedingDocumentID")
+	headDocumentID := ctx.PostForm("headDocumentID")
+	entityAssetID := ctx.PostForm("entityAssetID")
+
+	// Whether the properties are public should be specified if it's not a plain resource
+	isNamePublic := true
+	if resourceType != data.Plain {
+		isNamePublicStr := ctx.PostForm("isNamePublic")
+		isNamePublic = pel.AppendIfNotBool(isNamePublicStr, "必须指定文档名称公开性。")
+	}
+
+	isDocumentTypePublic := true
+	if resourceType != data.Plain {
+		isDocumentTypePublicStr := ctx.PostForm("isDocumentTypePublic")
+		isDocumentTypePublic = pel.AppendIfNotBool(isDocumentTypePublicStr, "必须指定文档类型公开性。")
+	}
+
 	isPrecedingDocumentIDPublic := true
 	if resourceType != data.Plain {
+		isPrecedingDocumentIDPublicStr := ctx.PostForm("isPrecedingDocumentIDPublic")
 		isPrecedingDocumentIDPublic = pel.AppendIfNotBool(isPrecedingDocumentIDPublicStr, "必须指定前序文档 ID 公开性。")
 	}
 
-	isHeadDocumentIDPublicStr := c.PostForm("isHeadDocumentIDPublic")
 	isHeadDocumentIDPublic := true
 	if resourceType != data.Plain {
+		isHeadDocumentIDPublicStr := ctx.PostForm("isHeadDocumentIDPublic")
 		isHeadDocumentIDPublic = pel.AppendIfNotBool(isHeadDocumentIDPublicStr, "必须指定头文档 ID 公开性。")
 	}
 
-	isEntityAssetIDPublicStr := c.PostForm("isEntityAssetIDPublic")
 	isEntityAssetIDPublic := true
 	if resourceType != data.Plain {
+		isEntityAssetIDPublicStr := ctx.PostForm("isEntityAssetIDPublic")
 		isEntityAssetIDPublic = pel.AppendIfNotBool(isEntityAssetIDPublicStr, "必须指定相关实体资产 ID 公开性。")
 	}
 
 	// Check contents if it's not an offchain resource
-	contents := []byte(c.PostForm("contents"))
+	contents := []byte(ctx.PostForm("contents"))
 	if resourceType != data.Offchain {
 		if len(contents) == 0 {
 			*pel = append(*pel, "文档内容不能为空。")
@@ -100,7 +116,7 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	}
 
 	// Check policy if it's not a plain resource
-	policy := c.PostForm("policy")
+	policy := ctx.PostForm("policy")
 
 	if resourceType != data.Plain {
 		if len(policy) == 0 {
@@ -110,14 +126,14 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 
 	// Early return after extracting common parameters if the error list is not empty
 	if len(*pel) > 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
 	// Generate an ID
 	sfNode, err := snowflake.NewNode(1)
 	if err != nil {
-		c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
+		ctx.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
 		return
 	}
 	id := sfNode.Generate().String()
@@ -133,7 +149,7 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 		keyAsPublicKey = (*sm2.PublicKey)(key)
 		keyPEM, err = sm2keyutils.ConvertPublicKeyToPEM(keyAsPublicKey)
 		if err != nil {
-			c.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法序列化对称公钥。"))
+			ctx.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法序列化对称公钥。"))
 			return
 		}
 	}
@@ -142,10 +158,12 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	document := &common.Document{
 		ID:                          id,
 		Name:                        name,
+		Type:                        documentType,
 		PrecedingDocumentID:         precedingDocumentID,
 		HeadDocumentID:              headDocumentID,
 		EntityAssetID:               entityAssetID,
 		IsNamePublic:                isNamePublic,
+		IsTypePublic:                isDocumentTypePublic,
 		IsPrecedingDocumentIDPublic: isPrecedingDocumentIDPublic,
 		IsHeadDocumentIDPublic:      isHeadDocumentIDPublic,
 		IsEntityAssetIDPublic:       isEntityAssetIDPublic,
@@ -156,11 +174,11 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 	var txID string
 	switch resourceType {
 	case data.Plain:
-		txID, err = dc.DocumentSvc.CreateDocument(document)
+		txID, err = c.DocumentSvc.CreateDocument(document)
 	case data.Encrypted:
-		txID, err = dc.DocumentSvc.CreateEncryptedDocument(document, key, policy)
+		txID, err = c.DocumentSvc.CreateEncryptedDocument(document, key, policy)
 	case data.Offchain:
-		txID, err = dc.DocumentSvc.CreateOffchainDocument(document, key, policy)
+		txID, err = c.DocumentSvc.CreateOffchainDocument(document, key, policy)
 	}
 
 	// Check error type and generate the corresponding response
@@ -171,16 +189,16 @@ func (dc *DocumentController) handleCreateDocument(c *gin.Context) {
 			TransactionID:        txID,
 			SymmetricKeyMaterial: string(keyPEM),
 		}
-		c.JSON(http.StatusOK, info)
+		ctx.JSON(http.StatusOK, info)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (dc *DocumentController) handleGetDocumentMetadata(c *gin.Context) {
-	id := c.Param("id")
+func (c *DocumentController) handleGetDocumentMetadata(ctx *gin.Context) {
+	id := ctx.Param("id")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -188,24 +206,24 @@ func (dc *DocumentController) handleGetDocumentMetadata(c *gin.Context) {
 
 	// Early return if there's parameter error
 	if len(*pel) != 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, *pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, *pel)
 		return
 	}
 
-	resDataMetadata, err := dc.DocumentSvc.GetDocumentMetadata(id)
+	resDataMetadata, err := c.DocumentSvc.GetDocumentMetadata(id)
 	if err == nil {
-		c.JSON(http.StatusOK, resDataMetadata)
+		ctx.JSON(http.StatusOK, resDataMetadata)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
-		c.Writer.WriteHeader(http.StatusNotFound)
+		ctx.Writer.WriteHeader(http.StatusNotFound)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (dc *DocumentController) handleGetDocument(c *gin.Context) {
-	resourceTypeStr := c.Query("resourceType")
+func (c *DocumentController) handleGetDocument(ctx *gin.Context) {
+	resourceTypeStr := ctx.Query("resourceType")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -226,7 +244,7 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	}
 
 	// Extract and check document ID
-	id := c.Param("id")
+	id := ctx.Param("id")
 	id = pel.AppendIfEmptyOrBlankSpaces(id, "文档 ID 不能为空。")
 
 	// Extract conditional parameters
@@ -234,16 +252,16 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	var numSharesExpected int
 
 	if resourceType == data.Encrypted {
-		keySwitchSessionID = c.Query("keySwitchSessionID")
+		keySwitchSessionID = ctx.Query("keySwitchSessionID")
 		keySwitchSessionID = pel.AppendIfEmptyOrBlankSpaces(keySwitchSessionID, "密钥置换会话 ID 不能为空。")
 
-		numSharesExpectedString := c.Query("numSharesExpected")
+		numSharesExpectedString := ctx.Query("numSharesExpected")
 		numSharesExpected = pel.AppendIfNotInt(numSharesExpectedString, "期待的份额数量应为正整数。")
 	}
 
 	// Early return if the error list is not empty
 	if len(*pel) > 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
@@ -251,29 +269,34 @@ func (dc *DocumentController) handleGetDocument(c *gin.Context) {
 	var document *common.Document
 	switch resourceType {
 	case data.Plain:
-		document, err = dc.DocumentSvc.GetDocument(id)
+		document, err = c.DocumentSvc.GetDocument(id)
 	case data.Encrypted:
-		document, err = dc.DocumentSvc.GetEncryptedDocument(id, keySwitchSessionID, numSharesExpected)
+		// Try to get the document from the database first
+		document, err = c.DocumentSvc.GetDecryptedDocumentFromDB(id)
+		if errors.Cause(err) == errorcode.ErrorNotFound {
+			// Perform the full process if the document is not available in the database
+			document, err = c.DocumentSvc.GetEncryptedDocument(id, keySwitchSessionID, numSharesExpected)
+		}
 	}
 
 	// Check error type and generate the corresponding response
 	if err == nil {
-		c.JSON(http.StatusOK, document)
+		ctx.JSON(http.StatusOK, document)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
-		c.Writer.WriteHeader(http.StatusNotFound)
+		ctx.Writer.WriteHeader(http.StatusNotFound)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (dc *DocumentController) handleListDocumentIDs(c *gin.Context) {
+func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 	// Extract and check parameters
-	name := strings.TrimSpace(c.Query("name"))
-	entityAssetID := strings.TrimSpace(c.Query("entityAssetID"))
-	pageSizeStr := c.Query("pageSize")
-	bookmark := processBase64FromURLQuery(c.Query("bookmark"))
+	name := strings.TrimSpace(ctx.Query("name"))
+	entityAssetID := strings.TrimSpace(ctx.Query("entityAssetID"))
+	pageSizeStr := ctx.Query("pageSize")
+	bookmark := processBase64FromURLQuery(ctx.Query("bookmark"))
 
 	pel := &ParameterErrorList{}
 	pageSize := 10
@@ -283,7 +306,7 @@ func (dc *DocumentController) handleListDocumentIDs(c *gin.Context) {
 
 	// Early return if the error list is not empty
 	if len(*pel) > 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
@@ -291,23 +314,23 @@ func (dc *DocumentController) handleListDocumentIDs(c *gin.Context) {
 	var err error
 	if len(name) > 0 {
 		// ListDocumentIDsByPartialName
-		resourceIDs, err = dc.DocumentSvc.ListDocumentIDsByPartialName(name, pageSize, bookmark)
+		resourceIDs, err = c.DocumentSvc.ListDocumentIDsByPartialName(name, pageSize, bookmark)
 	} else if len(entityAssetID) > 0 {
 		// ListDocumentIDsByEntityID
-		resourceIDs, err = dc.EntityAssetSvc.ListDocumentIDsByEntityID(entityAssetID, pageSize, bookmark)
+		resourceIDs, err = c.EntityAssetSvc.ListDocumentIDsByEntityID(entityAssetID, pageSize, bookmark)
 	} else {
-		c.AbortWithStatusJSON(http.StatusBadRequest, "name 和 entityAssetID 不能同时为空。")
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, "name 和 entityAssetID 不能同时为空。")
 		return
 	}
 
 	// Check error type and generate the corresponding response
 	if err == nil {
-		c.JSON(http.StatusOK, resourceIDs)
+		ctx.JSON(http.StatusOK, resourceIDs)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
-		c.Writer.WriteHeader(http.StatusNotFound)
+		ctx.Writer.WriteHeader(http.StatusNotFound)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }

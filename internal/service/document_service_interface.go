@@ -69,6 +69,15 @@ type DocumentServiceInterface interface {
 	//   解密后的文档
 	GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int) (*common.Document, error)
 
+	// GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。
+	//
+	// 参数：
+	//   文档 ID
+	//
+	// 返回：
+	//   解密后的文档
+	GetDecryptedDocumentFromDB(id string) (*common.Document, error)
+
 	// 获取所有调用者创建的数字文档的资源 ID。
 	//
 	// 参数：

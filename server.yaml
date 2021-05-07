@@ -4,6 +4,7 @@ user:
 channels:
   - mychannel
 port: 8081
+localDBSourceName: "fabricphone:fabricphone@tcp(localhost:3306)/fabric_phone?charset=utf8mb4&parseTime=True&loc=Local"
 isKeySwitchServer: true
 keySwitchKeys:
     encryptionAlgorithm: "SM2"

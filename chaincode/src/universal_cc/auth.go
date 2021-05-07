@@ -57,11 +57,6 @@ func (uc *UniversalCC) createAuthRequest(stub shim.ChaincodeStubInterface, args 
 		return shim.Error("明文不需要申请访问权")
 	}
 
-	// 检查资源是否为监管者只读文件
-	if metaDataStored.ResourceType == data.RegulatorEncrypted {
-		return shim.Error("不允许申请监管者只读文件的访问权")
-	}
-
 	// 获取创建者与时间戳
 	creator, err := getPKDERFromStub(stub)
 	if err != nil {

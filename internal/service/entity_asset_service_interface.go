@@ -12,39 +12,22 @@ type EntityAssetServiceInterface interface {
 	// 创建实体资产。
 	//
 	// 参数：
-	//   资产 ID
-	//   资产名称
-	//   组件 ID 列表
-	//   扩展字段（JSON）
+	//   实体资产
 	//
 	// 返回：
 	//   交易 ID
-	CreateEntityAsset(id string, name string, componentIDs []string, property string) (string, error)
+	CreateEntityAsset(asset *common.EntityAsset) (string, error)
 
 	// 创建加密的实体资产。
 	//
 	// 参数：
-	//   资产 ID
-	//   资产名称
-	//   组件 ID 列表
-	//   扩展字段（JSON）
+	//   实体资产
 	//   加密后的对称密钥
 	//   访问策略
 	//
 	// 返回：
 	//   交易 ID
-	CreateEncryptedEntityAsset(id string, name string, componentIDs []string, property string, key *ppks.CurvePoint, policy string) (string, error)
-
-	// 创建一条资产移交记录。
-	//
-	// 参数：
-	//   移交记录 ID
-	//   资产 ID
-	//   新拥有者（身份的 key）
-	//
-	// 返回：
-	//   交易 ID
-	TransferEntityAsset(transferRecordID string, entityID string, newOwner string) (string, error)
+	CreateEncryptedEntityAsset(asset *common.EntityAsset, key *ppks.CurvePoint, policy string) (string, error)
 
 	// 获取实体资产的元数据。
 	//

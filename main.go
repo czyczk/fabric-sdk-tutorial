@@ -13,8 +13,11 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/background"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/controller"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/sqlmodel"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/networkinfo"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -170,6 +173,20 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			}
 		}
 
+		// Check and create a MySQL database connection
+		db, err := gorm.Open(mysql.Open(serverInfo.LocalDBSourceName), &gorm.Config{})
+		if err != nil {
+			return errors.Wrap(err, "无法连接数据库")
+		}
+
+		// Auto migrate schemas
+		err = db.AutoMigrate(&sqlmodel.Document{}, &sqlmodel.EntityAsset{}, &sqlmodel.Component{})
+		if err != nil {
+			return errors.Wrap(err, "无法创建数据库表")
+		}
+
+		log.Info("已连接数据库并创建数据库表。")
+
 		// Prepare to load key switch keys
 		if serverInfo.KeySwitchKeys == nil || serverInfo.KeySwitchKeys.CollectivePublicKey == "" {
 			return fmt.Errorf("未指定密钥置换集合公钥")
@@ -204,6 +221,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			ChannelClient: global.ChannelClientInstances["mychannel"][orgName][userID],
 			EventClient:   global.EventClientInstances["mychannel"][orgName][userID],
 			LedgerClient:  global.LedgerClientInstances["mychannel"][orgName][userID],
+			DB:            db,
 		}
 
 		keySwitchSvc := &service.KeySwitchService{ServiceInfo: universalCcServiceInfo}

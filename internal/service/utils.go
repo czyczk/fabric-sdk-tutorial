@@ -9,6 +9,7 @@ import (
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/event"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
+	"gorm.io/gorm"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
@@ -24,6 +25,7 @@ type Info struct {
 	ChannelClient *channel.Client
 	EventClient   *event.Client
 	LedgerClient  *ledger.Client
+	DB            *gorm.DB
 }
 
 const eventTimeout time.Duration = 20
