@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
@@ -217,32 +218,61 @@ func (c *EntityAssetController) handleGetAsset(ctx *gin.Context) {
 	var keySwitchSessionID string
 	var numSharesExpected int
 
-	if resourceType == data.Encrypted {
-		keySwitchSessionID = ctx.Query("keySwitchSessionID")
-		keySwitchSessionID = pel.AppendIfEmptyOrBlankSpaces(keySwitchSessionID, "密钥置换会话 ID 不能为空。")
-
-		numSharesExpectedString := ctx.Query("numSharesExpected")
-		numSharesExpected = pel.AppendIfNotInt(numSharesExpectedString, "期待的份额数量应为正整数。")
-	}
-
 	// Early return if the error list is not empty
 	if len(*pel) > 0 {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
+	// Invoke the service function to get the metadata
+	resDataMetadata, err := c.EntityAssetSvc.GetEntityAssetMetadata(id)
+	if err != nil {
+		if errors.Cause(err) == errorcode.ErrorNotFound {
+			ctx.AbortWithStatus(http.StatusNotFound)
+			return
+		} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
+			ctx.AbortWithStatus(http.StatusNotImplemented)
+			return
+		} else {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
 	// Invoke the service function according to the resource type
 	var entityAsset *common.EntityAsset
 	switch resourceType {
 	case data.Plain:
-		entityAsset, err = c.EntityAssetSvc.GetEntityAsset(id)
+		entityAsset, err = c.EntityAssetSvc.GetEntityAsset(id, resDataMetadata)
 	case data.Encrypted:
-		entityAsset, err = c.EntityAssetSvc.GetEncryptedEntityAsset(id, keySwitchSessionID, numSharesExpected)
+		// Try to get the entity asset from the database first
+		entityAsset, err = c.EntityAssetSvc.GetDecryptedEntityAssetFromDB(id, resDataMetadata)
+		if errors.Cause(err) == errorcode.ErrorNotFound || reflect.TypeOf(err) == reflect.TypeOf(&service.ErrorCorruptedDatabaseResult{}) {
+			// Perform the full process if the document is not available in the database (not found or corrupted)
+			// First try to get additional parameters
+			keySwitchSessionID = ctx.Query("keySwitchSessionID")
+			keySwitchSessionID = pel.AppendIfEmptyOrBlankSpaces(keySwitchSessionID, "该实体资产解密记录不可用，密钥置换会话 ID 不能为空。")
+
+			numSharesExpectedString := ctx.Query("numSharesExpected")
+			numSharesExpected = pel.AppendIfNotInt(numSharesExpectedString, "该实体资产解密记录不可用，期待的份额数量应为正整数。")
+
+			// Early return if the error list is not empty
+			if len(*pel) > 0 {
+				ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
+				return
+			}
+
+			// Invoke the service function to perform the full process
+			entityAsset, err = c.EntityAssetSvc.GetEncryptedEntityAsset(id, keySwitchSessionID, numSharesExpected, resDataMetadata)
+		}
 	}
 
 	// Check error type and generate the corresponding response
 	if err == nil {
 		ctx.JSON(http.StatusOK, entityAsset)
+	} else if reflect.TypeOf(err) == reflect.TypeOf(&service.ErrorBadRequest{}) {
+		*pel = append(*pel, err.Error())
+		ctx.JSON(http.StatusBadRequest, pel)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
 		ctx.Writer.WriteHeader(http.StatusNotFound)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {

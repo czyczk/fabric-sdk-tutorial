@@ -13,7 +13,7 @@ import (
 type Document struct {
 	gorm.Model
 	ID                          int64
-	Name                        string `gorm:"type:VARCHAR(30) NOT NULL"`
+	Name                        string `gorm:"type:VARCHAR(255) NOT NULL"`
 	Type                        string `gorm:"type:ENUM('DESIGN_DOCUMENT', 'PRODUCTION_DOCUMENT', 'TRANSFER_DOCUMENT', 'USAGE_DOCUMENT', 'REPAIR_DOCUMENT') NOT NULL"`
 	PrecedingDocumentID         sql.NullInt64
 	HeadDocumentID              sql.NullInt64
@@ -30,10 +30,10 @@ type Document struct {
 type EntityAsset struct {
 	gorm.Model
 	ID                       int64
-	Name                     string
-	DesignDocumentID         int64
-	IsNamePublic             bool
-	IsDesignDocumentIDPublic bool
+	Name                     string `gorm:"type:VARCHAR(255) NOT NULL"`
+	DesignDocumentID         int64  `gorm:"not null"`
+	IsNamePublic             bool   `gorm:"not null"`
+	IsDesignDocumentIDPublic bool   `gorm:"not null"`
 	Components               []Component
 }
 
@@ -41,7 +41,7 @@ type EntityAsset struct {
 type Component struct {
 	gorm.Model
 	ID            int64
-	EntityAssetID int64
+	EntityAssetID int64 `gorm:"not null"`
 }
 
 // ToModel 将一个 `sqlmodel.Document` 对象转为 `common.Document` 对象。

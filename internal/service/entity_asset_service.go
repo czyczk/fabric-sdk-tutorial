@@ -14,6 +14,8 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/sqlmodel"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
@@ -21,6 +23,8 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
 	"github.com/tjfoc/gmsm/sm2"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // EntityAssetService 用于管理实体资产。
@@ -218,21 +222,20 @@ func (s *EntityAssetService) GetEntityAssetMetadata(id string) (*data.ResMetadat
 	}
 }
 
-// 获取明文实体资产。
+// 获取明文实体资产。调用前应先获取元数据。
 //
 // 参数：
 //   资产 ID
+//   资产元数据
 //
 // 返回：
 //   实体资产条目本体
-func (s *EntityAssetService) GetEntityAsset(id string) (*common.EntityAsset, error) {
+func (s *EntityAssetService) GetEntityAsset(id string, metadata *data.ResMetadataStored) (*common.EntityAsset, error) {
 	// 检查元数据中该资源类型是否为明文资源
-	resMetadataStored, err := s.GetEntityAssetMetadata(id)
-	if err != nil {
-		return nil, err
-	}
-	if resMetadataStored.ResourceType != data.Plain {
-		return nil, fmt.Errorf("该资源不是明文资源")
+	if metadata.ResourceType != data.Plain {
+		return nil, &ErrorBadRequest{
+			errMsg: "该资源不是明文资源。",
+		}
 	}
 
 	chaincodeFcn := "getData"
@@ -254,23 +257,22 @@ func (s *EntityAssetService) GetEntityAsset(id string) (*common.EntityAsset, err
 	}
 }
 
-// 获取加密实体资产。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。
+// 获取加密实体资产。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
 //
 // 参数：
 //   资产 ID
 //   密钥置换会话 ID
 //   预期的份额数量
+//   资产元数据
 //
 // 返回：
 //   解密后的实体资产条目
-func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSessionID string, numSharesExpected int) (*common.EntityAsset, error) {
+func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.EntityAsset, error) {
 	// 检查元数据中该资源类型是否为密文资源
-	resMetadataStored, err := s.GetEntityAssetMetadata(id)
-	if err != nil {
-		return nil, err
-	}
-	if resMetadataStored.ResourceType != data.Encrypted {
-		return nil, fmt.Errorf("该资源不是加密资源")
+	if metadata.ResourceType != data.Encrypted {
+		return nil, &ErrorBadRequest{
+			errMsg: "该资源不是加密资源。",
+		}
 	}
 
 	chaincodeFcn := "getData"
@@ -317,6 +319,18 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 	}
 
 	encryptedAssetBytes := resp.Payload
+
+	// 检查加密的内容的大小和哈希是否匹配
+	encryptedSize := uint64(len(encryptedAssetBytes))
+	if encryptedSize != metadata.SizeStored {
+		return nil, fmt.Errorf("获取的密文大小不正确")
+	}
+
+	encryptedHash := sha256.Sum256(encryptedAssetBytes)
+	encryptedHashBase64 := base64.StdEncoding.EncodeToString(encryptedHash[:])
+	if encryptedHashBase64 != metadata.HashStored {
+		return nil, fmt.Errorf("获取的密文哈希不匹配")
+	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
 	chaincodeFcn = "listKeySwitchResultsByID"
@@ -379,6 +393,18 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		return nil, errors.Wrap(err, "无法解密资产")
 	}
 
+	// 检查解密出的内容的大小和哈希是否匹配
+	decryptedSize := uint64(len(assetBytes))
+	if decryptedSize != metadata.Size {
+		return nil, fmt.Errorf("解密后的资产大小不正确")
+	}
+
+	decryptedHash := sha256.Sum256(assetBytes)
+	decryptedHashBase64 := base64.StdEncoding.EncodeToString(decryptedHash[:])
+	if decryptedHashBase64 != metadata.Hash {
+		return nil, fmt.Errorf("解密后的资产哈希不匹配")
+	}
+
 	// 解析 assetBytes 为 common.EntityAsset
 	var asset common.EntityAsset
 	err = json.Unmarshal(assetBytes, &asset)
@@ -386,7 +412,74 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		return nil, fmt.Errorf("获取的数据不是合法的实体资产")
 	}
 
+	// 将解密的资产存入数据库（若已存在则覆盖）
+	assetDB, err := sqlmodel.NewEntityAssetFromModel(&asset)
+	if err != nil {
+		return nil, err
+	}
+
+	dbResult := s.ServiceInfo.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: true,
+	}).Create(assetDB)
+	if dbResult.Error != nil {
+		return nil, errors.Wrap(dbResult.Error, "无法将解密后的实体资产存入数据库")
+	}
+
 	return &asset, nil
+}
+
+// GetDecryptedEntityAssetFromDB 从数据库中获取经解密的实体资产。返回解密后的明文。调用前应先获取元数据。
+//
+// 参数：
+//   资产 ID
+//   资产元数据
+//
+// 返回：
+//   解密后的资产
+func (s *DocumentService) GetDecryptedEntityAssetFromDB(id string, metadata *data.ResMetadataStored) (*common.EntityAsset, error) {
+	// 检查元数据中该资源类型是否为密文资源
+	if metadata.ResourceType != data.Encrypted {
+		return nil, &ErrorBadRequest{
+			errMsg: "该资源不是加密资源。",
+		}
+	}
+
+	// 从数据库中读取解密后的文档
+	var assetDB sqlmodel.EntityAsset
+	dbResult := s.ServiceInfo.DB.Where("id = ?", id).Take(&assetDB)
+	if dbResult.Error != nil {
+		if errors.Cause(dbResult.Error) == gorm.ErrRecordNotFound {
+			return nil, errorcode.ErrorNotFound
+		} else {
+			return nil, errors.Wrap(dbResult.Error, "无法从数据库中获取资产")
+		}
+	}
+
+	asset := assetDB.ToModel()
+
+	// 检查解密出的内容的大小和哈希是否匹配
+	assetBytes, err := json.Marshal(asset)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法检查资产完整性")
+	}
+
+	decryptedSize := uint64(len(assetBytes))
+	if decryptedSize != metadata.Size {
+		return nil, &ErrorCorruptedDatabaseResult{
+			errMsg: "从数据库获取的资产大小不正确",
+		}
+	}
+
+	decryptedHash := sha256.Sum256(assetBytes)
+	decryptedHashBase64 := base64.StdEncoding.EncodeToString(decryptedHash[:])
+	if decryptedHashBase64 != metadata.Hash {
+		return nil, &ErrorCorruptedDatabaseResult{
+			errMsg: "从数据库获取资产哈希不匹配",
+		}
+	}
+
+	return asset, nil
 }
 
 // 用于列出与该实体资产有关的文档。
