@@ -418,7 +418,13 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		return nil, err
 	}
 
-	dbResult := s.ServiceInfo.DB.Clauses(clause.OnConflict{
+	// dbResult := s.ServiceInfo.DB.Where("`entity_asset_id` = ?", id).Delete(&sqlmodel.Component{})
+	dbResult := s.ServiceInfo.DB.Exec("DELETE FROM `components` WHERE `entity_asset_id` = ?", id)
+	if dbResult.Error != nil {
+		return nil, errors.Wrap(dbResult.Error, "无法将解密后的实体资产存入数据库")
+	}
+
+	dbResult = s.ServiceInfo.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
 		UpdateAll: true,
 	}).Create(assetDB)

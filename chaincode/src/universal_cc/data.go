@@ -116,17 +116,15 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 	// name~resourceid 绑定元数据中 name 字段与资源 ID
 	extensionsMap := plainData.Metadata.Extensions
 	name, ok := extensionsMap["name"]
-	if !ok {
-		return shim.Error("找不到 name 字段")
-	}
-
-	ckObjectType = "name~resourceid"
-	ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-	if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+	if ok {
+		ckObjectType = "name~resourceid"
+		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
+		if err != nil {
+			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+		}
+		if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
+			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+		}
 	}
 
 	txID := stub.GetTxID()
@@ -247,20 +245,18 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
 	}
 
-	// name~resourceid 绑定元数据中 name 字段与资源 ID
+	// name~resourceid 绑定元数据中 name 字段与资源 ID（仅当 name 字段可用时绑定）
 	extensionsMap := encryptedData.Metadata.Extensions
 	name, ok := extensionsMap["name"]
-	if !ok {
-		return shim.Error("找不到 name 字段")
-	}
-
-	ckObjectType = "name~resourceid"
-	ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-	if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+	if ok {
+		ckObjectType = "name~resourceid"
+		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
+		if err != nil {
+			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+		}
+		if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
+			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+		}
 	}
 
 	txID := stub.GetTxID()
@@ -365,20 +361,18 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
 	}
 
-	// name~resourceid 绑定元数据中 name 字段与资源 ID
+	// name~resourceid 绑定元数据中 name 字段与资源 ID（仅当 name 字段可用时绑定）
 	extensionsMap := offchainData.Metadata.Extensions
 	name, ok := extensionsMap["name"]
-	if !ok {
-		return shim.Error("找不到 name 字段")
-	}
-
-	ckObjectType = "name~resourceid"
-	ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-	if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+	if ok {
+		ckObjectType = "name~resourceid"
+		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
+		if err != nil {
+			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+		}
+		if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
+			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+		}
 	}
 
 	txID := stub.GetTxID()

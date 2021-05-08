@@ -259,21 +259,21 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			}
 		}
 
-		// Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID
-		respMsg, err := screwSvc.TransferAndShowEvent("Org1", "Org2", 10)
-		if err != nil {
-			log.Fatalln(err)
-		} else {
-			fmt.Printf("Transaction ID: %v\n", respMsg)
-		}
+		// // Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID
+		// respMsg, err := screwSvc.TransferAndShowEvent("Org1", "Org2", 10)
+		// if err != nil {
+		// 	log.Fatalln(err)
+		// } else {
+		// 	fmt.Printf("Transaction ID: %v\n", respMsg)
+		// }
 
-		// Make a "query" request for "Org1" and show the response payload.
-		respMsg, err = screwSvc.Query("Org1")
-		if err != nil {
-			log.Fatalln(err)
-		} else {
-			fmt.Printf("Screw amount in Org 1 after the transfer: %v\n", respMsg)
-		}
+		// // Make a "query" request for "Org1" and show the response payload.
+		// respMsg, err = screwSvc.Query("Org1")
+		// if err != nil {
+		// 	log.Fatalln(err)
+		// } else {
+		// 	fmt.Printf("Screw amount in Org 1 after the transfer: %v\n", respMsg)
+		// }
 
 		// Instantiate controllers
 		// Instantiate a ping pong controller

@@ -113,7 +113,7 @@ func (c *EntityAssetController) handleCreateAsset(ctx *gin.Context) {
 	}
 	id := sfNode.Generate().String()
 
-	// A symmetric key should be generated to encrypt the document if the resourse type is Encrypted (later used in the service function and returned as part of the result).
+	// A symmetric key should be generated to encrypt the resource if the resourse type is Encrypted (later used in the service function and returned as part of the result).
 	var key *ppks.CurvePoint
 	// The key is now a `*ppks.CurvePoint`. Cast it to a `*sm2.PublicKey` so that it can be converted to PEM bytes
 	var keyAsPublicKey *sm2.PublicKey

@@ -30,11 +30,11 @@ type Document struct {
 type EntityAsset struct {
 	gorm.Model
 	ID                       int64
-	Name                     string `gorm:"type:VARCHAR(255) NOT NULL"`
-	DesignDocumentID         int64  `gorm:"not null"`
-	IsNamePublic             bool   `gorm:"not null"`
-	IsDesignDocumentIDPublic bool   `gorm:"not null"`
-	Components               []Component
+	Name                     string      `gorm:"type:VARCHAR(255) NOT NULL"`
+	DesignDocumentID         int64       `gorm:"not null"`
+	IsNamePublic             bool        `gorm:"not null"`
+	IsDesignDocumentIDPublic bool        `gorm:"not null"`
+	Components               []Component `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 // Component 定义了 EntityAsset 的组成部分，用于读写数据库中的实体资产。EntityAsset 与 Component 为一对多关系。
