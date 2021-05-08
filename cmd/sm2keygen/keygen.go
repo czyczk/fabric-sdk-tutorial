@@ -22,8 +22,9 @@ func generateKeys(dirKeys string, users []string) error {
 	// Create the dir
 	os.Mkdir(dirKeys, 0755)
 
-	// Collect public keys to generate a collective public key
-	pubKeys := []sm2.PublicKey{}
+	// Collect keys to generate a collective key pair
+	var privKeys []sm2.PrivateKey
+	var pubKeys []sm2.PublicKey
 
 	for _, user := range users {
 		// Generate keys
@@ -33,6 +34,8 @@ func generateKeys(dirKeys string, users []string) error {
 		}
 
 		pubKey := privKey.PublicKey
+
+		privKeys = append(privKeys, *privKey)
 		pubKeys = append(pubKeys, pubKey)
 
 		// Create a directory for the user
@@ -65,6 +68,19 @@ func generateKeys(dirKeys string, users []string) error {
 		pubKeyPem := pem.EncodeToMemory(&pubKeyPemBlock)
 		ioutil.WriteFile(path.Join(dirKeys, user, user+".pem"), pubKeyPem, 0644)
 	}
+
+	// Construct a collective private key and save it
+	collPrivKey := ppks.CollPrivKey(privKeys)
+	collPrivKeyDer, err := x509.MarshalSm2UnecryptedPrivateKey(collPrivKey)
+	if err != nil {
+		return errors.Wrap(err, "cannot save the collective private key")
+	}
+	collPrivKeyPemBlock := pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: collPrivKeyDer,
+	}
+	collPrivKeyPem := pem.EncodeToMemory(&collPrivKeyPemBlock)
+	ioutil.WriteFile(path.Join(dirKeys, "collPrivKey.pem"), collPrivKeyPem, 0644)
 
 	// Construct a collective public key and save it
 	collPubKey := ppks.CollPubKey(pubKeys)

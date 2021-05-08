@@ -437,7 +437,7 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 //
 // 返回：
 //   解密后的资产
-func (s *DocumentService) GetDecryptedEntityAssetFromDB(id string, metadata *data.ResMetadataStored) (*common.EntityAsset, error) {
+func (s *EntityAssetService) GetDecryptedEntityAssetFromDB(id string, metadata *data.ResMetadataStored) (*common.EntityAsset, error) {
 	// 检查元数据中该资源类型是否为密文资源
 	if metadata.ResourceType != data.Encrypted {
 		return nil, &ErrorBadRequest{
