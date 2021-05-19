@@ -108,10 +108,8 @@ func (c *DocumentController) handleCreateDocument(ctx *gin.Context) {
 
 	// Check contents if it's not an offchain resource
 	contents := []byte(ctx.PostForm("contents"))
-	if resourceType != data.Offchain {
-		if len(contents) == 0 {
-			*pel = append(*pel, "文档内容不能为空。")
-		}
+	if len(contents) == 0 {
+		*pel = append(*pel, "文档内容不能为空。")
 	}
 
 	// Check policy if it's not a plain resource
@@ -234,11 +232,6 @@ func (c *DocumentController) handleGetDocument(ctx *gin.Context) {
 		resourceType, err = data.NewResourceTypeFromString(resourceTypeStr)
 		if err != nil {
 			*pel = append(*pel, "资源类型不合法。")
-		} else {
-			if resourceType == data.Offchain {
-				// The resource type can't be "Offchain"
-				*pel = append(*pel, "资源类型不能为链下。")
-			}
 		}
 	}
 
@@ -276,7 +269,8 @@ func (c *DocumentController) handleGetDocument(ctx *gin.Context) {
 	switch resourceType {
 	case data.Plain:
 		document, err = c.DocumentSvc.GetDocument(id, resDataMetadata)
-	case data.Encrypted:
+	default:
+		// The same process for both "Encrypted" and "Offchain" documents
 		// Try to get the document from the database first
 		document, err = c.DocumentSvc.GetDecryptedDocumentFromDB(id, resDataMetadata)
 		if errors.Cause(err) == errorcode.ErrorNotFound || reflect.TypeOf(err) == reflect.TypeOf(&service.ErrorCorruptedDatabaseResult{}) {
@@ -295,7 +289,11 @@ func (c *DocumentController) handleGetDocument(ctx *gin.Context) {
 			}
 
 			// Invoke the service function to perform the full process
-			document, err = c.DocumentSvc.GetEncryptedDocument(id, keySwitchSessionID, numSharesExpected, resDataMetadata)
+			if resourceType == data.Encrypted {
+				document, err = c.DocumentSvc.GetEncryptedDocument(id, keySwitchSessionID, numSharesExpected, resDataMetadata)
+			} else {
+				document, err = c.DocumentSvc.GetOffchainDocument(id, keySwitchSessionID, numSharesExpected, resDataMetadata)
+			}
 		}
 	}
 

@@ -27,3 +27,5 @@ require github.com/XiaoYao-austin/ppks v1.0.0
 require gorm.io/gorm v1.21.9
 
 require gorm.io/driver/mysql v1.0.6
+
+require github.com/ipfs/go-ipfs-api v0.2.0

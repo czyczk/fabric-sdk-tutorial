@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
+	ipfs "github.com/ipfs/go-ipfs-api"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
@@ -192,6 +193,14 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			return fmt.Errorf("未指定密钥置换集合公钥")
 		}
 
+		// Connect to IPFS service
+		ipfsSh := ipfs.NewShell(serverInfo.IPFSAPI)
+		ipfsSh.SetTimeout(20 * time.Second)
+		if !ipfsSh.IsUp() {
+			return fmt.Errorf("无法连接到 IPFS 节点")
+		}
+
+		// Load key switch config and initialize key switch server if enabled
 		if isKeySwitchServer {
 			// Make sure the private key and the public key are specified if the app is enabled as a key switch server
 			if serverInfo.KeySwitchKeys.PrivateKey == "" || serverInfo.KeySwitchKeys.PublicKey == "" {
@@ -222,6 +231,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			EventClient:   global.EventClientInstances["mychannel"][orgName][userID],
 			LedgerClient:  global.LedgerClientInstances["mychannel"][orgName][userID],
 			DB:            db,
+			IPFSSh:        ipfsSh,
 		}
 
 		keySwitchSvc := &service.KeySwitchService{ServiceInfo: universalCcServiceInfo}

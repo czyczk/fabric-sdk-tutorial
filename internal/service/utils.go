@@ -15,6 +15,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
+	ipfs "github.com/ipfs/go-ipfs-api"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -26,6 +27,7 @@ type Info struct {
 	EventClient   *event.Client
 	LedgerClient  *ledger.Client
 	DB            *gorm.DB
+	IPFSSh        *ipfs.Shell
 }
 
 const eventTimeout time.Duration = 20

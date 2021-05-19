@@ -5,10 +5,10 @@ channels:
   - mychannel
 port: 8081
 localDBSourceName: "fabricphone:fabricphone@tcp(localhost:3306)/fabric_phone?charset=utf8mb4&parseTime=True&loc=Local"
+ipfsAPI: "localhost:5001"
 isKeySwitchServer: true
 keySwitchKeys:
-    encryptionAlgorithm: "SM2"
-    collectivePublicKey: "sm2keys/collPubKey.pem"
-    privateKey: "sm2keys/User1@org1.lab805.com/sk"
-    publicKey: "sm2keys/User1@org1.lab805.com/User1@org1.lab805.com.pem"
-
+  encryptionAlgorithm: "SM2"
+  collectivePublicKey: "sm2keys/collPubKey.pem"
+  privateKey: "sm2keys/User1@org1.lab805.com/sk"
+  publicKey: "sm2keys/User1@org1.lab805.com/User1@org1.lab805.com.pem"

@@ -71,6 +71,18 @@ type DocumentServiceInterface interface {
 	//   解密后的文档
 	GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.Document, error)
 
+	// 获取链下加密数字文档。提供密钥置换会话，函数将从 IPFS 网络获得密文，使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
+	//
+	// 参数：
+	//   文档 ID
+	//   密钥置换会话 ID
+	//   预期的份额数量
+	//   文档元数据
+	//
+	// 返回：
+	//   解密后的文档
+	GetOffchainDocument(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.Document, error)
+
 	// GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。调用前应先获取元数据。
 	//
 	// 参数：

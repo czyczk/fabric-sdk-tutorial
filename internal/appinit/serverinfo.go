@@ -13,6 +13,7 @@ type ServerInfo struct {
 	Channels          []string               `yaml:"channels"`
 	Port              int                    `yaml:"port"`
 	LocalDBSourceName string                 `yaml:"localDBSourceName"`
+	IPFSAPI           string                 `yaml:"ipfsAPI"`
 	IsKeySwitchServer bool                   `yaml:"isKeySwitchServer"`
 	KeySwitchKeys     *KeySwitchKeyLocations `yaml:"keySwitchKeys"`
 }

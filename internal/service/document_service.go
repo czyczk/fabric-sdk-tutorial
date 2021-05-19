@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -9,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strconv"
 	"strings"
 
@@ -216,6 +218,25 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
 
+	// 用 key 加密 documentBytes
+	// 使用由 key 导出的 256 位信息来创建 AES256 block
+	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(key))
+	if err != nil {
+		return "", errors.Wrap(err, "无法加密文档")
+	}
+
+	aesGCM, err := cipher.NewGCM(cipherBlock)
+	if err != nil {
+		return "", errors.Wrap(err, "无法加密文档")
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", errors.Wrap(err, "无法加密文档")
+	}
+
+	encryptedDocumentBytes := aesGCM.Seal(nonce, nonce, documentBytes, nil)
+
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()
 	if err != nil {
@@ -238,20 +259,27 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	extensions := deriveExtensionsMapFromDocument(document)
 
 	metadata := data.ResMetadata{
-		ResourceType: data.Plain,
+		ResourceType: data.Offchain,
 		ResourceID:   document.ID,
 		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   extensions,
 	}
 
-	// 组装要传入链码的参数，其中密文本体和对称密钥的密文转换为 Base64 编码
-	encryptedData := data.OffchainData{
+	// 将加密后的文档上传至 IPFS 网络
+	cid, err := s.ServiceInfo.IPFSSh.Add(bytes.NewReader(encryptedDocumentBytes))
+	if err != nil {
+		return "", errors.Wrap(err, "无法将加密后的文档上传至 IPFS 网络")
+	}
+
+	// 在传给链码的参数中传入 IPFS CID
+	offchainData := data.OffchainData{
 		Metadata: metadata,
+		CID:      cid,
 		Key:      base64.StdEncoding.EncodeToString(encryptedKeyBytes),
 		Policy:   policy,
 	}
-	encryptedDataBytes, err := json.Marshal(encryptedData)
+	offchainDataBytes, err := json.Marshal(offchainData)
 	if err != nil {
 		return "", errors.Wrapf(err, "无法序列化链码参数")
 	}
@@ -260,7 +288,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{encryptedDataBytes},
+		Args:        [][]byte{offchainDataBytes},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
@@ -351,6 +379,7 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 		}
 	}
 
+	// 调用链码 getData 获取该资源的密文本体
 	chaincodeFcn := "getData"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
@@ -363,6 +392,8 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	if err != nil {
 		return nil, err
 	}
+
+	encryptedDocumentBytes := resp.Payload
 
 	// 调用链码 getKey 获取该资源的加密后的密钥
 	chaincodeFcn = "getKey"
@@ -379,22 +410,6 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	encryptedKey := resp.Payload
-
-	// 调用链码 getData 获取该资源的密文本体
-	chaincodeFcn = "getData"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
-	if err != nil {
-		return nil, err
-	}
-
-	encryptedDocumentBytes := resp.Payload
 
 	// 检查加密的内容的大小和哈希是否匹配
 	encryptedSize := uint64(len(encryptedDocumentBytes))
@@ -505,6 +520,176 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	return &document, nil
 }
 
+// 获取链下加密数字文档。提供密钥置换会话，函数将从 IPFS 网络获得密文，使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
+//
+// 参数：
+//   文档 ID
+//   密钥置换会话 ID
+//   预期的份额数量
+//   文档元数据
+//
+// 返回：
+//   解密后的文档
+func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.Document, error) {
+	// 检查元数据中该资源类型是否为链下加密资源
+	if metadata.ResourceType != data.Offchain {
+		return nil, &ErrorBadRequest{
+			errMsg: "该资源不是链下加密资源。",
+		}
+	}
+
+	// 调用链码 getData 获取该资源在 IPFS 网络上的 CID
+	chaincodeFcn := "getData"
+	channelReq := channel.Request{
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{[]byte(id)},
+	}
+
+	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
+	err = GetClassifiedError(chaincodeFcn, err)
+	if err != nil {
+		return nil, err
+	}
+
+	cidBytes := resp.Payload
+	cid := string(cidBytes)
+
+	// 检查链上记录的内容（CID）的大小和哈希是否匹配
+	encryptedSize := uint64(len(cidBytes))
+	if encryptedSize != metadata.SizeStored {
+		return nil, fmt.Errorf("获取的密文大小不正确")
+	}
+
+	encryptedHash := sha256.Sum256(cidBytes)
+	encryptedHashBase64 := base64.StdEncoding.EncodeToString(encryptedHash[:])
+	if encryptedHashBase64 != metadata.HashStored {
+		return nil, fmt.Errorf("获取的密文哈希不匹配")
+	}
+
+	// 从 IPFS 网络中获取文档的密文
+	reader, err := s.ServiceInfo.IPFSSh.Cat(cid)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法从 IPFS 网络获取数字文档")
+	}
+	encryptedDocumentBytes, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法从 IPFS 网络获取数字文档")
+	}
+
+	// 调用链码 getKey 获取该资源的加密后的密钥
+	chaincodeFcn = "getKey"
+	channelReq = channel.Request{
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{[]byte(id)},
+	}
+
+	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
+	err = GetClassifiedError(chaincodeFcn, err)
+	if err != nil {
+		return nil, err
+	}
+
+	encryptedKey := resp.Payload
+
+	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
+	chaincodeFcn = "listKeySwitchResultsByID"
+	channelReq = channel.Request{
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{[]byte(keySwitchSessionID)},
+	}
+
+	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
+	err = GetClassifiedError(chaincodeFcn, err)
+	if err != nil {
+		return nil, err
+	}
+
+	var ksResults []keyswitch.KeySwitchResultStored
+	err = json.Unmarshal(resp.Payload, &ksResults)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
+	}
+
+	if len(ksResults) != numSharesExpected {
+		return nil, fmt.Errorf("密钥置换结果只有 %v 份，不足 %v 份", len(ksResults), numSharesExpected)
+	}
+
+	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
+	var shares [][]byte
+	for _, ksResult := range ksResults {
+		share, err := base64.StdEncoding.DecodeString(ksResult.Share)
+		if err != nil {
+			return nil, errors.Wrap(err, "无法解析份额")
+		}
+		shares = append(shares, share)
+	}
+
+	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKey, global.KeySwitchKeys.PrivateKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解密对称密钥")
+	}
+
+	// 用对称密钥解密 encryptedDocumentBytes
+	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解密文档")
+	}
+
+	aesGCM, err := cipher.NewGCM(cipherBlock)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解密文档")
+	}
+
+	nonceSize := aesGCM.NonceSize()
+	if len(encryptedDocumentBytes) < nonceSize {
+		return nil, fmt.Errorf("无法解密文档: 密文长度太短")
+	}
+
+	nonce, encryptedDocumentBytes := encryptedDocumentBytes[:nonceSize], encryptedDocumentBytes[nonceSize:]
+	documentBytes, err := aesGCM.Open(nil, nonce, encryptedDocumentBytes, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解密文档")
+	}
+
+	// 检查解密出的内容的大小和哈希是否匹配
+	decryptedSize := uint64(len(documentBytes))
+	if decryptedSize != metadata.Size {
+		return nil, fmt.Errorf("解密后的文档大小不正确")
+	}
+
+	decryptedHash := sha256.Sum256(documentBytes)
+	decryptedHashBase64 := base64.StdEncoding.EncodeToString(decryptedHash[:])
+	if decryptedHashBase64 != metadata.Hash {
+		return nil, fmt.Errorf("解密后的文档哈希不匹配")
+	}
+
+	// 解析 documentBytes 为 common.Document
+	var document common.Document
+	err = json.Unmarshal(documentBytes, &document)
+	if err != nil {
+		return nil, fmt.Errorf("获取的数据不是合法的数字文档")
+	}
+
+	// 将解密的文档存入数据库（若已存在则覆盖）
+	documentDB, err := sqlmodel.NewDocumentFromModel(&document)
+	if err != nil {
+		return nil, err
+	}
+
+	dbResult := s.ServiceInfo.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		UpdateAll: true,
+	}).Create(documentDB)
+	if dbResult.Error != nil {
+		return nil, errors.Wrap(dbResult.Error, "无法将解密后的文档存入数据库")
+	}
+
+	return &document, nil
+}
+
 // GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。调用前应先获取元数据。
 //
 // 参数：
@@ -515,9 +700,9 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 //   解密后的文档
 func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.ResMetadataStored) (*common.Document, error) {
 	// 检查元数据中该资源类型是否为密文资源
-	if metadata.ResourceType != data.Encrypted {
+	if metadata.ResourceType != data.Encrypted && metadata.ResourceType != data.Offchain {
 		return nil, &ErrorBadRequest{
-			errMsg: "该资源不是加密资源。",
+			errMsg: "该资源为明文资源。",
 		}
 	}
 

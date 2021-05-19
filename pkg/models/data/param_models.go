@@ -71,6 +71,7 @@ type EncryptedData struct {
 // OffchainData 用于表示要传入链码的链下资源
 type OffchainData struct {
 	Metadata ResMetadata `json:"metadata"` // 资源的元数据
+	CID      string      `json:"cid"`      // 资源在 IPFS 网络上的内容 ID
 	Key      string      `json:"key"`      // 加密的对称密钥（Base64 编码）
 	Policy   string      `json:"policy"`   // 策略
 }

@@ -302,6 +302,17 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 		return shim.Error(fmt.Sprintf("资源 ID '%v' 已被占用", resourceID))
 	}
 
+	// CID 不可为空
+	if offchainData.CID == "" {
+		return shim.Error("资源 CID 不可为空")
+	}
+
+	// 计算存储的哈希与大小
+	cidBytes := []byte(offchainData.CID)
+	hashStored := sha256.Sum256(cidBytes)
+	hashStoredBase64 := base64.StdEncoding.EncodeToString(hashStored[:])
+	sizeStored := len(cidBytes)
+
 	// 获取创建者与时间戳
 	creator, err := getPKDERFromStub(stub)
 	if err != nil {
@@ -323,8 +334,14 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 		Extensions:   offchainData.Metadata.Extensions,
 		Creator:      creatorAsBase64,
 		Timestamp:    timestamp,
-		HashStored:   "",
-		SizeStored:   0,
+		HashStored:   hashStoredBase64,
+		SizeStored:   uint64(sizeStored),
+	}
+
+	// 写入数据库
+	dbDataKey := getKeyForResData(resourceID)
+	if err = stub.PutState(dbDataKey, cidBytes); err != nil {
+		return shim.Error(fmt.Sprintf("无法存储资源数据: %v", err))
 	}
 
 	dbKeykey := getKeyForResKey(resourceID)
