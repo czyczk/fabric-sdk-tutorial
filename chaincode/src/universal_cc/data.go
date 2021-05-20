@@ -497,94 +497,96 @@ func (uc *UniversalCC) getPolicy(stub shim.ChaincodeStubInterface, args []string
 	return shim.Success(dataBytes)
 }
 
-func (uc *UniversalCC) linkEntityIDWithDocumentID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	// 检查参数数量
-	lenArgs := len(args)
-	if lenArgs != 2 {
-		return shim.Error("参数数量不正确。应为 2 个")
-	}
+// 此段保留作为 composite key 索引方案参考
+//func (uc *UniversalCC) linkEntityIDWithDocumentID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+//	// 检查参数数量
+//	lenArgs := len(args)
+//	if lenArgs != 2 {
+//		return shim.Error("参数数量不正确。应为 2 个")
+//	}
+//
+//	// args = [entityID, documentID]
+//	entityID := args[0]
+//	documentID := args[1]
+//
+//	// entityid~documentid 绑定实体资产 ID 与数字文档 ID
+//	ckObjectType := "entityid~documentid"
+//	ckEntityIDDocumentID, err := stub.CreateCompositeKey(ckObjectType, []string{entityID, documentID})
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+//	}
+//	if err = stub.PutState(ckEntityIDDocumentID, []byte{0x00}); err != nil {
+//		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
+//	}
+//
+//	txID := stub.GetTxID()
+//	return shim.Success([]byte(txID))
+//}
 
-	// args = [entityID, documentID]
-	entityID := args[0]
-	documentID := args[1]
-
-	// entityid~documentid 绑定实体资产 ID 与数字文档 ID
-	ckObjectType := "entityid~documentid"
-	ckEntityIDDocumentID, err := stub.CreateCompositeKey(ckObjectType, []string{entityID, documentID})
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-	if err = stub.PutState(ckEntityIDDocumentID, []byte{0x00}); err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-
-	txID := stub.GetTxID()
-	return shim.Success([]byte(txID))
-}
-
-func (uc *UniversalCC) listDocumentIDsByEntityID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
-	// 检查参数数量
-	lenArgs := len(args)
-	if lenArgs != 3 {
-		return shim.Error("参数数量不正确。应为 3 个")
-	}
-
-	// args = [entityID string, pageSize int, bookmark string]
-	entityID := args[0]
-
-	pageSizeStr := args[1]
-	pageSize, err := strconv.Atoi(pageSizeStr)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法解析参数 pageSize，值为 %v。应为正整数", pageSizeStr))
-	}
-	if pageSize <= 0 {
-		return shim.Error(fmt.Sprintf("参数 pageSize 值为 %v。应为正整数", pageSizeStr))
-	}
-
-	bookmarkAsBase64 := args[2]
-	bookmarkBytes, err := base64.StdEncoding.DecodeString(bookmarkAsBase64)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法解析书签: %v", err))
-	}
-	bookmark := string(bookmarkBytes)
-
-	// 提供 entityid 项以获取迭代器
-	ckObjectType := "entityid~documentid"
-	it, respMetadata, err := stub.GetStateByPartialCompositeKeyWithPagination(ckObjectType, []string{entityID}, int32(pageSize), bookmark)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
-	}
-
-	defer it.Close()
-
-	// 遍历迭代器，从中解出 documentid 项，组为列表
-	documentIDs := []string{}
-	for it.HasNext() {
-		entry, err := it.Next()
-		if err != nil {
-			return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
-		}
-
-		_, ckParts, err := stub.SplitCompositeKey(entry.Key)
-		if err != nil {
-			return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
-		}
-
-		documentIDs = append(documentIDs, ckParts[1])
-	}
-
-	// 序列化结果列表并返回
-	paginationResult := query.ResourceIDsWithPagination{
-		ResourceIDs: documentIDs,
-		Bookmark:    base64.StdEncoding.EncodeToString([]byte(respMetadata.Bookmark)),
-	}
-	paginationResultAsBytes, err := json.Marshal(paginationResult)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法序列化结果列表: %v", err))
-	}
-
-	return shim.Success(paginationResultAsBytes)
-}
+// 此段保留作为 composite key 条件查询示例
+//func (uc *UniversalCC) listDocumentIDsByEntityID(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+//	// 检查参数数量
+//	lenArgs := len(args)
+//	if lenArgs != 3 {
+//		return shim.Error("参数数量不正确。应为 3 个")
+//	}
+//
+//	// args = [entityID string, pageSize int, bookmark string]
+//	entityID := args[0]
+//
+//	pageSizeStr := args[1]
+//	pageSize, err := strconv.Atoi(pageSizeStr)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法解析参数 pageSize，值为 %v。应为正整数", pageSizeStr))
+//	}
+//	if pageSize <= 0 {
+//		return shim.Error(fmt.Sprintf("参数 pageSize 值为 %v。应为正整数", pageSizeStr))
+//	}
+//
+//	bookmarkAsBase64 := args[2]
+//	bookmarkBytes, err := base64.StdEncoding.DecodeString(bookmarkAsBase64)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法解析书签: %v", err))
+//	}
+//	bookmark := string(bookmarkBytes)
+//
+//	// 提供 entityid 项以获取迭代器
+//	ckObjectType := "entityid~documentid"
+//	it, respMetadata, err := stub.GetStateByPartialCompositeKeyWithPagination(ckObjectType, []string{entityID}, int32(pageSize), bookmark)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
+//	}
+//
+//	defer it.Close()
+//
+//	// 遍历迭代器，从中解出 documentid 项，组为列表
+//	documentIDs := []string{}
+//	for it.HasNext() {
+//		entry, err := it.Next()
+//		if err != nil {
+//			return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
+//		}
+//
+//		_, ckParts, err := stub.SplitCompositeKey(entry.Key)
+//		if err != nil {
+//			return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
+//		}
+//
+//		documentIDs = append(documentIDs, ckParts[1])
+//	}
+//
+//	// 序列化结果列表并返回
+//	paginationResult := query.ResourceIDsWithPagination{
+//		ResourceIDs: documentIDs,
+//		Bookmark:    base64.StdEncoding.EncodeToString([]byte(respMetadata.Bookmark)),
+//	}
+//	paginationResultAsBytes, err := json.Marshal(paginationResult)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法序列化结果列表: %v", err))
+//	}
+//
+//	return shim.Success(paginationResultAsBytes)
+//}
 
 func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 	// 检查参数数量
@@ -655,15 +657,100 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 	return shim.Success(paginationResultAsBytes)
 }
 
-func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+// 此段保留作为 CouchDB 模糊查询参考
+//func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+//	// 检查参数数量
+//	lenArgs := len(args)
+//	if lenArgs != 3 {
+//		return shim.Error("参数数量不正确。应为 3 个")
+//	}
+//
+//	// args = [partialName string, pageSize int, bookmark string]
+//	partialName := args[0]
+//	pageSizeStr := args[1]
+//	bookmarkAsBase64 := args[2]
+//	bookmarkBytes, err := base64.StdEncoding.DecodeString(bookmarkAsBase64)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法解析书签: %v", err))
+//	}
+//	bookmark := string(bookmarkBytes)
+//
+//	pageSize, err := strconv.Atoi(pageSizeStr)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法解析参数 pageSize，值为 %v。应为正整数", pageSizeStr))
+//	}
+//	if pageSize <= 0 {
+//		return shim.Error(fmt.Sprintf("参数 pageSize 值为 %v。应为正整数", pageSizeStr))
+//	}
+//
+//	// 获取关于 extensions.name 模糊匹配的迭代器
+//	queryConditions := map[string]interface{}{
+//		"selector": map[string]interface{}{
+//			"extensions.name": map[string]interface{}{
+//				"$regex": partialName,
+//			},
+//			"extensions.dataType": "document",
+//		},
+//	}
+//	queryConditionsBytes, err := json.Marshal(queryConditions)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法序列化查询条件: %v", err))
+//	}
+//	fmt.Printf("%v\n", string(queryConditionsBytes))
+//
+//	it, respMetadata, err := stub.GetQueryResultWithPagination(string(queryConditionsBytes), int32(pageSize), bookmark)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法执行关于关键词 '%v' 的富查询: %v", partialName, err))
+//	}
+//
+//	defer it.Close()
+//
+//	// 遍历迭代器，获取所有的 key 并抽取其中的 resourceID，组成列表
+//	resourceIDs := []string{}
+//	for it.HasNext() {
+//		entry, err := it.Next()
+//		if err != nil {
+//			return shim.Error(fmt.Sprintf("无法执行关于关键词 '%v' 的富查询: %v", partialName, err))
+//		}
+//
+//		resourceID, err := extractResourceIDFromKeyForResMetadata(entry.Key)
+//		if err != nil {
+//			return shim.Error(err.Error())
+//		}
+//
+//		resourceIDs = append(resourceIDs, resourceID)
+//	}
+//
+//	// 记录书签位置
+//	returnedBookmark := respMetadata.Bookmark
+//
+//	// 序列化结果并返回
+//	result := query.ResourceIDsWithPagination{
+//		ResourceIDs: resourceIDs,
+//		Bookmark:    base64.StdEncoding.EncodeToString([]byte(returnedBookmark)),
+//	}
+//	resultAsBytes, err := json.Marshal(result)
+//	if err != nil {
+//		return shim.Error(fmt.Sprintf("无法序列化结果列表: %v", err))
+//	}
+//
+//	return shim.Success(resultAsBytes)
+//}
+
+func (uc *UniversalCC) listDocumentIDsByConditions(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 	// 检查参数数量
 	lenArgs := len(args)
 	if lenArgs != 3 {
 		return shim.Error("参数数量不正确。应为 3 个")
 	}
 
-	// args = [partialName string, pageSize int, bookmark string]
-	partialName := args[0]
+	// args = [queryConditions map[string]interface{}, pageSize int, bookmark string]
+	queryConditionsBytes := []byte(args[0])
+	queryConditions := make(map[string]interface{})
+	err := json.Unmarshal(queryConditionsBytes, &queryConditions)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析查询条件: %v", err))
+	}
 	pageSizeStr := args[1]
 	bookmarkAsBase64 := args[2]
 	bookmarkBytes, err := base64.StdEncoding.DecodeString(bookmarkAsBase64)
@@ -680,24 +767,10 @@ func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInter
 		return shim.Error(fmt.Sprintf("参数 pageSize 值为 %v。应为正整数", pageSizeStr))
 	}
 
-	// 获取关于 extensions.name 模糊匹配的迭代器
-	queryConditions := map[string]interface{}{
-		"selector": map[string]interface{}{
-			"extensions.name": map[string]interface{}{
-				"$regex": partialName,
-			},
-			"extensions.dataType": "document",
-		},
-	}
-	queryConditionsBytes, err := json.Marshal(queryConditions)
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法序列化查询条件: %v", err))
-	}
-	fmt.Printf("%v\n", string(queryConditionsBytes))
-
+	// 获取匹配查询条件的迭代器
 	it, respMetadata, err := stub.GetQueryResultWithPagination(string(queryConditionsBytes), int32(pageSize), bookmark)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法执行关于关键词 '%v' 的富查询: %v", partialName, err))
+		return shim.Error(fmt.Sprintf("无法执行条件查询: %v", err))
 	}
 
 	defer it.Close()
@@ -707,7 +780,7 @@ func (uc *UniversalCC) listDocumentIDsByPartialName(stub shim.ChaincodeStubInter
 	for it.HasNext() {
 		entry, err := it.Next()
 		if err != nil {
-			return shim.Error(fmt.Sprintf("无法执行关于关键词 '%v' 的富查询: %v", partialName, err))
+			return shim.Error(fmt.Sprintf("无法执行条件查询: %v", err))
 		}
 
 		resourceID, err := extractResourceIDFromKeyForResMetadata(entry.Key)
