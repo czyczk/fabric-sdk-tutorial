@@ -504,7 +504,7 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	// 将解密的文档存入数据库（若已存在则覆盖）
-	documentDB, err := sqlmodel.NewDocumentFromModel(&document)
+	documentDB, err := sqlmodel.NewDocumentFromModel(&document, metadata.Timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -674,7 +674,7 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 将解密的文档存入数据库（若已存在则覆盖）
-	documentDB, err := sqlmodel.NewDocumentFromModel(&document)
+	documentDB, err := sqlmodel.NewDocumentFromModel(&document, metadata.Timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -807,6 +807,8 @@ func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageS
 
 	return &resourceIDs, nil
 }
+
+func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks)
 
 func deriveExtensionsMapFromDocument(document *common.Document) map[string]string {
 	extensions := make(map[string]string)

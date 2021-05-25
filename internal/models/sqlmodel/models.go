@@ -3,6 +3,7 @@ package sqlmodel
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"github.com/pkg/errors"
@@ -18,11 +19,12 @@ type Document struct {
 	PrecedingDocumentID         sql.NullInt64
 	HeadDocumentID              sql.NullInt64
 	EntityAssetID               sql.NullInt64
-	IsNamePublic                bool `gorm:"not null"`
-	IsTypePublic                bool `gorm:"not null"`
-	IsPrecedingDocumentIDPublic bool `gorm:"not null"`
-	IsHeadDocumentIDPublic      bool `gorm:"not null"`
-	IsEntityAssetIDPublic       bool `gorm:"not null"`
+	TimeCreated                 time.Time `gorm:"not null"`
+	IsNamePublic                bool      `gorm:"not null"`
+	IsTypePublic                bool      `gorm:"not null"`
+	IsPrecedingDocumentIDPublic bool      `gorm:"not null"`
+	IsHeadDocumentIDPublic      bool      `gorm:"not null"`
+	IsEntityAssetIDPublic       bool      `gorm:"not null"`
 	Contents                    []byte
 }
 
@@ -32,6 +34,7 @@ type EntityAsset struct {
 	ID                       int64
 	Name                     string      `gorm:"type:VARCHAR(255) NOT NULL"`
 	DesignDocumentID         int64       `gorm:"not null"`
+	TimeCreated              time.Time   `gorm:"not null"`
 	IsNamePublic             bool        `gorm:"not null"`
 	IsDesignDocumentIDPublic bool        `gorm:"not null"`
 	Components               []Component `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
@@ -84,7 +87,7 @@ func (e *EntityAsset) ToModel() *common.EntityAsset {
 }
 
 // NewDocumentFromModel 通过 `common.Document` 对象创建一个 `sqlmodel.Document` 对象。
-func NewDocumentFromModel(model *common.Document) (*Document, error) {
+func NewDocumentFromModel(model *common.Document, timeCreated time.Time) (*Document, error) {
 	errMsg := "无法转换数字文档对象为数据库对象"
 
 	precedingDocumentID, err := parseSnowflakeStringToNullInt64(model.PrecedingDocumentID)
@@ -114,6 +117,7 @@ func NewDocumentFromModel(model *common.Document) (*Document, error) {
 		PrecedingDocumentID:         precedingDocumentID,
 		HeadDocumentID:              headDocumentID,
 		EntityAssetID:               entityAssetID,
+		TimeCreated:                 timeCreated,
 		IsNamePublic:                model.IsNamePublic,
 		IsTypePublic:                model.IsTypePublic,
 		IsPrecedingDocumentIDPublic: model.IsPrecedingDocumentIDPublic,
@@ -126,7 +130,7 @@ func NewDocumentFromModel(model *common.Document) (*Document, error) {
 }
 
 // NewEntityAssetFromModel 通过 `common.EntityAsset` 对象创建一个 `sqlmodel.EntityAsset` 对象。
-func NewEntityAssetFromModel(model *common.EntityAsset) (*EntityAsset, error) {
+func NewEntityAssetFromModel(model *common.EntityAsset, timeCreated time.Time) (*EntityAsset, error) {
 	errMsg := "无法转换实体资产对象为数据库对象"
 
 	entityAssetID, err := parseSnowflakeStringToInt64(model.ID)
@@ -157,6 +161,7 @@ func NewEntityAssetFromModel(model *common.EntityAsset) (*EntityAsset, error) {
 		ID:                       entityAssetID,
 		Name:                     model.Name,
 		DesignDocumentID:         designDocumentID,
+		TimeCreated:              timeCreated,
 		IsNamePublic:             model.IsNamePublic,
 		IsDesignDocumentIDPublic: model.IsDesignDocumentIDPublic,
 		Components:               components,

@@ -413,7 +413,7 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 	}
 
 	// 将解密的资产存入数据库（若已存在则覆盖）
-	assetDB, err := sqlmodel.NewEntityAssetFromModel(&asset)
+	assetDB, err := sqlmodel.NewEntityAssetFromModel(&asset, metadata.Timestamp)
 	if err != nil {
 		return nil, err
 	}

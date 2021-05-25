@@ -24,8 +24,8 @@ require github.com/tjfoc/gmsm v1.4.0
 
 require github.com/XiaoYao-austin/ppks v1.0.0
 
-require gorm.io/gorm v1.21.9
+require gorm.io/gorm v1.21.10
 
-require gorm.io/driver/mysql v1.0.6
+require gorm.io/driver/mysql v1.1.0
 
 require github.com/ipfs/go-ipfs-api v0.2.0
