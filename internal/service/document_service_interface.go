@@ -93,7 +93,7 @@ type DocumentServiceInterface interface {
 	//   解密后的文档
 	GetDecryptedDocumentFromDB(id string, metadata *data.ResMetadataStored) (*common.Document, error)
 
-	// 获取所有调用者创建的数字文档的资源 ID。
+	// ListDocumentIDsByCreator 获取所有调用者创建的数字文档的资源 ID。
 	//
 	// 参数：
 	//   分页大小
@@ -103,14 +103,14 @@ type DocumentServiceInterface interface {
 	//   带分页的资源 ID 列表
 	ListDocumentIDsByCreator(pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error)
 
-	// 获取名称包含所提供的部分名称的数字文档的资源 ID。
+	// ListDocumentIDsByConditions 获取满足所提供的搜索条件的数字文档的资源 ID。
 	//
 	// 参数：
-	//   部分名称
+	//   搜索条件
 	//   分页大小
 	//   分页书签
 	//
 	// 返回：
 	//   带分页的资源 ID 列表
-	ListDocumentIDsByPartialName(partialName string, pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error)
+	ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks) (*query.ResourceIDsWithPagination, error)
 }

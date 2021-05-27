@@ -43,7 +43,7 @@ type EntityAssetQueryConditions struct {
 type QueryBookmarks struct {
 	ChaincodeBookmark      string
 	ChaincodeEntryConsumed int
-	LocalDBBookmark        int
+	LocalDBBookmark        int // 本地数据库书签。对于 MySQL 来说可以是 offset 值。
 }
 
 func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]interface{}, err error) {

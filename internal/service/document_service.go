@@ -775,6 +775,7 @@ func (s *DocumentService) ListDocumentIDsByCreator(pageSize int, bookmark string
 	return &resourceIDs, nil
 }
 
+// TODO: 删掉
 // ListDocumentIDsByPartialName 获取名称包含所提供的部分名称的数字文档的资源 ID。
 //
 // 参数：
@@ -808,7 +809,48 @@ func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageS
 	return &resourceIDs, nil
 }
 
-func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks)
+// ListDocumentIDsByConditions 获取满足所提供的搜索条件的数字文档的资源 ID。
+//
+// 参数：
+//   搜索条件
+//   分页大小
+//   分页书签
+//
+// 返回：
+//   带分页的资源 ID 列表
+func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks) (*query.ResourceIDsWithPagination, error) {
+	// 从两处获取资源 ID。
+	// 第一是调用链码从链上获取，这部分的结果包括 明文资源以及所查寻属性为公开的那部分资源 中符合条件的条目；
+	// 第二是从本地数据库中获取，这部分内容为 用户已解密过的资源 中符合条件的条目。
+	//
+	// 最终目标是按资源 ID 正序或倒序（由查询参数决定）排列，凑够 `pageSize` 条结果，带书签信息返回。
+	// 关键点在于：
+	//   1. 必须从两个来源都获取资源，为确保凑够数量，它们各需查询 `pageSize` 条，在排序过程中剔除多余的部分，剩下的作为本次查询的结果；
+	//   2. 两个数据来源得到的内容并非互补的，即它们可能有交集，存在重复。以下一小段解释了这为什么会发生。
+	//      若要满足在以下两个用例中都能取到完整的条目信息，我们就将面临这样的副作用。
+	//      可能用例 1：资源 x 与资源 y 的 `name` 相同。x 的 `name` 是公开的。y 的 `name` 是非公开的。需要按照 `name` 精确匹配查询。
+	//      可能用例 2：资源 x 的 `name` 是公开的，但 `precedingDocumentID` 是非公开的。需要按照 `name` 和 `precedingDocumentID` 精确匹配查询。
+	//      为了满足用例 1 下资源 x 和 y 都能被获取到，只需要
+	//          - 在链上按 `name` 查找
+	//          - 在本地数据库上按 `name` 查找并限定 `is_name_public` 为 `false`。即隐藏了 `name` 的条目的范围内寻找匹配项。
+	//      这样在单条件情况下，两个数据源的查询结果互补。然而这并不适用于用例 2 中多条件查询。
+	//      在用例 2 中，为了得到资源 x，我们还是从两个数据源中查询。我们不能从链上查得，因为其 `precedingDocumentID` 是非公开的。
+	//      但按上例中的方法，我们同样无法从本地数据库中获得，因为 `name` 是公开的。值得提醒的是，我们在搜索时并不知道一个资源的某个属性是否公开。
+	//      从而，这决定了我们从本地数据库中获取条目时，**不能将范围限定在所有属性或任意某些属性是非公开属性的条目内**。
+	//      换而言之，我们在从本地数据库上搜索时，也要包括属性是公开的那一部分，这将导致用例 1 中，属性公开的资源 x 会从两个数据源中同时获得。
+	//
+	// 为了解决这些现象，我们应在从两个数据源各获取 `pageSize` 条之后，进行以下操作。简单起见，假设 `pageSize` 为 10。
+	//   1: 若两个数据源得到的结果均为空，则直接返回。
+	//   2: 将两个数据源得到的结果按用户需求各自正序或倒序排列。
+	//   3: 为两个数据源分别维护一个 `consumed` 变量，从一个数据源中取得一条就将相应变量 +1。选择哪个数据源作为下一个条目取决于哪个符合我们的排序规则。
+	//      因为结果可能重复，我们在加入时，若遇重复项，则只为相应的 `consumed` 变量 +1，而将结果本身舍弃，不将其采纳进结果列表。
+	//      我们在两个列表均被遍历完或者结果列表达到 10 条时，停止这一过程。这之后可能出现 4 种情况：
+	//      3.1: 结果列表不满 10 条：已经遍历完的数据源如果它这次获取的量达到 10 条（说明没到底）需要用适当的书签再获取一次，然后回到第 1 步（或者说重置该数据源的计数器使循环继续）。
+	//           若两个数据源获取的量均 < 10 条，则采用该列表以及最新的书签信息返回。
+	//      3.2: 两个列表皆为空：这说明我们取回的正好被用完，直接返回。返回结果中，链码书签就是链码所返回的书签，消耗数量为 0；本地数据库书签对应 offset 值，即上次的值 + 相应 `consumed`。
+	//      3.3: 链码来源的结果没用完：链码书签是上次的链码书签，消耗数量为这次从链码中消耗的数量；本地数据库书签为上次的值 + 相应 `consumed`。
+	//      3.4: 本地数据库结果没用完：链码书签是最新书签；本地数据库书签即上次的值 + `pageSize`。
+}
 
 func deriveExtensionsMapFromDocument(document *common.Document) map[string]string {
 	extensions := make(map[string]string)
