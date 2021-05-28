@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -847,9 +849,92 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	//      我们在两个列表均被遍历完或者结果列表达到 10 条时，停止这一过程。这之后可能出现 4 种情况：
 	//      3.1: 结果列表不满 10 条：已经遍历完的数据源如果它这次获取的量达到 10 条（说明没到底）需要用适当的书签再获取一次，然后回到第 1 步（或者说重置该数据源的计数器使循环继续）。
 	//           若两个数据源获取的量均 < 10 条，则采用该列表以及最新的书签信息返回。
-	//      3.2: 两个列表皆为空：这说明我们取回的正好被用完，直接返回。返回结果中，链码书签就是链码所返回的书签，消耗数量为 0；本地数据库书签对应 offset 值，即上次的值 + 相应 `consumed`。
+	//      3.2: 两个来源的结果都被用完：直接返回。返回结果中，链码书签就是链码所返回的书签，消耗数量为 0；本地数据库书签对应 offset 值，即上次的值 + 相应 `consumed`。
 	//      3.3: 链码来源的结果没用完：链码书签是上次的链码书签，消耗数量为这次从链码中消耗的数量；本地数据库书签为上次的值 + 相应 `consumed`。
 	//      3.4: 本地数据库结果没用完：链码书签是最新书签；本地数据库书签即上次的值 + `pageSize`。
+
+	// 为链码层所用的 CouchDB 生成查询条件。遇到错误视为参数错误。
+	couchDBConditions, err := conditions.ToCouchDBConditions()
+	if err != nil {
+		return nil, &ErrorBadRequest{
+			errMsg: err.Error(),
+		}
+	}
+	couchDBConditionsBytes, err := json.Marshal(couchDBConditions)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法序列化查询条件")
+	}
+
+	// 生成 GORM 可用的带查询条件的 DB 对象
+	gormConditionedDB, err := conditions.ToGormConditionedDB(s.ServiceInfo.DB)
+	if err != nil {
+		return nil, &ErrorBadRequest{
+			errMsg: err.Error(),
+		}
+	}
+
+	// 从链码获取资源 ID
+	chaincodeFcn := "listDocumentIDsByConditions"
+	channelReq := channel.Request{
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), []byte(bookmarks.ChaincodeBookmark)},
+	}
+
+	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
+	err = GetClassifiedError(chaincodeFcn, err)
+	if err != nil {
+		return nil, err
+	}
+
+	// 这里将包含查询后的新书签信息。稍后应根据此次查询的内容是否被用完来决定使用旧书签还是新书签。
+	var chaincodeResourceIDs query.ResourceIDsWithPagination
+	err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析结果列表")
+	}
+
+	// 从本地数据库获取资源 ID
+	// TODO: Debug 期使用
+	log.Debug(gormConditionedDB.Statement.SQL.String())
+	var localDBResourceIDs []string
+	gormConditionedDB.Table("documents").Select("id").Limit(pageSize).Offset(bookmarks.LocalDBBookmark).Find(&localDBResourceIDs)
+
+	// 若两个数据源得到的结果均为空，则直接返回
+	if len(chaincodeResourceIDs.ResourceIDs) == 0 && len(localDBResourceIDs) == 0 {
+		retBookmarks := &QueryBookmarks{
+			ChaincodeBookmark:           chaincodeResourceIDs.Bookmark,
+			ChaincodeEntriesNumConsumed: 0,
+			LocalDBBookmark:             0,
+		}
+		ret := &query.ResourceIDsWithPagination{
+			ResourceIDs: []string{},
+			Bookmark:    retBookmarks.ToBase64(),
+		}
+		return ret, nil
+	}
+
+	// 将两个数据源得到的结果按用户需求各自正序或倒序排列
+	if !conditions.IsReverse {
+		sort.Strings(chaincodeResourceIDs.ResourceIDs)
+		sort.Strings(localDBResourceIDs)
+	} else {
+		sort.Sort(sort.Reverse(sort.StringSlice(chaincodeResourceIDs.ResourceIDs)))
+		sort.Sort(sort.Reverse(sort.StringSlice(localDBResourceIDs)))
+	}
+
+	// 为两个数据源分别维护一个 `consumed` 变量，从一个数据源中取得一条就将相应变量 +1。
+	var resourceIDs []string
+	chaincodeSrcConsumed := bookmarks.ChaincodeEntriesNumConsumed
+	localSrcConsumed := 0
+
+	// 从两个来源采纳条目进结果列表。当结果列表的条目数量足够，或者两个来源均被遍历完，则停止这一过程
+	for len(resourceIDs) < pageSize && chaincodeSrcConsumed < len(chaincodeResourceIDs.ResourceIDs) && localSrcConsumed < len(localDBResourceIDs) {
+		// 按用户需求选择下一个条目。因为结果可能重复，在加入时若遇重复项，则只增对应的 `consumed` 变量，而将结果舍弃。
+		if !conditions.IsReverse {
+
+		}
+	}
 }
 
 func deriveExtensionsMapFromDocument(document *common.Document) map[string]string {
