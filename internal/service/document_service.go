@@ -927,12 +927,43 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	var resourceIDs []string
 	chaincodeSrcConsumed := bookmarks.ChaincodeEntriesNumConsumed
 	localSrcConsumed := 0
+	// 记录链码来源是否遍历结束。这与上面的 `consumed` 记录不同在于，链码来源可以用完再取，这个标志了它是否不再有新内容。
+	// 对于本地数据库来源不需要记录因为一次获取一定够用。
+	isChaincodeSrcOver := false
 
 	// 从两个来源采纳条目进结果列表。当结果列表的条目数量足够，或者两个来源均被遍历完，则停止这一过程
-	for len(resourceIDs) < pageSize && chaincodeSrcConsumed < len(chaincodeResourceIDs.ResourceIDs) && localSrcConsumed < len(localDBResourceIDs) {
-		// 按用户需求选择下一个条目。因为结果可能重复，在加入时若遇重复项，则只增对应的 `consumed` 变量，而将结果舍弃。
-		if !conditions.IsReverse {
+	for {
+		isChaincodeSrcLeft := chaincodeSrcConsumed < len(chaincodeResourceIDs.ResourceIDs)
+		isLocalSrcLeft := localSrcConsumed < len(localDBResourceIDs)
+		if isChaincodeSrcLeft && isLocalSrcLeft {
+			// 按用户需求选择下一个条目。因为结果可能重复，在加入时若遇重复项，则只增对应的 `consumed` 变量，而将结果舍弃。
+			if !conditions.IsReverse {
+				if chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed] <= localDBResourceIDs[localSrcConsumed] {
+					if len(resourceIDs) == 0 || chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed] != resourceIDs[len(resourceIDs)-1] {
+						resourceIDs = append(resourceIDs, chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed])
+					}
+					chaincodeSrcConsumed++
+				} else {
+					if len(resourceIDs) == 0 || localDBResourceIDs[localSrcConsumed] != resourceIDs[len(resourceIDs)-1] {
+						resourceIDs = append(resourceIDs, localDBResourceIDs[localSrcConsumed])
+					}
+					localSrcConsumed++
+				}
+			}
+		} else if isChaincodeSrcLeft {
+			// 链码来源有剩余，而本地数据库来源用完了。
+			// 进到这里说明结果列表没满，进而说明本地数据库本次取出不足 `pageSize` 个，本地数据库已遍历完毕。
+			// 那剩下的条目靠从链码来源的就可以了。
+			resourceIDs = append(resourceIDs, chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed])
+			chaincodeSrcConsumed++
+		} else if isLocalSrcLeft {
 
+		} else {
+
+		}
+
+		if len(resourceIDs) == pageSize {
+			break
 		}
 	}
 }
