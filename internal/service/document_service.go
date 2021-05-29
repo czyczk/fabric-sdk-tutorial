@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -874,11 +873,12 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	}
 
 	// 从链码获取资源 ID
+	lastChaincodeBookmark := bookmarks.ChaincodeBookmark // 避免上次调用时的链码书签被覆盖掉。如果本次取的没有被用完，则下次还要用这个值作书签。
 	chaincodeFcn := "listDocumentIDsByConditions"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), []byte(bookmarks.ChaincodeBookmark)},
+		Args:        [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), []byte(lastChaincodeBookmark)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
@@ -914,14 +914,15 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 		return ret, nil
 	}
 
-	// 将两个数据源得到的结果按用户需求各自正序或倒序排列
-	if !conditions.IsReverse {
-		sort.Strings(chaincodeResourceIDs.ResourceIDs)
-		sort.Strings(localDBResourceIDs)
-	} else {
-		sort.Sort(sort.Reverse(sort.StringSlice(chaincodeResourceIDs.ResourceIDs)))
-		sort.Sort(sort.Reverse(sort.StringSlice(localDBResourceIDs)))
-	}
+	// // 将两个数据源得到的结果按用户需求各自正序或倒序排列
+	// TODO: 应该是已排序的，验证成功后删除此段
+	// if !conditions.IsReverse {
+	// 	sort.Strings(chaincodeResourceIDs.ResourceIDs)
+	// 	sort.Strings(localDBResourceIDs)
+	// } else {
+	// 	sort.Sort(sort.Reverse(sort.StringSlice(chaincodeResourceIDs.ResourceIDs)))
+	// 	sort.Sort(sort.Reverse(sort.StringSlice(localDBResourceIDs)))
+	// }
 
 	// 为两个数据源分别维护一个 `consumed` 变量，从一个数据源中取得一条就将相应变量 +1。
 	var resourceIDs []string
@@ -931,7 +932,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	// 对于本地数据库来源不需要记录因为一次获取一定够用。
 	isChaincodeSrcOver := false
 
-	// 从两个来源采纳条目进结果列表。当结果列表的条目数量足够，或者两个来源均被遍历完，则停止这一过程
+	// 从两个来源采纳条目进结果列表。当结果列表的条目数量足够，或者两个来源均被遍历完（意为不再有新内容），则停止这一过程
 	for {
 		isChaincodeSrcLeft := chaincodeSrcConsumed < len(chaincodeResourceIDs.ResourceIDs)
 		isLocalSrcLeft := localSrcConsumed < len(localDBResourceIDs)
@@ -956,16 +957,88 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 			// 那剩下的条目靠从链码来源的就可以了。
 			resourceIDs = append(resourceIDs, chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed])
 			chaincodeSrcConsumed++
-		} else if isLocalSrcLeft {
-
 		} else {
+			// 链码来源用完了，结果列表没满则如果链码来源可能有新内容，则需再取
+			if !isChaincodeSrcOver {
+				lastChaincodeBookmark = chaincodeResourceIDs.Bookmark // 备份上次的链码书签
+				channelReq = channel.Request{
+					ChaincodeID: s.ServiceInfo.ChaincodeID,
+					Fcn:         chaincodeFcn,
+					Args:        [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), []byte(lastChaincodeBookmark)},
+				}
 
+				resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
+				err = GetClassifiedError(chaincodeFcn, err)
+				if err != nil {
+					return nil, err
+				}
+
+				// 这里将包含查询后的新书签信息。稍后应根据此次查询的内容是否被用完来决定使用旧书签还是新书签。
+				chaincodeResourceIDs = query.ResourceIDsWithPagination{}
+				err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
+				if err != nil {
+					return nil, errors.Wrap(err, "无法解析结果列表")
+				}
+
+				// 重置链码来源消耗数
+				chaincodeSrcConsumed = 0
+
+				// 若重取的结果为空，则链码来源不再有新内容
+				if len(chaincodeResourceIDs.ResourceIDs) == 0 {
+					isChaincodeSrcOver = true
+					continue
+				}
+			} else {
+				if isLocalSrcLeft {
+					// 链码来源不再有新内容，本地来源有剩余，那剩下的份额用本地数据库的填充即可
+					if len(resourceIDs) == 0 || localDBResourceIDs[len(localDBResourceIDs)-1] != resourceIDs[len(resourceIDs)-1] {
+						resourceIDs = append(resourceIDs, localDBResourceIDs[len(localDBResourceIDs)-1])
+					}
+					localSrcConsumed++
+				} else {
+					// 链码来源不再有新内容，本地来源也用完了。
+					// 进行到这里说明结果列表未满 `pageSize` 个，则必然本地来源取得不足 `pageSize` 个，也不会再有新内容
+					// 两个来源都不会有新内容，结束循环
+					break
+				}
+			}
 		}
 
+		// 结果列表达到 `pageSize` 个，则可结束循环
 		if len(resourceIDs) == pageSize {
 			break
 		}
 	}
+
+	// 如果任意源未被用完，则应跳过重复项以免下次被取到
+	if len(resourceIDs) > 0 {
+		if chaincodeSrcConsumed < len(chaincodeResourceIDs.ResourceIDs) && chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed] == resourceIDs[len(resourceIDs)-1] {
+			chaincodeSrcConsumed++
+		}
+
+		if localSrcConsumed < len(localDBResourceIDs) && localDBResourceIDs[localSrcConsumed] == resourceIDs[len(resourceIDs)-1] {
+			localSrcConsumed++
+		}
+	}
+
+	// 返回的书签中，本地数据库的 offset 是上次的 offset + 这次 consumed 数量。链码来源的书签则要看最后一次取的是否被用完。
+	retBookmark := QueryBookmarks{
+		ChaincodeBookmark:           lastChaincodeBookmark,
+		ChaincodeEntriesNumConsumed: chaincodeSrcConsumed,
+		LocalDBBookmark:             bookmarks.LocalDBBookmark + localSrcConsumed,
+	}
+
+	if chaincodeSrcConsumed == len(chaincodeResourceIDs.ResourceIDs) {
+		retBookmark.ChaincodeBookmark = chaincodeResourceIDs.Bookmark
+		retBookmark.ChaincodeEntriesNumConsumed = 0
+	}
+
+	ret := &query.ResourceIDsWithPagination{
+		ResourceIDs: resourceIDs,
+		Bookmark:    retBookmark.ToBase64(),
+	}
+
+	return ret, nil
 }
 
 func deriveExtensionsMapFromDocument(document *common.Document) map[string]string {
