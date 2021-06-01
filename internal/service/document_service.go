@@ -863,6 +863,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	if err != nil {
 		return nil, errors.Wrap(err, "无法序列化查询条件")
 	}
+	fmt.Println(string(couchDBConditionsBytes))
 
 	// 生成 GORM 可用的带查询条件的 DB 对象
 	gormConditionedDB, err := conditions.ToGormConditionedDB(s.ServiceInfo.DB)
@@ -1046,6 +1047,9 @@ func deriveExtensionsMapFromDocument(document *common.Document) map[string]strin
 	extensions["dataType"] = "document"
 	if document.IsNamePublic {
 		extensions["name"] = document.Name
+	}
+	if document.IsTypePublic {
+		extensions["documentType"] = document.Type.String()
 	}
 	if document.IsPrecedingDocumentIDPublic {
 		extensions["precedingDocumentID"] = document.PrecedingDocumentID

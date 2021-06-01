@@ -41,14 +41,10 @@ func (uc *UniversalCC) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 		return uc.getKey(stub, args)
 	case "getPolicy":
 		return uc.getPolicy(stub, args)
-	case "linkEntityIDWithDocumentID":
-		return uc.linkEntityIDWithDocumentID(stub, args)
-	case "listDocumentIDsByEntityID":
-		return uc.listDocumentIDsByEntityID(stub, args)
 	case "listDocumentIDsByCreator":
 		return uc.listDocumentIDsByCreator(stub, args)
-	case "listDocumentIDsByPartialName":
-		return uc.listDocumentIDsByPartialName(stub, args)
+	case "listDocumentIDsByConditions":
+		return uc.listDocumentIDsByConditions(stub, args)
 	// auth.go
 	case "createAuthRequest":
 		return uc.createAuthRequest(stub, args)

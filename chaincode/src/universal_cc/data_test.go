@@ -667,109 +667,109 @@ func TestGetPolicyWithNonExistentID(t *testing.T) {
 	expectStringEndsWith(t, errorcode.CodeNotFound, resp.Message)
 }
 
-func TestLinkEntityIDWithDocumentID(t *testing.T) {
-	stub := createMockStub(t, "TestLinkEntityIDWithDocumentID")
-	_ = initChaincode(stub, [][]byte{})
-
-	// Prepare the args
-	asset := getSamplePlainData1()
-	doc2 := getSamplePlainData2()
-	doc3 := getSamplePlainData3()
-
-	assetBytes, _ := json.Marshal(asset)
-	doc2Bytes, _ := json.Marshal(doc2)
-	doc3Bytes, _ := json.Marshal(doc3)
-
-	// Invoke to upload the data and expect the response status to be OK
-	targetFunction := "createPlainData"
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), assetBytes})
-	expectResponseStatusOK(t, &resp)
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
-	expectResponseStatusOK(t, &resp)
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc3Bytes})
-	expectResponseStatusOK(t, &resp)
-
-	targetFunction = "linkEntityIDWithDocumentID"
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID)})
-	expectResponseStatusOK(t, &resp)
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc3.Metadata.ResourceID)})
-	expectResponseStatusOK(t, &resp)
-
-	// Query the composite key and expect to get 2 entries with values of the resource IDs we've just linked to
-	expectedResourceIDs := make(map[string]bool)
-	expectedResourceIDs[doc2.Metadata.ResourceID] = true
-	expectedResourceIDs[doc3.Metadata.ResourceID] = true
-
-	ckObjectType := "entityid~documentid"
-	it, err := stub.GetStateByPartialCompositeKey(ckObjectType, []string{asset.Metadata.ResourceID})
-	expectNil(t, err)
-
-	defer it.Close()
-
-	resourceIDs := []string{}
-	for it.HasNext() {
-		entry, err := it.Next()
-		expectNil(t, err)
-
-		_, ckParts, err := stub.SplitCompositeKey(entry.Key)
-		expectNil(t, err)
-
-		resourceIDs = append(resourceIDs, ckParts[1])
-	}
-
-	expectEqual(t, len(expectedResourceIDs), len(resourceIDs))
-	for _, resourceID := range resourceIDs {
-		expectEqual(t, true, expectedResourceIDs[resourceID])
-	}
-}
-
-func TestLinkEntityIDWithDocumentIDWithExcessiveParameters(t *testing.T) {
-	stub := createMockStub(t, "TestLinkEntityIDWithDocumentIDWithExcessiveParameters")
-	_ = initChaincode(stub, [][]byte{})
-
-	// Prepare the args
-	asset := getSamplePlainData1()
-	doc2 := getSamplePlainData2()
-
-	// Invoke to upload the data and expect the response status to be OK
-	targetFunction := "linkEntityIDWithDocumentID"
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID), []byte("EXCESSIVE PARAMETER")})
-	expectResponseStatusERROR(t, &resp)
-}
-
-func TestLinkEntityIDWithDocumentIDWithNonExistentEntityID(t *testing.T) {
-	stub := createMockStub(t, "TestLinkEntityIDWithDocumentIDWithNonExistentEntityID")
-	_ = initChaincode(stub, [][]byte{})
-
-	// Prepare the args
-	asset := getSamplePlainData1()
-	doc2 := getSamplePlainData2()
-
-	assetBytes, _ := json.Marshal(asset)
-	doc2Bytes, _ := json.Marshal(doc2)
-
-	// Invoke to upload the data and expect the response status to be OK
-	targetFunction := "createPlainData"
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), assetBytes})
-	expectResponseStatusOK(t, &resp)
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
-	expectResponseStatusOK(t, &resp)
-
-	targetFunction = "linkEntityIDWithDocumentID"
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID)})
-	expectResponseStatusOK(t, &resp)
-
-	// Check with a non-existent entity ID and expect the results to be empty
-	doc3 := getSamplePlainData3()
-
-	ckObjectType := "entityid~documentid"
-	it, err := stub.GetStateByPartialCompositeKey(ckObjectType, []string{doc3.Metadata.ResourceID})
-	expectNil(t, err)
-
-	defer it.Close()
-
-	expectEqual(t, false, it.HasNext())
-}
+//func TestLinkEntityIDWithDocumentID(t *testing.T) {
+//	stub := createMockStub(t, "TestLinkEntityIDWithDocumentID")
+//	_ = initChaincode(stub, [][]byte{})
+//
+//	// Prepare the args
+//	asset := getSamplePlainData1()
+//	doc2 := getSamplePlainData2()
+//	doc3 := getSamplePlainData3()
+//
+//	assetBytes, _ := json.Marshal(asset)
+//	doc2Bytes, _ := json.Marshal(doc2)
+//	doc3Bytes, _ := json.Marshal(doc3)
+//
+//	// Invoke to upload the data and expect the response status to be OK
+//	targetFunction := "createPlainData"
+//	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), assetBytes})
+//	expectResponseStatusOK(t, &resp)
+//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
+//	expectResponseStatusOK(t, &resp)
+//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc3Bytes})
+//	expectResponseStatusOK(t, &resp)
+//
+//	targetFunction = "linkEntityIDWithDocumentID"
+//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID)})
+//	expectResponseStatusOK(t, &resp)
+//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc3.Metadata.ResourceID)})
+//	expectResponseStatusOK(t, &resp)
+//
+//	// Query the composite key and expect to get 2 entries with values of the resource IDs we've just linked to
+//	expectedResourceIDs := make(map[string]bool)
+//	expectedResourceIDs[doc2.Metadata.ResourceID] = true
+//	expectedResourceIDs[doc3.Metadata.ResourceID] = true
+//
+//	ckObjectType := "entityid~documentid"
+//	it, err := stub.GetStateByPartialCompositeKey(ckObjectType, []string{asset.Metadata.ResourceID})
+//	expectNil(t, err)
+//
+//	defer it.Close()
+//
+//	resourceIDs := []string{}
+//	for it.HasNext() {
+//		entry, err := it.Next()
+//		expectNil(t, err)
+//
+//		_, ckParts, err := stub.SplitCompositeKey(entry.Key)
+//		expectNil(t, err)
+//
+//		resourceIDs = append(resourceIDs, ckParts[1])
+//	}
+//
+//	expectEqual(t, len(expectedResourceIDs), len(resourceIDs))
+//	for _, resourceID := range resourceIDs {
+//		expectEqual(t, true, expectedResourceIDs[resourceID])
+//	}
+//}
+//
+//func TestLinkEntityIDWithDocumentIDWithExcessiveParameters(t *testing.T) {
+//	stub := createMockStub(t, "TestLinkEntityIDWithDocumentIDWithExcessiveParameters")
+//	_ = initChaincode(stub, [][]byte{})
+//
+//	// Prepare the args
+//	asset := getSamplePlainData1()
+//	doc2 := getSamplePlainData2()
+//
+//	// Invoke to upload the data and expect the response status to be OK
+//	targetFunction := "linkEntityIDWithDocumentID"
+//	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID), []byte("EXCESSIVE PARAMETER")})
+//	expectResponseStatusERROR(t, &resp)
+//}
+//
+//func TestLinkEntityIDWithDocumentIDWithNonExistentEntityID(t *testing.T) {
+//	stub := createMockStub(t, "TestLinkEntityIDWithDocumentIDWithNonExistentEntityID")
+//	_ = initChaincode(stub, [][]byte{})
+//
+//	// Prepare the args
+//	asset := getSamplePlainData1()
+//	doc2 := getSamplePlainData2()
+//
+//	assetBytes, _ := json.Marshal(asset)
+//	doc2Bytes, _ := json.Marshal(doc2)
+//
+//	// Invoke to upload the data and expect the response status to be OK
+//	targetFunction := "createPlainData"
+//	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), assetBytes})
+//	expectResponseStatusOK(t, &resp)
+//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
+//	expectResponseStatusOK(t, &resp)
+//
+//	targetFunction = "linkEntityIDWithDocumentID"
+//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(asset.Metadata.ResourceID), []byte(doc2.Metadata.ResourceID)})
+//	expectResponseStatusOK(t, &resp)
+//
+//	// Check with a non-existent entity ID and expect the results to be empty
+//	doc3 := getSamplePlainData3()
+//
+//	ckObjectType := "entityid~documentid"
+//	it, err := stub.GetStateByPartialCompositeKey(ckObjectType, []string{doc3.Metadata.ResourceID})
+//	expectNil(t, err)
+//
+//	defer it.Close()
+//
+//	expectEqual(t, false, it.HasNext())
+//}
 
 //func TestListDocumentIDsByEntityID(t *testing.T) {
 //	stub := createMockStub(t, "TestLinkEntityIDWithDocumentID")
@@ -1070,6 +1070,7 @@ func getSampleOffchainData1() data.OffchainData {
 			Extensions:   extensionsMap,
 		},
 		Key: base64.StdEncoding.EncodeToString([]byte("123456")),
+		CID: "654321",
 		// TODO: 测试时填充
 		Policy: "Encryption strategy",
 	}
@@ -1093,6 +1094,7 @@ func getSampleOffchainData2() data.OffchainData {
 			Extensions:   extensionsMap,
 		},
 		Key: base64.StdEncoding.EncodeToString([]byte("123456")),
+		CID: "654321",
 		// TODO: 测试时填充
 		Policy: "Encryption strategy",
 	}

@@ -297,9 +297,8 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 
 		// Instantiate a document controller
 		documentController := &controller.DocumentController{
-			GroupName:      "/",
-			DocumentSvc:    documentSvc,
-			EntityAssetSvc: entityAssetSvc,
+			GroupName:   "/",
+			DocumentSvc: documentSvc,
 		}
 
 		// Instantiate a entity controller

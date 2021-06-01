@@ -3,6 +3,7 @@ package controller
 import (
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ParameterErrorList contains a list of human-readable errors about parameters.
@@ -95,4 +96,20 @@ func (pel *ParameterErrorList) AppendIfNotBool(str string, errMsg string) bool {
 	}
 
 	return boolResult
+}
+
+// AppendIfNotTime appends the error message specified if `str` does not represent a valid RFC3339 time.
+//
+// Parameters:
+//   the string to be checked
+//   the error message to append
+// Returns:
+//   the parsed time
+func (pel *ParameterErrorList) AppendIfNotTime(str string, errMsg string) time.Time {
+	timeResult, err := time.Parse(time.RFC3339, str)
+	if err != nil {
+		*pel = append(*pel, errMsg)
+	}
+
+	return timeResult
 }

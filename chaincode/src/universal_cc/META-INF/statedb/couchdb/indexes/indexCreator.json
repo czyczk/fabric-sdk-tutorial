@@ -1,0 +1,7 @@
+{
+	"index": {
+		"fields": ["extensions.dataType", "creator"]
+	},
+	"name": "indexCreator",
+	"type": "json"
+}

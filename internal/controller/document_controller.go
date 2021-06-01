@@ -1,16 +1,18 @@
 package controller
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/bwmarrin/snowflake"
@@ -21,9 +23,8 @@ import (
 
 // A DocumentController contains a group name and a `DocumentService` instance. It also implements the interface `Controller`.
 type DocumentController struct {
-	GroupName      string
-	DocumentSvc    service.DocumentServiceInterface
-	EntityAssetSvc service.EntityAssetServiceInterface
+	GroupName   string
+	DocumentSvc service.DocumentServiceInterface
 }
 
 // GetGroupName returns the group name.
@@ -314,15 +315,96 @@ func (c *DocumentController) handleGetDocument(ctx *gin.Context) {
 
 func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 	// Extract and check parameters
-	name := strings.TrimSpace(ctx.Query("name"))
-	entityAssetID := strings.TrimSpace(ctx.Query("entityAssetID"))
-	pageSizeStr := ctx.Query("pageSize")
-	bookmark := processBase64FromURLQuery(ctx.Query("bookmark"))
-
 	pel := &ParameterErrorList{}
+	var err error
+
+	// Theses fields have their default values if not specified
+	pageSizeStr := ctx.Query("pageSize")
 	pageSize := 10
 	if strings.TrimSpace(pageSizeStr) != "" {
 		pageSize = pel.AppendIfNotPositiveInt(pageSizeStr, "分页大小应为正整数。")
+	}
+
+	bookmarks := service.QueryBookmarks{}
+	bookmarksBase64 := processBase64FromURLQuery(ctx.Query("bookmarks"))
+	if bookmarksBase64 != "" {
+		bookmarksBytes, err := base64.StdEncoding.DecodeString(bookmarksBase64)
+		if err != nil {
+			*pel = append(*pel, "无法解析书签字段。")
+		}
+		var bookmarks service.QueryBookmarks
+		err = json.Unmarshal([]byte(bookmarksBytes), &bookmarks)
+		if err != nil {
+			*pel = append(*pel, "无法解析书签字段。")
+		}
+	}
+
+	isLatestFirst := true
+	isLatestFirstStr := ctx.Query("isLatestFirst")
+	if isLatestFirstStr != "" {
+		isLatestFirst = pel.AppendIfNotBool(isLatestFirstStr, "最新于最前选项必须为 bool 值。")
+	}
+
+	// Optional fields
+	var resourceID *string
+	if temp := strings.TrimSpace(ctx.Query("resourceID")); temp != "" {
+		resourceID = &temp
+	}
+
+	var isNameExact *bool
+	if temp := strings.TrimSpace(ctx.Query("isNameExact")); temp != "" {
+		tempBool := pel.AppendIfNotBool(temp, "是否为精确名称选项必须为 bool 值。")
+		isNameExact = &tempBool
+	}
+	var name *string
+	if temp := strings.TrimSpace(ctx.Query("name")); temp != "" {
+		name = &temp
+	}
+
+	var isTimeExact *bool
+	if temp := strings.TrimSpace(ctx.Query("isTimeExact")); temp != "" {
+		tempBool := pel.AppendIfNotBool(temp, "是否为精确时间选项必须为 bool 值。")
+		isTimeExact = &tempBool
+	}
+	var exactTime *time.Time
+	if temp := strings.TrimSpace(ctx.Query("time")); temp != "" {
+		tempTime := pel.AppendIfNotTime(temp, "时间应为合法的 RFC3339 格式。")
+		exactTime = &tempTime
+	}
+	var timeAfterInclusive *time.Time
+	if temp := strings.TrimSpace(ctx.Query("timeAfterInclusive")); temp != "" {
+		tempTime := pel.AppendIfNotTime(temp, "开始时间应为合法的 RFC3339 格式。")
+		timeAfterInclusive = &tempTime
+	}
+	var timeBeforeExclusive *time.Time
+	if temp := strings.TrimSpace(ctx.Query("timeBeforeExclusive")); temp != "" {
+		tempTime := pel.AppendIfNotTime(temp, "结束时间应为合法的 RFC3339 格式。")
+		timeBeforeExclusive = &tempTime
+	}
+
+	var documentType *common.DocumentType
+	if temp := strings.TrimSpace(ctx.Query("documentType")); temp != "" {
+		tempDocumentType, err := common.NewDocumentTypeFromString(temp)
+		if err != nil {
+			*pel = append(*pel, "文档类型不合法。")
+		} else {
+			documentType = &tempDocumentType
+		}
+	}
+
+	var precedingDocumentID *string
+	if temp := strings.TrimSpace(ctx.Query("precedingDocumentID")); temp != "" {
+		precedingDocumentID = &temp
+	}
+
+	var headDocumentID *string
+	if temp := strings.TrimSpace(ctx.Query("headDocumentID")); temp != "" {
+		headDocumentID = &temp
+	}
+
+	var entityAssetID *string
+	if temp := strings.TrimSpace(ctx.Query("entityAssetID")); temp != "" {
+		entityAssetID = &temp
 	}
 
 	// Early return if the error list is not empty
@@ -331,18 +413,26 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 		return
 	}
 
-	var resourceIDs *query.ResourceIDsWithPagination
-	var err error
-	if len(name) > 0 {
-		// ListDocumentIDsByPartialName
-		resourceIDs, err = c.DocumentSvc.ListDocumentIDsByPartialName(name, pageSize, bookmark)
-	} else if len(entityAssetID) > 0 {
-		// ListDocumentIDsByEntityID
-		resourceIDs, err = c.EntityAssetSvc.ListDocumentIDsByEntityID(entityAssetID, pageSize, bookmark)
-	} else {
-		ctx.AbortWithStatusJSON(http.StatusBadRequest, "name 和 entityAssetID 不能同时为空。")
-		return
+	// Encapsulate the query conditions into a struct
+	queryConditions := service.DocumentQueryConditions{
+		CommonQueryConditions: service.CommonQueryConditions{
+			IsReverse:           isLatestFirst,
+			ResourceID:          resourceID,
+			IsNameExact:         isNameExact,
+			Name:                name,
+			IsTimeExact:         isTimeExact,
+			Time:                exactTime,
+			TimeAfterInclusive:  timeAfterInclusive,
+			TimeBeforeExclusive: timeBeforeExclusive,
+		},
+		DocumentType:        documentType,
+		PrecedingDocumentID: precedingDocumentID,
+		HeadDocumentID:      headDocumentID,
+		EntityAssetID:       entityAssetID,
 	}
+
+	// Perform the query using the service function
+	resourceIDs, err := c.DocumentSvc.ListDocumentIDsByConditions(queryConditions, pageSize, bookmarks)
 
 	// Check error type and generate the corresponding response
 	if err == nil {

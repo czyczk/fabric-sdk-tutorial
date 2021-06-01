@@ -1,0 +1,7 @@
+{
+	"index": {
+		"fields": ["resourceID", "extensions.dataType"]
+	},
+	"name": "indexPrimaryKeys",
+	"type": "json"
+}

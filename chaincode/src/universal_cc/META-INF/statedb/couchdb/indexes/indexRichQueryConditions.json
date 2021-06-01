@@ -1,0 +1,7 @@
+{
+	"index": {
+		"fields": ["resourceID", "extensions.dataType", "timestamp", "extensions.name", "extensions.documentType", "extensions.precedingDocumentID", "extensions.headDocumentID", "extensions.entityAssetID"]
+	},
+	"name": "indexRichQueryConditions",
+	"type": "json"
+}
