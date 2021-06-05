@@ -9,6 +9,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/auth"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-protos-go/peer"
 )
@@ -286,7 +287,7 @@ func (uc *UniversalCC) listPendingAuthSessionIDsByResourceCreator(stub shim.Chai
 
 	// args = [pageSize int32, bookmark string]
 	pageSizeStr := args[0]
-	bookmark := args[1]
+	bookmarkAsBase64 := args[1]
 
 	pageSize, err := strconv.Atoi(pageSizeStr)
 	if err != nil {
@@ -296,15 +297,22 @@ func (uc *UniversalCC) listPendingAuthSessionIDsByResourceCreator(stub shim.Chai
 		return shim.Error(fmt.Sprintf("参数 pageSize 值为 %v。应为正整数", pageSizeStr))
 	}
 
+	bookmarkBytes, err := base64.StdEncoding.DecodeString(bookmarkAsBase64)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析书签: %v", err))
+	}
+	bookmark := string(bookmarkBytes)
+
 	// 获取调用者信息
 	creator, err := getPKDERFromStub(stub)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法获取调用者信息: %v", err))
 	}
+	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
 
 	// 提供 creator 项以获取迭代器
 	indexName := "resourcecreator~authsessionid"
-	it, _, err := stub.GetStateByPartialCompositeKeyWithPagination(indexName, []string{string(creator)}, int32(pageSize), bookmark)
+	it, respMetadata, err := stub.GetStateByPartialCompositeKeyWithPagination(indexName, []string{creatorAsBase64}, int32(pageSize), bookmark)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", indexName, err))
 	}
@@ -326,10 +334,14 @@ func (uc *UniversalCC) listPendingAuthSessionIDsByResourceCreator(stub shim.Chai
 	}
 
 	// 序列化结果
-	authSessionIDsAsBytes, err := json.Marshal(authSessionIDs)
+	paginationResult := query.ResourceIDsWithPagination{
+		ResourceIDs: authSessionIDs,
+		Bookmark:    base64.StdEncoding.EncodeToString([]byte(respMetadata.Bookmark)),
+	}
+	paginationResultAsBytes, err := json.Marshal(paginationResult)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法序列化结果列表: %v", err))
 	}
 
-	return shim.Success(authSessionIDsAsBytes)
+	return shim.Success(paginationResultAsBytes)
 }
