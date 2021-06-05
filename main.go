@@ -323,6 +323,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		identityController := &controller.IdentityController{
 			GroupName:   "/identity",
 			DocumentSvc: documentSvc,
+			AuthSvc:     authSvc,
 			IdentitySvc: identitySvc,
 		}
 
