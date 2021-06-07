@@ -115,7 +115,7 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 
 	// name~resourceid 绑定元数据中 name 字段与资源 ID
 	extensionsMap := plainData.Metadata.Extensions
-	name, ok := extensionsMap["name"]
+	name, ok := extensionsMap["name"].(string)
 	if ok {
 		ckObjectType = "name~resourceid"
 		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
@@ -247,7 +247,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 
 	// name~resourceid 绑定元数据中 name 字段与资源 ID（仅当 name 字段可用时绑定）
 	extensionsMap := encryptedData.Metadata.Extensions
-	name, ok := extensionsMap["name"]
+	name, ok := extensionsMap["name"].(string)
 	if ok {
 		ckObjectType = "name~resourceid"
 		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
@@ -380,7 +380,7 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 
 	// name~resourceid 绑定元数据中 name 字段与资源 ID（仅当 name 字段可用时绑定）
 	extensionsMap := offchainData.Metadata.Extensions
-	name, ok := extensionsMap["name"]
+	name, ok := extensionsMap["name"].(string)
 	if ok {
 		ckObjectType = "name~resourceid"
 		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
@@ -645,9 +645,9 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 	}
 
 	// 序列化结果列表并返回
-	paginationResult := query.ResourceIDsWithPagination{
-		ResourceIDs: resourceIDs,
-		Bookmark:    base64.StdEncoding.EncodeToString([]byte(respMetadata.Bookmark)),
+	paginationResult := query.IDsWithPagination{
+		IDs:      resourceIDs,
+		Bookmark: base64.StdEncoding.EncodeToString([]byte(respMetadata.Bookmark)),
 	}
 	paginationResultAsBytes, err := json.Marshal(paginationResult)
 	if err != nil {
@@ -795,9 +795,9 @@ func (uc *UniversalCC) listDocumentIDsByConditions(stub shim.ChaincodeStubInterf
 	returnedBookmark := respMetadata.Bookmark
 
 	// 序列化结果并返回
-	result := query.ResourceIDsWithPagination{
-		ResourceIDs: resourceIDs,
-		Bookmark:    base64.StdEncoding.EncodeToString([]byte(returnedBookmark)),
+	result := query.IDsWithPagination{
+		IDs:      resourceIDs,
+		Bookmark: base64.StdEncoding.EncodeToString([]byte(returnedBookmark)),
 	}
 	resultAsBytes, err := json.Marshal(result)
 	if err != nil {

@@ -942,7 +942,7 @@ func TestListDocumentIDsByPartialNameWithExcessiveParameters(t *testing.T) {
 // 内容: base64(data1)
 func getSamplePlainData1() data.PlainData {
 	hashBytes := sha256.Sum256([]byte(data1))
-	extensionsMap := make(map[string]string)
+	extensionsMap := make(map[string]interface{})
 	extensionsMap["dataType"] = "document"
 	extensionsMap["name"] = "Sample PlainData 1"
 
@@ -964,7 +964,7 @@ func getSamplePlainData1() data.PlainData {
 // 内容: base64(data2)
 func getSamplePlainData2() data.PlainData {
 	hashBytes := sha256.Sum256([]byte(data2))
-	extensionsMap := make(map[string]string)
+	extensionsMap := make(map[string]interface{})
 	extensionsMap["dataType"] = "document"
 	extensionsMap["name"] = "示例明文数据2"
 
@@ -986,7 +986,7 @@ func getSamplePlainData2() data.PlainData {
 // 内容: base64(data3)
 func getSamplePlainData3() data.PlainData {
 	hashBytes := sha256.Sum256([]byte(data3))
-	extensionsMap := make(map[string]string)
+	extensionsMap := make(map[string]interface{})
 	extensionsMap["dataType"] = "document"
 	extensionsMap["name"] = "示例明文数据3"
 
@@ -1008,7 +1008,7 @@ func getSamplePlainData3() data.PlainData {
 // 内容：base64(encrypt(data1))
 func getSampleEncryptedData1() data.EncryptedData {
 	hashBytes := sha256.Sum256([]byte(data1))
-	extensionsMap := make(map[string]string)
+	extensionsMap := make(map[string]interface{})
 	extensionsMap["dataType"] = "document"
 	extensionsMap["name"] = "Sample Encrypted Data 1"
 
@@ -1033,7 +1033,7 @@ func getSampleEncryptedData1() data.EncryptedData {
 // 内容：base64(encrypt(data2))
 func getSampleEncryptedData2() data.EncryptedData {
 	hashBytes := sha256.Sum256([]byte(data2))
-	extensionsMap := make(map[string]string)
+	extensionsMap := make(map[string]interface{})
 	extensionsMap["dataType"] = "document"
 	extensionsMap["name"] = "示例加密数据2"
 
@@ -1057,7 +1057,7 @@ func getSampleEncryptedData2() data.EncryptedData {
 // 名称: "Sample Offchain Data 1"
 func getSampleOffchainData1() data.OffchainData {
 	hashBytes := sha256.Sum256([]byte(data1))
-	extensionsMap := make(map[string]string)
+	extensionsMap := make(map[string]interface{})
 	extensionsMap["dataType"] = "document"
 	extensionsMap["name"] = "Sample Offchain Data 1"
 
@@ -1081,7 +1081,7 @@ func getSampleOffchainData1() data.OffchainData {
 // 名称: "示例链下数据2"
 func getSampleOffchainData2() data.OffchainData {
 	hashBytes := sha256.Sum256([]byte(data2))
-	extensionsMap := make(map[string]string)
+	extensionsMap := make(map[string]interface{})
 	extensionsMap["dataType"] = "document"
 	extensionsMap["name"] = "示例链下数据2"
 

@@ -101,7 +101,7 @@ type DocumentServiceInterface interface {
 	//
 	// 返回：
 	//   带分页的资源 ID 列表
-	ListDocumentIDsByCreator(pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error)
+	ListDocumentIDsByCreator(pageSize int, bookmark string) (*query.IDsWithPagination, error)
 
 	// ListDocumentIDsByConditions 获取满足所提供的搜索条件的数字文档的资源 ID。
 	//
@@ -112,5 +112,5 @@ type DocumentServiceInterface interface {
 	//
 	// 返回：
 	//   带分页的资源 ID 列表
-	ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks) (*query.ResourceIDsWithPagination, error)
+	ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks) (*query.IDsWithPagination, error)
 }

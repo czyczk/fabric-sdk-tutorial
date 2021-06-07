@@ -1,0 +1,7 @@
+{
+	"index": {
+		"fields": ["timestamp"]
+	},
+	"name": "indexSortTimestamp",
+	"type": "json"
+}

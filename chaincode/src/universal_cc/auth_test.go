@@ -446,29 +446,49 @@ func TestGetAuthRequestWithNonExistentSessionID(t *testing.T) {
 }
 
 func getSampleAuthRequest1(resourceID string) auth.AuthRequest {
+	extensionMap := map[string]interface{}{
+		"dataType": "authRequest",
+		"name":     "sampleAuthRequest1",
+	}
+
 	return auth.AuthRequest{
 		ResourceID: resourceID,
-		Extensions: "{\"name\":\"exampleAuthRequest1\"}",
+		Extensions: extensionMap,
 	}
 }
 
 func getSampleAuthRequest2(resourceID string) auth.AuthRequest {
+	extensionMap := map[string]interface{}{
+		"dataType": "authRequest",
+		"name":     "sampleAuthRequest2",
+	}
+
 	return auth.AuthRequest{
 		ResourceID: resourceID,
-		Extensions: "{\"name\":\"exampleAuthRequest2\"}",
+		Extensions: extensionMap,
 	}
 }
 
 func getSampleAuthResponse1() auth.AuthResponse {
+	extensionMap := map[string]interface{}{
+		"dataType": "authResponse",
+	}
+
 	return auth.AuthResponse{
 		AuthSessionID: "1",
 		Result:        true,
+		Extensions:    extensionMap,
 	}
 }
 
 func getSampleAuthResponse2() auth.AuthResponse {
+	extensionMap := map[string]interface{}{
+		"dataType": "authResponse",
+	}
+
 	return auth.AuthResponse{
 		AuthSessionID: "2",
 		Result:        false,
+		Extensions:    extensionMap,
 	}
 }

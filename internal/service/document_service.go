@@ -752,7 +752,7 @@ func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.R
 //
 // 返回：
 //   带分页的资源 ID 列表
-func (s *DocumentService) ListDocumentIDsByCreator(pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error) {
+func (s *DocumentService) ListDocumentIDsByCreator(pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// 调用 listDocumentIDsByCreator 拿到一个 ID 列表
 	chaincodeFcn := "listDocumentIDsByCreator"
 	channelReq := channel.Request{
@@ -767,7 +767,7 @@ func (s *DocumentService) ListDocumentIDsByCreator(pageSize int, bookmark string
 		return nil, err
 	}
 
-	var resourceIDs query.ResourceIDsWithPagination
+	var resourceIDs query.IDsWithPagination
 	err = json.Unmarshal(resp.Payload, &resourceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析结果列表")
@@ -786,7 +786,7 @@ func (s *DocumentService) ListDocumentIDsByCreator(pageSize int, bookmark string
 //
 // 返回：
 //   带分页的资源 ID 列表
-func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageSize int, bookmark string) (*query.ResourceIDsWithPagination, error) {
+func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// 调用 listDocumentIDsByPartialName 拿到一个 ID 列表
 	chaincodeFcn := "listDocumentIDsByPartialName"
 	channelReq := channel.Request{
@@ -801,7 +801,7 @@ func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageS
 		return nil, err
 	}
 
-	var resourceIDs query.ResourceIDsWithPagination
+	var resourceIDs query.IDsWithPagination
 	err = json.Unmarshal(resp.Payload, &resourceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析结果列表")
@@ -819,7 +819,7 @@ func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageS
 //
 // 返回：
 //   带分页的资源 ID 列表
-func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks) (*query.ResourceIDsWithPagination, error) {
+func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks) (*query.IDsWithPagination, error) {
 	// 从两处获取资源 ID。
 	// 第一是调用链码从链上获取，这部分的结果包括 明文资源以及所查寻属性为公开的那部分资源 中符合条件的条目；
 	// 第二是从本地数据库中获取，这部分内容为 用户已解密过的资源 中符合条件的条目。
@@ -889,7 +889,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	}
 
 	// 这里将包含查询后的新书签信息。稍后应根据此次查询的内容是否被用完来决定使用旧书签还是新书签。
-	var chaincodeResourceIDs query.ResourceIDsWithPagination
+	var chaincodeResourceIDs query.IDsWithPagination
 	err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析结果列表")
@@ -902,15 +902,15 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	gormConditionedDB.Table("documents").Select("id").Limit(pageSize).Offset(bookmarks.LocalDBBookmark).Find(&localDBResourceIDs)
 
 	// 若两个数据源得到的结果均为空，则直接返回
-	if len(chaincodeResourceIDs.ResourceIDs) == 0 && len(localDBResourceIDs) == 0 {
+	if len(chaincodeResourceIDs.IDs) == 0 && len(localDBResourceIDs) == 0 {
 		retBookmarks := &QueryBookmarks{
 			ChaincodeBookmark:           chaincodeResourceIDs.Bookmark,
 			ChaincodeEntriesNumConsumed: 0,
 			LocalDBBookmark:             0,
 		}
-		ret := &query.ResourceIDsWithPagination{
-			ResourceIDs: []string{},
-			Bookmark:    retBookmarks.ToBase64(),
+		ret := &query.IDsWithPagination{
+			IDs:      []string{},
+			Bookmark: retBookmarks.ToBase64(),
 		}
 		return ret, nil
 	}
@@ -935,14 +935,14 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 
 	// 从两个来源采纳条目进结果列表。当结果列表的条目数量足够，或者两个来源均被遍历完（意为不再有新内容），则停止这一过程
 	for {
-		isChaincodeSrcLeft := chaincodeSrcConsumed < len(chaincodeResourceIDs.ResourceIDs)
+		isChaincodeSrcLeft := chaincodeSrcConsumed < len(chaincodeResourceIDs.IDs)
 		isLocalSrcLeft := localSrcConsumed < len(localDBResourceIDs)
 		if isChaincodeSrcLeft && isLocalSrcLeft {
 			// 按用户需求选择下一个条目。因为结果可能重复，在加入时若遇重复项，则只增对应的 `consumed` 变量，而将结果舍弃。
 			if !conditions.IsReverse {
-				if chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed] <= localDBResourceIDs[localSrcConsumed] {
-					if len(resourceIDs) == 0 || chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed] != resourceIDs[len(resourceIDs)-1] {
-						resourceIDs = append(resourceIDs, chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed])
+				if chaincodeResourceIDs.IDs[chaincodeSrcConsumed] <= localDBResourceIDs[localSrcConsumed] {
+					if len(resourceIDs) == 0 || chaincodeResourceIDs.IDs[chaincodeSrcConsumed] != resourceIDs[len(resourceIDs)-1] {
+						resourceIDs = append(resourceIDs, chaincodeResourceIDs.IDs[chaincodeSrcConsumed])
 					}
 					chaincodeSrcConsumed++
 				} else {
@@ -956,7 +956,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 			// 链码来源有剩余，而本地数据库来源用完了。
 			// 进到这里说明结果列表没满，进而说明本地数据库本次取出不足 `pageSize` 个，本地数据库已遍历完毕。
 			// 那剩下的条目靠从链码来源的就可以了。
-			resourceIDs = append(resourceIDs, chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed])
+			resourceIDs = append(resourceIDs, chaincodeResourceIDs.IDs[chaincodeSrcConsumed])
 			chaincodeSrcConsumed++
 		} else {
 			// 链码来源用完了，结果列表没满则如果链码来源可能有新内容，则需再取
@@ -975,7 +975,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 				}
 
 				// 这里将包含查询后的新书签信息。稍后应根据此次查询的内容是否被用完来决定使用旧书签还是新书签。
-				chaincodeResourceIDs = query.ResourceIDsWithPagination{}
+				chaincodeResourceIDs = query.IDsWithPagination{}
 				err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
 				if err != nil {
 					return nil, errors.Wrap(err, "无法解析结果列表")
@@ -985,7 +985,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 				chaincodeSrcConsumed = 0
 
 				// 若重取的结果为空，则链码来源不再有新内容
-				if len(chaincodeResourceIDs.ResourceIDs) == 0 {
+				if len(chaincodeResourceIDs.IDs) == 0 {
 					isChaincodeSrcOver = true
 					continue
 				}
@@ -1013,7 +1013,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 
 	// 如果任意源未被用完，则应跳过重复项以免下次被取到
 	if len(resourceIDs) > 0 {
-		if chaincodeSrcConsumed < len(chaincodeResourceIDs.ResourceIDs) && chaincodeResourceIDs.ResourceIDs[chaincodeSrcConsumed] == resourceIDs[len(resourceIDs)-1] {
+		if chaincodeSrcConsumed < len(chaincodeResourceIDs.IDs) && chaincodeResourceIDs.IDs[chaincodeSrcConsumed] == resourceIDs[len(resourceIDs)-1] {
 			chaincodeSrcConsumed++
 		}
 
@@ -1029,27 +1029,27 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 		LocalDBBookmark:             bookmarks.LocalDBBookmark + localSrcConsumed,
 	}
 
-	if chaincodeSrcConsumed == len(chaincodeResourceIDs.ResourceIDs) {
+	if chaincodeSrcConsumed == len(chaincodeResourceIDs.IDs) {
 		retBookmark.ChaincodeBookmark = chaincodeResourceIDs.Bookmark
 		retBookmark.ChaincodeEntriesNumConsumed = 0
 	}
 
-	ret := &query.ResourceIDsWithPagination{
-		ResourceIDs: resourceIDs,
-		Bookmark:    retBookmark.ToBase64(),
+	ret := &query.IDsWithPagination{
+		IDs:      resourceIDs,
+		Bookmark: retBookmark.ToBase64(),
 	}
 
 	return ret, nil
 }
 
-func deriveExtensionsMapFromDocument(document *common.Document) map[string]string {
-	extensions := make(map[string]string)
+func deriveExtensionsMapFromDocument(document *common.Document) map[string]interface{} {
+	extensions := make(map[string]interface{})
 	extensions["dataType"] = "document"
 	if document.IsNamePublic {
 		extensions["name"] = document.Name
 	}
 	if document.IsTypePublic {
-		extensions["documentType"] = document.Type.String()
+		extensions["documentType"] = document
 	}
 	if document.IsPrecedingDocumentIDPublic {
 		extensions["precedingDocumentID"] = document.PrecedingDocumentID

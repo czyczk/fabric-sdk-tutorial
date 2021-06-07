@@ -486,8 +486,8 @@ func (s *EntityAssetService) GetDecryptedEntityAssetFromDB(id string, metadata *
 	return asset, nil
 }
 
-func deriveExtensionsMapFromAsset(asset *common.EntityAsset) map[string]string {
-	extensions := make(map[string]string)
+func deriveExtensionsMapFromAsset(asset *common.EntityAsset) map[string]interface{} {
+	extensions := make(map[string]interface{})
 	extensions["dataType"] = "entityAsset"
 	if asset.IsNamePublic {
 		extensions["name"] = asset.Name

@@ -91,12 +91,17 @@ func (uc *UniversalCC) createKeySwitchTrigger(stub shim.ChaincodeStubInterface, 
 		}
 
 		// 如果 authSessionID 不为空值，则获取 AuthResponseStored，并解析成 JSON 对象。若批复不存在，则另外报错。
-		authResp := uc.getAuthResponseHelper(stub, []string{authSessionID})
-		if authResp.Payload == nil {
-			return shim.Error("该授权会话申请未得到批复")
+		authResp, err := uc.getAuthResponseHelper(stub, authSessionID)
+		if err != nil {
+			if err == errorcode.ErrorNotFound {
+				return shim.Error("该授权会话申请未得到批复")
+			} else {
+				return shim.Error(err.Error())
+			}
 		}
+
 		var authResponseStored auth.AuthResponseStored
-		err = json.Unmarshal(authResp.Payload, &authResponseStored)
+		err = json.Unmarshal(authResp, &authResponseStored)
 		if err != nil {
 			return shim.Error(fmt.Sprintf("AuthResponseStored 无法解析成 JSON 对象: %v", err))
 		}

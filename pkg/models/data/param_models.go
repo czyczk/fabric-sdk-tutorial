@@ -47,11 +47,11 @@ func NewResourceTypeFromString(enumString string) (ret ResourceType, err error) 
 
 // ResMetadata 包含要传入链码的资源的元数据
 type ResMetadata struct {
-	ResourceType ResourceType      `json:"resourceType"` // 资源加密类别
-	ResourceID   string            `json:"resourceID"`   // 资源 ID
-	Hash         string            `json:"hash"`         // 资源的明文该有的哈希值（SHA256）（[32]byte 的 Base64 编码）
-	Size         uint64            `json:"size"`         // 资源的明文该有的大小
-	Extensions   map[string]string `json:"extensions"`   // 扩展字段
+	ResourceType ResourceType           `json:"resourceType"` // 资源加密类别
+	ResourceID   string                 `json:"resourceID"`   // 资源 ID
+	Hash         string                 `json:"hash"`         // 资源的明文该有的哈希值（SHA256）（[32]byte 的 Base64 编码）
+	Size         uint64                 `json:"size"`         // 资源的明文该有的大小
+	Extensions   map[string]interface{} `json:"extensions"`   // 扩展字段
 }
 
 // PlainData 用于表示要传入链码的明文资源

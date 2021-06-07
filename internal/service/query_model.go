@@ -171,7 +171,7 @@ func (c *DocumentQueryConditions) ToCouchDBConditions() (conditions map[string]i
 	conditions["selector"].(map[string]interface{})["extensions.dataType"] = "document"
 
 	if c.DocumentType != nil {
-		conditions["selector"].(map[string]interface{})["extensions.documentType"] = c.DocumentType.String()
+		conditions["selector"].(map[string]interface{})["extensions.documentType"] = c.DocumentType
 	}
 
 	if c.PrecedingDocumentID != nil {
