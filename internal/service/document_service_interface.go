@@ -108,9 +108,8 @@ type DocumentServiceInterface interface {
 	// 参数：
 	//   搜索条件
 	//   分页大小
-	//   分页书签
 	//
 	// 返回：
 	//   带分页的资源 ID 列表
-	ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks) (*query.IDsWithPagination, error)
+	ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int) (*query.IDsWithPagination, error)
 }

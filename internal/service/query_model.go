@@ -1,8 +1,6 @@
 package service
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -25,6 +23,7 @@ type CommonQueryConditions struct {
 	Time                *time.Time
 	TimeAfterInclusive  *time.Time // 时间条件启用时，`TimeAfterInclusive` 和 `TimeBeforeExclusive` 不可全为 `nil`。
 	TimeBeforeExclusive *time.Time // 时间条件启用时，`TimeAfterInclusive` 和 `TimeBeforeExclusive` 不可全为 `nil`。
+	LastResourceID      *string    // 上一次查询最后的资源 ID
 }
 
 // DocumentQueryConditions 表示适用数字文档的查询条件。
@@ -40,12 +39,6 @@ type DocumentQueryConditions struct {
 type EntityAssetQueryConditions struct {
 	CommonQueryConditions
 	DesignDocumentID *string
-}
-
-type QueryBookmarks struct {
-	ChaincodeBookmark           string `json:"chaincodeBookmark"`
-	ChaincodeEntriesNumConsumed int    `json:"chaincodeEntriesNumConsumed"`
-	LocalDBBookmark             int    `json:"localDBBookmark"` // 本地数据库书签。对于 MySQL 来说可以是 offset 值。
 }
 
 func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]interface{}, err error) {
@@ -65,6 +58,16 @@ func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]int
 
 	if c.ResourceID != nil {
 		conditions["selector"].(map[string]interface{})["resourceID"] = *c.ResourceID
+	} else if c.LastResourceID != nil {
+		if !c.IsReverse {
+			conditions["selector"].(map[string]interface{})["resourceID"] = map[string]interface{}{
+				"$gt": *c.LastResourceID,
+			}
+		} else {
+			conditions["selector"].(map[string]interface{})["resourceID"] = map[string]interface{}{
+				"$lt": *c.LastResourceID,
+			}
+		}
 	}
 
 	if c.IsNameExact != nil {
@@ -121,6 +124,12 @@ func (c *CommonQueryConditions) ToGormConditionedDB(db *gorm.DB) (tx *gorm.DB, e
 
 	if c.ResourceID != nil {
 		tx = tx.Where("id = ?", *c.ResourceID)
+	} else if c.LastResourceID != nil {
+		if !c.IsReverse {
+			tx = tx.Where("id > ?", *c.LastResourceID)
+		} else {
+			tx = tx.Where("id < ?", *c.LastResourceID)
+		}
 	}
 
 	if c.IsNameExact != nil {
@@ -240,9 +249,4 @@ func (c *EntityAssetQueryConditions) ToGormConditionedDB(db *gorm.DB) (tx *gorm.
 	}
 
 	return
-}
-
-func (b *QueryBookmarks) ToBase64() string {
-	jsonBytes, _ := json.Marshal(b)
-	return base64.StdEncoding.EncodeToString(jsonBytes)
 }

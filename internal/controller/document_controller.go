@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"reflect"
@@ -325,18 +323,10 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 		pageSize = pel.AppendIfNotPositiveInt(pageSizeStr, "分页大小应为正整数。")
 	}
 
-	bookmarks := service.QueryBookmarks{}
-	bookmarksBase64 := processBase64FromURLQuery(ctx.Query("bookmarks"))
-	if bookmarksBase64 != "" {
-		bookmarksBytes, err := base64.StdEncoding.DecodeString(bookmarksBase64)
-		if err != nil {
-			*pel = append(*pel, "无法解析书签字段。")
-		}
-		var bookmarks service.QueryBookmarks
-		err = json.Unmarshal([]byte(bookmarksBytes), &bookmarks)
-		if err != nil {
-			*pel = append(*pel, "无法解析书签字段。")
-		}
+	bookmarkStr := strings.TrimSpace(ctx.Query("bookmark"))
+	var bookmark *string
+	if bookmarkStr != "" {
+		bookmark = &bookmarkStr
 	}
 
 	isLatestFirst := true
@@ -424,6 +414,7 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 			Time:                exactTime,
 			TimeAfterInclusive:  timeAfterInclusive,
 			TimeBeforeExclusive: timeBeforeExclusive,
+			LastResourceID:      bookmark,
 		},
 		DocumentType:        documentType,
 		PrecedingDocumentID: precedingDocumentID,
@@ -432,7 +423,7 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 	}
 
 	// Perform the query using the service function
-	resourceIDs, err := c.DocumentSvc.ListDocumentIDsByConditions(queryConditions, pageSize, bookmarks)
+	resourceIDs, err := c.DocumentSvc.ListDocumentIDsByConditions(queryConditions, pageSize)
 
 	// Check error type and generate the corresponding response
 	if err == nil {

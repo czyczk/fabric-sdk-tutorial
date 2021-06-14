@@ -815,11 +815,10 @@ func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageS
 // 参数：
 //   搜索条件
 //   分页大小
-//   分页书签
 //
 // 返回：
 //   带分页的资源 ID 列表
-func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int, bookmarks QueryBookmarks) (*query.IDsWithPagination, error) {
+func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int) (*query.IDsWithPagination, error) {
 	// 从两处获取资源 ID。
 	// 第一是调用链码从链上获取，这部分的结果包括 明文资源以及所查寻属性为公开的那部分资源 中符合条件的条目；
 	// 第二是从本地数据库中获取，这部分内容为 用户已解密过的资源 中符合条件的条目。
@@ -842,15 +841,11 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	//
 	// 为了解决这些现象，我们应在从两个数据源各获取 `pageSize` 条之后，进行以下操作。简单起见，假设 `pageSize` 为 10。
 	//   1: 若两个数据源得到的结果均为空，则直接返回。
-	//   2: 将两个数据源得到的结果按用户需求各自正序或倒序排列。
-	//   3: 为两个数据源分别维护一个 `consumed` 变量，从一个数据源中取得一条就将相应变量 +1。选择哪个数据源作为下一个条目取决于哪个符合我们的排序规则。
+	//   2: 为两个数据源分别维护一个 `consumed` 变量，从一个数据源中取得一条就将相应变量 +1。选择哪个数据源作为下一个条目取决于哪个符合我们的排序规则。
 	//      因为结果可能重复，我们在加入时，若遇重复项，则只为相应的 `consumed` 变量 +1，而将结果本身舍弃，不将其采纳进结果列表。
 	//      我们在两个列表均被遍历完或者结果列表达到 10 条时，停止这一过程。这之后可能出现 4 种情况：
-	//      3.1: 结果列表不满 10 条：已经遍历完的数据源如果它这次获取的量达到 10 条（说明没到底）需要用适当的书签再获取一次，然后回到第 1 步（或者说重置该数据源的计数器使循环继续）。
-	//           若两个数据源获取的量均 < 10 条，则采用该列表以及最新的书签信息返回。
-	//      3.2: 两个来源的结果都被用完：直接返回。返回结果中，链码书签就是链码所返回的书签，消耗数量为 0；本地数据库书签对应 offset 值，即上次的值 + 相应 `consumed`。
-	//      3.3: 链码来源的结果没用完：链码书签是上次的链码书签，消耗数量为这次从链码中消耗的数量；本地数据库书签为上次的值 + 相应 `consumed`。
-	//      3.4: 本地数据库结果没用完：链码书签是最新书签；本地数据库书签即上次的值 + `pageSize`。
+	//      2.1: 结果列表不满 10 条：两个数据源均用完，则采用该列表以及最后的 ID 信息返回。
+	//      2.2: 结果列表满 10 条：直接返回以及最后的 ID 信息。
 
 	// 为链码层所用的 CouchDB 生成查询条件。遇到错误视为参数错误。
 	couchDBConditions, err := conditions.ToCouchDBConditions()
@@ -874,12 +869,12 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	}
 
 	// 从链码获取资源 ID
-	lastChaincodeBookmark := bookmarks.ChaincodeBookmark // 避免上次调用时的链码书签被覆盖掉。如果本次取的没有被用完，则下次还要用这个值作书签。
 	chaincodeFcn := "listDocumentIDsByConditions"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), []byte(lastChaincodeBookmark)},
+		// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）。为满足 3 个参数，最后的 bookmark 参数为空列表。
+		Args: [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), {}},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
@@ -888,7 +883,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 		return nil, err
 	}
 
-	// 这里将包含查询后的新书签信息。稍后应根据此次查询的内容是否被用完来决定使用旧书签还是新书签。
+	// 这里虽然包含查询后的新书签信息，但该书签信息无用
 	var chaincodeResourceIDs query.IDsWithPagination
 	err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
 	if err != nil {
@@ -899,39 +894,20 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	// TODO: Debug 期使用
 	log.Debug(gormConditionedDB.Statement.SQL.String())
 	var localDBResourceIDs []string
-	gormConditionedDB.Table("documents").Select("id").Limit(pageSize).Offset(bookmarks.LocalDBBookmark).Find(&localDBResourceIDs)
+	gormConditionedDB.Table("documents").Select("id").Limit(pageSize).Find(&localDBResourceIDs)
 
 	// 若两个数据源得到的结果均为空，则直接返回
 	if len(chaincodeResourceIDs.IDs) == 0 && len(localDBResourceIDs) == 0 {
-		retBookmarks := &QueryBookmarks{
-			ChaincodeBookmark:           chaincodeResourceIDs.Bookmark,
-			ChaincodeEntriesNumConsumed: 0,
-			LocalDBBookmark:             0,
-		}
 		ret := &query.IDsWithPagination{
-			IDs:      []string{},
-			Bookmark: retBookmarks.ToBase64(),
+			IDs: []string{},
 		}
 		return ret, nil
 	}
 
-	// // 将两个数据源得到的结果按用户需求各自正序或倒序排列
-	// TODO: 应该是已排序的，验证成功后删除此段
-	// if !conditions.IsReverse {
-	// 	sort.Strings(chaincodeResourceIDs.ResourceIDs)
-	// 	sort.Strings(localDBResourceIDs)
-	// } else {
-	// 	sort.Sort(sort.Reverse(sort.StringSlice(chaincodeResourceIDs.ResourceIDs)))
-	// 	sort.Sort(sort.Reverse(sort.StringSlice(localDBResourceIDs)))
-	// }
-
-	// 为两个数据源分别维护一个 `consumed` 变量，从一个数据源中取得一条就将相应变量 +1。
+	// 为两个数据源分别维护一个 `consumed` 变量，每从一个数据源中采用一条就将相应变量 +1。
 	var resourceIDs []string
-	chaincodeSrcConsumed := bookmarks.ChaincodeEntriesNumConsumed
+	chaincodeSrcConsumed := 0
 	localSrcConsumed := 0
-	// 记录链码来源是否遍历结束。这与上面的 `consumed` 记录不同在于，链码来源可以用完再取，这个标志了它是否不再有新内容。
-	// 对于本地数据库来源不需要记录因为一次获取一定够用。
-	isChaincodeSrcOver := false
 
 	// 从两个来源采纳条目进结果列表。当结果列表的条目数量足够，或者两个来源均被遍历完（意为不再有新内容），则停止这一过程
 	for {
@@ -956,53 +932,21 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 			// 链码来源有剩余，而本地数据库来源用完了。
 			// 进到这里说明结果列表没满，进而说明本地数据库本次取出不足 `pageSize` 个，本地数据库已遍历完毕。
 			// 那剩下的条目靠从链码来源的就可以了。
-			resourceIDs = append(resourceIDs, chaincodeResourceIDs.IDs[chaincodeSrcConsumed])
-			chaincodeSrcConsumed++
-		} else {
-			// 链码来源用完了，结果列表没满则如果链码来源可能有新内容，则需再取
-			if !isChaincodeSrcOver {
-				lastChaincodeBookmark = chaincodeResourceIDs.Bookmark // 备份上次的链码书签
-				channelReq = channel.Request{
-					ChaincodeID: s.ServiceInfo.ChaincodeID,
-					Fcn:         chaincodeFcn,
-					Args:        [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), []byte(lastChaincodeBookmark)},
-				}
-
-				resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-				err = GetClassifiedError(chaincodeFcn, err)
-				if err != nil {
-					return nil, err
-				}
-
-				// 这里将包含查询后的新书签信息。稍后应根据此次查询的内容是否被用完来决定使用旧书签还是新书签。
-				chaincodeResourceIDs = query.IDsWithPagination{}
-				err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
-				if err != nil {
-					return nil, errors.Wrap(err, "无法解析结果列表")
-				}
-
-				// 重置链码来源消耗数
-				chaincodeSrcConsumed = 0
-
-				// 若重取的结果为空，则链码来源不再有新内容
-				if len(chaincodeResourceIDs.IDs) == 0 {
-					isChaincodeSrcOver = true
-					continue
-				}
-			} else {
-				if isLocalSrcLeft {
-					// 链码来源不再有新内容，本地来源有剩余，那剩下的份额用本地数据库的填充即可
-					if len(resourceIDs) == 0 || localDBResourceIDs[len(localDBResourceIDs)-1] != resourceIDs[len(resourceIDs)-1] {
-						resourceIDs = append(resourceIDs, localDBResourceIDs[len(localDBResourceIDs)-1])
-					}
-					localSrcConsumed++
-				} else {
-					// 链码来源不再有新内容，本地来源也用完了。
-					// 进行到这里说明结果列表未满 `pageSize` 个，则必然本地来源取得不足 `pageSize` 个，也不会再有新内容
-					// 两个来源都不会有新内容，结束循环
-					break
-				}
+			// 在加入时若遇重复项，则只增对应的 `consumed` 变量，而将结果舍弃。
+			if len(resourceIDs) == 0 || chaincodeResourceIDs.IDs[chaincodeSrcConsumed] != resourceIDs[len(resourceIDs)-1] {
+				resourceIDs = append(resourceIDs, chaincodeResourceIDs.IDs[chaincodeSrcConsumed])
 			}
+			chaincodeSrcConsumed++
+		} else if isLocalSrcLeft {
+			// 链码来源不再有新内容，本地来源有剩余，那剩下的份额用本地数据库的填充即可。
+			// 在加入时若遇重复项，则只增对应的 `consumed` 变量，而将结果舍弃。
+			if len(resourceIDs) == 0 || localDBResourceIDs[localSrcConsumed] != resourceIDs[len(resourceIDs)-1] {
+				resourceIDs = append(resourceIDs, localDBResourceIDs[localSrcConsumed])
+			}
+			localSrcConsumed++
+		} else {
+			// 两个来源均使用完毕，结束循环
+			break
 		}
 
 		// 结果列表达到 `pageSize` 个，则可结束循环
@@ -1011,32 +955,12 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 		}
 	}
 
-	// 如果任意源未被用完，则应跳过重复项以免下次被取到
-	if len(resourceIDs) > 0 {
-		if chaincodeSrcConsumed < len(chaincodeResourceIDs.IDs) && chaincodeResourceIDs.IDs[chaincodeSrcConsumed] == resourceIDs[len(resourceIDs)-1] {
-			chaincodeSrcConsumed++
-		}
-
-		if localSrcConsumed < len(localDBResourceIDs) && localDBResourceIDs[localSrcConsumed] == resourceIDs[len(resourceIDs)-1] {
-			localSrcConsumed++
-		}
-	}
-
-	// 返回的书签中，本地数据库的 offset 是上次的 offset + 这次 consumed 数量。链码来源的书签则要看最后一次取的是否被用完。
-	retBookmark := QueryBookmarks{
-		ChaincodeBookmark:           lastChaincodeBookmark,
-		ChaincodeEntriesNumConsumed: chaincodeSrcConsumed,
-		LocalDBBookmark:             bookmarks.LocalDBBookmark + localSrcConsumed,
-	}
-
-	if chaincodeSrcConsumed == len(chaincodeResourceIDs.IDs) {
-		retBookmark.ChaincodeBookmark = chaincodeResourceIDs.Bookmark
-		retBookmark.ChaincodeEntriesNumConsumed = 0
-	}
+	// 空结果早已提前返回，到此结果列表必有值。返回的书签是结果列表最后一项，即最后出现的资源 ID。
+	retBookmark := resourceIDs[len(resourceIDs)-1]
 
 	ret := &query.IDsWithPagination{
 		IDs:      resourceIDs,
-		Bookmark: retBookmark.ToBase64(),
+		Bookmark: retBookmark,
 	}
 
 	return ret, nil
