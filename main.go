@@ -321,10 +321,11 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 
 		// Instantiate an identity controller
 		identityController := &controller.IdentityController{
-			GroupName:   "/identity",
-			DocumentSvc: documentSvc,
-			AuthSvc:     authSvc,
-			IdentitySvc: identitySvc,
+			GroupName:      "/identity",
+			DocumentSvc:    documentSvc,
+			EntityAssetSvc: entityAssetSvc,
+			AuthSvc:        authSvc,
+			IdentitySvc:    identitySvc,
 		}
 
 		// Register controller handlers

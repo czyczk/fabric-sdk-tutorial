@@ -41,8 +41,8 @@ func (uc *UniversalCC) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 		return uc.getKey(stub, args)
 	case "getPolicy":
 		return uc.getPolicy(stub, args)
-	case "listDocumentIDsByCreator":
-		return uc.listDocumentIDsByCreator(stub, args)
+	case "listResourceIDsByCreator":
+		return uc.listResourceIDsByCreator(stub, args)
 	case "listResourceIDsByConditions":
 		return uc.listResourceIDsByConditions(stub, args)
 	// auth.go
@@ -67,13 +67,6 @@ func (uc *UniversalCC) Invoke(stub shim.ChaincodeStubInterface) peer.Response {
 		return uc.getKeySwitchResult(stub, args)
 	case "listKeySwitchResultsByID":
 		return uc.listKeySwitchResultsByID(stub, args)
-	// regulator_key.go
-	case "getRegulatorKey":
-		return uc.getRegulatorKey(stub, args)
-	case "getRegulatorKeyHistory":
-		return uc.getRegulatorKeyHistory(stub, args)
-	case "updateRegulatorKey":
-		return uc.updateRegulatorKey(stub, args)
 	// identity.go
 	case "getDepartmentIdentity":
 		return uc.getDepartmentIdentity(stub, args)

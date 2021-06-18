@@ -11,10 +11,11 @@ import (
 )
 
 type IdentityController struct {
-	GroupName   string
-	DocumentSvc service.DocumentServiceInterface
-	AuthSvc     service.AuthServiceInterface
-	IdentitySvc service.IdentityServiceInterface
+	GroupName      string
+	DocumentSvc    service.DocumentServiceInterface
+	EntityAssetSvc service.EntityAssetServiceInterface
+	AuthSvc        service.AuthServiceInterface
+	IdentitySvc    service.IdentityServiceInterface
 }
 
 // GetGroupName returns the group name.
@@ -27,28 +28,34 @@ func (c *IdentityController) GetEndpointMap() EndpointMap {
 	return EndpointMap{
 		urlMethodPair{"", "GET"}:                   []gin.HandlerFunc{c.handleGetIdentity},
 		urlMethodPair{"documents/list", "GET"}:     []gin.HandlerFunc{c.handleGetDocumentList},
+		urlMethodPair{"assets/list", "GET"}:        []gin.HandlerFunc{c.handleGetEntityAssetList},
 		urlMethodPair{"auths/pending-list", "GET"}: []gin.HandlerFunc{c.handleGetAuthPendingList},
 		urlMethodPair{"auths/request-list", "GET"}: []gin.HandlerFunc{c.handleGetAuthRequestList},
 	}
 }
 
-func (ic *IdentityController) handleGetIdentity(c *gin.Context) {
-	userIdentity, err := ic.IdentitySvc.GetIdentityInfo()
+func (c *IdentityController) handleGetIdentity(ctx *gin.Context) {
+	userIdentity, err := c.IdentitySvc.GetIdentityInfo()
 	if err == nil {
-		c.JSON(http.StatusOK, userIdentity)
+		ctx.JSON(http.StatusOK, userIdentity)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (ic *IdentityController) handleGetDocumentList(c *gin.Context) {
+func (c *IdentityController) handleGetDocumentList(ctx *gin.Context) {
 	// Extract and check parameters
-	pageSizeStr := c.Query("pageSize")
-	bookmark := processBase64FromURLQuery(c.Query("bookmark"))
-
 	pel := &ParameterErrorList{}
+	isLatestFirst := true
+	isLatestFirstStr := ctx.Query("isLatestFirst")
+	if isLatestFirstStr != "" {
+		isLatestFirst = pel.AppendIfNotBool(isLatestFirstStr, "最新于最前选项必须为 bool 值。")
+	}
+	pageSizeStr := ctx.Query("pageSize")
+	bookmark := processBase64FromURLQuery(ctx.Query("bookmark"))
+
 	pageSize := 10
 	if strings.TrimSpace(pageSizeStr) != "" {
 		pageSize = pel.AppendIfNotPositiveInt(pageSizeStr, "分页大小应为正整数。")
@@ -56,27 +63,62 @@ func (ic *IdentityController) handleGetDocumentList(c *gin.Context) {
 
 	// Early return if the error list is not empty
 	if len(*pel) > 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
 	// ListDocumentIDsByCreator
-	resourceIDs, err := ic.DocumentSvc.ListDocumentIDsByCreator(pageSize, bookmark)
+	resourceIDs, err := c.DocumentSvc.ListDocumentIDsByCreator(isLatestFirst, pageSize, bookmark)
 
 	// Check error type and generate the corresponding response
 	if err == nil {
-		c.JSON(http.StatusOK, resourceIDs)
+		ctx.JSON(http.StatusOK, resourceIDs)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (ic *IdentityController) handleGetAuthPendingList(c *gin.Context) {
+func (c *IdentityController) handleGetEntityAssetList(ctx *gin.Context) {
 	// Extract and check parameters
-	pageSizeStr := c.Query("pageSize")
-	bookmark := processBase64FromURLQuery(c.Query("bookmark"))
+	pel := &ParameterErrorList{}
+	isLatestFirst := true
+	isLatestFirstStr := ctx.Query("isLatestFirst")
+	if isLatestFirstStr != "" {
+		isLatestFirst = pel.AppendIfNotBool(isLatestFirstStr, "最新于最前选项必须为 bool 值。")
+	}
+	pageSizeStr := ctx.Query("pageSize")
+	bookmark := processBase64FromURLQuery(ctx.Query("bookmark"))
+
+	pageSize := 10
+	if strings.TrimSpace(pageSizeStr) != "" {
+		pageSize = pel.AppendIfNotPositiveInt(pageSizeStr, "分页大小应为正整数。")
+	}
+
+	// Early return if the error list is not empty
+	if len(*pel) > 0 {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		return
+	}
+
+	// ListEntityAssetIDsByCreator
+	resourceIDs, err := c.EntityAssetSvc.ListEntityAssetIDsByCreator(isLatestFirst, pageSize, bookmark)
+
+	// Check error type and generate the corresponding response
+	if err == nil {
+		ctx.JSON(http.StatusOK, resourceIDs)
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
+	} else {
+		ctx.String(http.StatusInternalServerError, err.Error())
+	}
+}
+
+func (c *IdentityController) handleGetAuthPendingList(ctx *gin.Context) {
+	// Extract and check parameters
+	pageSizeStr := ctx.Query("pageSize")
+	bookmark := processBase64FromURLQuery(ctx.Query("bookmark"))
 
 	pel := &ParameterErrorList{}
 	pageSize := 10
@@ -86,28 +128,28 @@ func (ic *IdentityController) handleGetAuthPendingList(c *gin.Context) {
 
 	// Early return if the error list is not empty
 	if len(*pel) > 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
 	// ListPendingAuthSessionIDsByResourceCreator
-	authSessionIDs, err := ic.AuthSvc.ListPendingAuthSessionIDsByResourceCreator(pageSize, bookmark)
+	authSessionIDs, err := c.AuthSvc.ListPendingAuthSessionIDsByResourceCreator(pageSize, bookmark)
 
 	// Check error type and generate the corresponding response
 	if err == nil {
-		c.JSON(http.StatusOK, authSessionIDs)
+		ctx.JSON(http.StatusOK, authSessionIDs)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }
 
-func (ic *IdentityController) handleGetAuthRequestList(c *gin.Context) {
+func (c *IdentityController) handleGetAuthRequestList(ctx *gin.Context) {
 	// Extract and check parameters
-	pageSizeStr := c.Query("pageSize")
-	bookmark := processBase64FromURLQuery(c.Query("bookmark"))
-	isLatestFirstStr := c.Query("isLatestFirst")
+	pageSizeStr := ctx.Query("pageSize")
+	bookmark := processBase64FromURLQuery(ctx.Query("bookmark"))
+	isLatestFirstStr := ctx.Query("isLatestFirst")
 
 	pel := &ParameterErrorList{}
 
@@ -123,19 +165,19 @@ func (ic *IdentityController) handleGetAuthRequestList(c *gin.Context) {
 
 	// Early return if the error list is not empty
 	if len(*pel) > 0 {
-		c.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
 
 	// ListAuthSessionIDsByRequestor
-	authSessionIDs, err := ic.AuthSvc.ListAuthSessionIDsByRequestor(pageSize, bookmark, isLatestFirst)
+	authSessionIDs, err := c.AuthSvc.ListAuthSessionIDsByRequestor(pageSize, bookmark, isLatestFirst)
 
 	// Check error type and generate the corresponding response
 	if err == nil {
-		c.JSON(http.StatusOK, authSessionIDs)
+		ctx.JSON(http.StatusOK, authSessionIDs)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
-		c.Writer.WriteHeader(http.StatusNotImplemented)
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
 	} else {
-		c.String(http.StatusInternalServerError, err.Error())
+		ctx.String(http.StatusInternalServerError, err.Error())
 	}
 }

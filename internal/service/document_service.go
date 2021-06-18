@@ -36,6 +36,9 @@ type DocumentService struct {
 	KeySwitchService KeySwitchServiceInterface
 }
 
+// 用于放置在元数据的 extensions.dataType 中的值
+const documentDataType = "document"
+
 // CreateDocument 创建数字文档。
 //
 // 参数：
@@ -747,52 +750,19 @@ func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.R
 // ListDocumentIDsByCreator 获取所有调用者创建的数字文档的资源 ID。
 //
 // 参数：
+//   倒序排列
 //   分页大小
 //   分页书签
 //
 // 返回：
 //   带分页的资源 ID 列表
-func (s *DocumentService) ListDocumentIDsByCreator(pageSize int, bookmark string) (*query.IDsWithPagination, error) {
-	// 调用 listDocumentIDsByCreator 拿到一个 ID 列表
-	chaincodeFcn := "listDocumentIDsByCreator"
+func (s *DocumentService) ListDocumentIDsByCreator(isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
+	// 调用 listResourceIDsByCreator 拿到一个 ID 列表
+	chaincodeFcn := "listResourceIDsByCreator"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(strconv.Itoa(pageSize)), []byte(bookmark)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
-	if err != nil {
-		return nil, err
-	}
-
-	var resourceIDs query.IDsWithPagination
-	err = json.Unmarshal(resp.Payload, &resourceIDs)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析结果列表")
-	}
-
-	return &resourceIDs, nil
-}
-
-// TODO: 删掉
-// ListDocumentIDsByPartialName 获取名称包含所提供的部分名称的数字文档的资源 ID。
-//
-// 参数：
-//   部分名称
-//   分页大小
-//   分页书签
-//
-// 返回：
-//   带分页的资源 ID 列表
-func (s *DocumentService) ListDocumentIDsByPartialName(partialName string, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
-	// 调用 listDocumentIDsByPartialName 拿到一个 ID 列表
-	chaincodeFcn := "listDocumentIDsByPartialName"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(partialName), []byte(strconv.Itoa(pageSize)), []byte(bookmark)},
+		Args:        [][]byte{[]byte(documentDataType), []byte(fmt.Sprintf("%v", isDesc)), []byte(strconv.Itoa(pageSize)), []byte(bookmark)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
@@ -920,7 +890,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 
 func deriveExtensionsMapFromDocument(document *common.Document) map[string]interface{} {
 	extensions := make(map[string]interface{})
-	extensions["dataType"] = "document"
+	extensions["dataType"] = documentDataType
 	if document.IsNamePublic {
 		extensions["name"] = document.Name
 	}

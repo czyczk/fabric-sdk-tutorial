@@ -70,6 +70,17 @@ type EntityAssetServiceInterface interface {
 	//   解密后的资产
 	GetDecryptedEntityAssetFromDB(id string, metadata *data.ResMetadataStored) (*common.EntityAsset, error)
 
+	// ListEntityAssetIDsByCreator 获取所有调用者创建的实体资产的资源 ID。
+	//
+	// 参数：
+	//   倒序排列
+	//   分页大小
+	//   分页书签
+	//
+	// 返回：
+	//   带分页的资源 ID 列表
+	ListEntityAssetIDsByCreator(isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error)
+
 	// ListEntityAssetIDsByConditions 获取满足所提供的搜索条件的实体资产的资源 ID。
 	//
 	// 参数：

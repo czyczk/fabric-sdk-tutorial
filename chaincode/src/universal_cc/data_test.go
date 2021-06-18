@@ -115,51 +115,6 @@ func TestCreatePlainDataWithCorruptHashAndSize(t *testing.T) {
 	expectResponseStatusERROR(t, &resp)
 }
 
-func TestCreatePlainDataIndexStatus(t *testing.T) {
-	targetFunction := "createPlainData"
-
-	stub := createMockStub(t, "TestCreatePlainDataIndexStatus")
-	_ = initChaincode(stub, [][]byte{})
-
-	// Prepare the args
-	samplePlainData1 := getSamplePlainData1()
-	samplePlainData2 := getSamplePlainData2()
-
-	samplePlainData1Bytes, _ := json.Marshal(samplePlainData1)
-	samplePlainData2Bytes, _ := json.Marshal(samplePlainData2)
-
-	// Invoke with data1 and expect the response status to be OK
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), samplePlainData1Bytes})
-	expectResponseStatusOK(t, &resp)
-
-	// Invoke with data2 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), samplePlainData2Bytes})
-	expectResponseStatusOK(t, &resp)
-
-	creator, err := getPKDERFromCertString(exampleCertUser1)
-	if err != nil {
-		testLogger.Infof("Error parsing certificate: %v\n", err)
-		t.FailNow()
-	}
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
-
-	it, err := stub.GetStateByPartialCompositeKey("creator~resourceid", []string{creatorAsBase64})
-	if err != nil {
-		testLogger.Infof("Cannot query index 'creator~resourceid': %v\n", err)
-		t.FailNow()
-	}
-
-	// Iterate the composite key value entries and expect 2 distinct resource IDs
-	resourceIDSet := make(map[string]bool)
-	for it.HasNext() {
-		entry, _ := it.Next()
-		_, ckParts, _ := stub.SplitCompositeKey(entry.Key)
-		resourceIDSet[ckParts[1]] = true
-	}
-
-	expectEqual(t, 2, len(resourceIDSet))
-}
-
 func TestCreateEncryptedDataWithNormalData(t *testing.T) {
 	targetFunction := "createEncryptedData"
 	stub := createMockStub(t, "TestCreateEncryptedDataWithNormalData")
@@ -230,49 +185,6 @@ func TestCreateEncryptedDataWithDuplicateResourceIDs(t *testing.T) {
 	expectResponseStatusERROR(t, &resp)
 }
 
-func TestCreateEncryptedDataIndexStatus(t *testing.T) {
-	targetFunction := "createEncryptedData"
-	stub := createMockStub(t, "TestCreateEncryptedDataIndexStatus")
-	_ = initChaincode(stub, [][]byte{})
-
-	// Prepare the args
-	getSampleEncryptedData1 := getSampleEncryptedData1()
-	getSampleEncryptedData2 := getSampleEncryptedData2()
-	sampleEncryptedData1Bytes, _ := json.Marshal(getSampleEncryptedData1)
-	sampleEncryptedData2Bytes, _ := json.Marshal(getSampleEncryptedData2)
-
-	// Invoke with data1 and expect the response status to be OK
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), sampleEncryptedData1Bytes})
-	expectResponseStatusOK(t, &resp)
-
-	// Invoke with data2 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), sampleEncryptedData2Bytes})
-	expectResponseStatusOK(t, &resp)
-
-	creator, err := getPKDERFromCertString(exampleCertUser1)
-	if err != nil {
-		testLogger.Infof("Error parsing certificate: %v\n", err)
-		t.FailNow()
-	}
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
-
-	it, err := stub.GetStateByPartialCompositeKey("creator~resourceid", []string{creatorAsBase64})
-	if err != nil {
-		testLogger.Infof("Cannot query index 'creator~resourceid': %v\n", err)
-		t.FailNow()
-	}
-
-	// Iterate the composite key value entries and expect 2 distinct resource IDs
-	resourceIDSet := make(map[string]bool)
-	for it.HasNext() {
-		entry, _ := it.Next()
-		_, ckParts, _ := stub.SplitCompositeKey(entry.Key)
-		resourceIDSet[ckParts[1]] = true
-	}
-
-	expectEqual(t, 2, len(resourceIDSet))
-}
-
 func TestCreateOffchainDataWithNormalData(t *testing.T) {
 	targetFunction := "createOffchainData"
 	stub := createMockStub(t, "TestCreateOffchainDataWithNormalData")
@@ -337,50 +249,6 @@ func TestCreateOffchainDataWithDuplicateResourceIDs(t *testing.T) {
 	// Invoke with data2 and expect the response status to be ERROR
 	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), data2Bytes})
 	expectResponseStatusERROR(t, &resp)
-}
-
-func TestCreateOffchainDataIndexStatus(t *testing.T) {
-	targetFunction := "createOffchainData"
-	stub := createMockStub(t, "TestCreateOffchainDataIndexStatus")
-	_ = initChaincode(stub, [][]byte{})
-
-	// Prepare the args
-	getSampleOffchainData1 := getSampleOffchainData1()
-	getSampleOffchainData2 := getSampleOffchainData2()
-
-	sampleOffchainData1Bytes, _ := json.Marshal(getSampleOffchainData1)
-	sampleOffchainData2Bytes, _ := json.Marshal(getSampleOffchainData2)
-
-	// Invoke with data1 and expect the response status to be OK
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), sampleOffchainData1Bytes})
-	expectResponseStatusOK(t, &resp)
-
-	// Invoke with data2 and expect the response status to be OK
-	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), sampleOffchainData2Bytes})
-	expectResponseStatusOK(t, &resp)
-
-	creator, err := getPKDERFromCertString(exampleCertUser1)
-	if err != nil {
-		testLogger.Infof("Error parsing certificate: %v\n", err)
-		t.FailNow()
-	}
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
-
-	it, err := stub.GetStateByPartialCompositeKey("creator~resourceid", []string{creatorAsBase64})
-	if err != nil {
-		testLogger.Infof("Cannot query index 'creator~resourceid': %v\n", err)
-		t.FailNow()
-	}
-
-	// Iterate the composite key value entries and expect 2 distinct resource IDs
-	resourceIDSet := make(map[string]bool)
-	for it.HasNext() {
-		entry, _ := it.Next()
-		_, ckParts, _ := stub.SplitCompositeKey(entry.Key)
-		resourceIDSet[ckParts[1]] = true
-	}
-
-	expectEqual(t, 2, len(resourceIDSet))
 }
 
 func TestGetMetadata(t *testing.T) {
@@ -867,72 +735,12 @@ func TestListDocumentIDsByEntityIDWithExcessiveParameters(t *testing.T) {
 //	expectEqual(t, 0, len(results))
 //}
 
-//func TestListDocumentIDsByCreatorWithNormalProcess(t *testing.T) {
-//	stub := createMockStub(t, "TestListDocumentIDsByCreatorWithNormalProcess")
-//	_ = initChaincode(stub, [][]byte{})
-//
-//	// Prepare the environment: upload two different types of docs as user 1
-//	doc1 := getSamplePlainData1()
-//	doc2 := getSampleEncryptedData2()
-//
-//	doc1Bytes, _ := json.Marshal(doc1)
-//	doc2Bytes, _ := json.Marshal(doc2)
-//
-//	targetFunction := "createPlainData"
-//	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc1Bytes})
-//	expectResponseStatusOK(t, &resp)
-//
-//	targetFunction = "createEncryptedData"
-//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), doc2Bytes})
-//	expectResponseStatusOK(t, &resp)
-//
-//	// Test listDocumentIDsByCreator and expect to receive 2 resource IDs
-//	targetFunction = "listDocumentIDsByCreator"
-//	defaultPageSize := 10
-//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(strconv.Itoa(defaultPageSize)), {}})
-//	expectResponseStatusOK(t, &resp)
-//
-//	expectedResourceIDs := make(map[string]bool)
-//	expectedResourceIDs[doc1.Metadata.ResourceID] = true
-//	expectedResourceIDs[doc2.Metadata.ResourceID] = true
-//
-//	results := []string{}
-//	err := json.Unmarshal(resp.Payload, &results)
-//	expectNil(t, err)
-//
-//	expectEqual(t, len(expectedResourceIDs), len(results))
-//	for _, resourceID := range results {
-//		expectEqual(t, true, expectedResourceIDs[resourceID])
-//	}
-//
-//	// Change the user to user 2 and query again
-//	setMockStubCreator(t, stub, "Org1MSP", []byte(exampleCertUser2))
-//	resp = stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(strconv.Itoa(defaultPageSize)), {}})
-//	expectResponseStatusOK(t, &resp)
-//	results = []string{}
-//	err = json.Unmarshal(resp.Payload, &results)
-//	expectNil(t, err)
-//
-//	expectEqual(t, 0, len(results))
-//}
-
 func TestListDocumentIDsByCreatorWithExcessiveParameters(t *testing.T) {
 	stub := createMockStub(t, "TestListDocumentIDsByCreatorWithExcessiveParameters")
 	_ = initChaincode(stub, [][]byte{})
 
 	targetFunction := "listDocumentIDsWithCreator"
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(strconv.Itoa(10)), {}, []byte("EXCESSIVE PARAMETER")})
-	expectResponseStatusERROR(t, &resp)
-}
-
-func TestListDocumentIDsByPartialNameWithExcessiveParameters(t *testing.T) {
-	stub := createMockStub(t, "TestListDocumentIDsByPartialNameWithExcessiveParameters")
-	_ = initChaincode(stub, [][]byte{})
-
-	// Test listDocumentIDsByCreator
-	targetFunction := "listDocumentIDsByPartialName"
-	partialName := "1"
-	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte(partialName), []byte("5"), []byte(""), []byte("EXCESSIVE_PARAMETER")})
+	resp := stub.MockInvoke(uuid.NewString(), [][]byte{[]byte(targetFunction), []byte("document"), []byte("true"), []byte(strconv.Itoa(10)), {}, []byte("EXCESSIVE PARAMETER")})
 	expectResponseStatusERROR(t, &resp)
 }
 

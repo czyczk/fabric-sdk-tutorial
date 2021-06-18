@@ -34,6 +34,9 @@ type EntityAssetService struct {
 	KeySwitchService KeySwitchServiceInterface
 }
 
+// 用于放置在元数据的 extensions.dataType 中的值
+const entityAssetDataType = "entityAsset"
+
 // 创建实体资产。
 //
 // 参数：
@@ -489,6 +492,39 @@ func (s *EntityAssetService) GetDecryptedEntityAssetFromDB(id string, metadata *
 	return asset, nil
 }
 
+// ListEntityAssetIDsByCreator 获取所有调用者创建的实体资产的资源 ID。
+//
+// 参数：
+//   倒序排列
+//   分页大小
+//   分页书签
+//
+// 返回：
+//   带分页的资源 ID 列表
+func (s *EntityAssetService) ListEntityAssetIDsByCreator(isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
+	// 调用 listResourceIDsByCreator 拿到一个 ID 列表
+	chaincodeFcn := "listResourceIDsByCreator"
+	channelReq := channel.Request{
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{[]byte(entityAssetDataType), []byte(fmt.Sprintf("%v", isDesc)), []byte(strconv.Itoa(pageSize)), []byte(bookmark)},
+	}
+
+	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
+	err = GetClassifiedError(chaincodeFcn, err)
+	if err != nil {
+		return nil, err
+	}
+
+	var resourceIDs query.IDsWithPagination
+	err = json.Unmarshal(resp.Payload, &resourceIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析结果列表")
+	}
+
+	return &resourceIDs, nil
+}
+
 // ListEntityAssetIDsByConditions 获取满足所提供的搜索条件的实体资产的资源 ID。
 //
 // 参数：
@@ -599,7 +635,7 @@ func (s *EntityAssetService) ListEntityAssetIDsByConditions(conditions EntityAss
 
 func deriveExtensionsMapFromAsset(asset *common.EntityAsset) map[string]interface{} {
 	extensions := make(map[string]interface{})
-	extensions["dataType"] = "entityAsset"
+	extensions["dataType"] = entityAssetDataType
 	if asset.IsNamePublic {
 		extensions["name"] = asset.Name
 	}

@@ -102,31 +102,6 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 		return shim.Error(fmt.Sprintf("无法存储元数据: %v", err))
 	}
 
-	// 建立索引
-	// creator~resourceid 绑定创建者与资源 ID
-	ckObjectType := "creator~resourceid"
-	ckCreatorResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{creatorAsBase64, resourceID})
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-	if err = stub.PutState(ckCreatorResourceID, []byte{0x00}); err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-
-	// name~resourceid 绑定元数据中 name 字段与资源 ID
-	extensionsMap := plainData.Metadata.Extensions
-	name, ok := extensionsMap["name"].(string)
-	if ok {
-		ckObjectType = "name~resourceid"
-		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
-		if err != nil {
-			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-		}
-		if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
-			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-		}
-	}
-
 	txID := stub.GetTxID()
 
 	// 发事件
@@ -232,31 +207,6 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 	}
 	if err = stub.PutState(dbMetadataKey, metadataStoredBytes); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储元数据: %v", err))
-	}
-
-	// 建立索引
-	// creator~resourceid 绑定创建者与资源 ID
-	ckObjectType := "creator~resourceid"
-	ckCreatorResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{creatorAsBase64, resourceID})
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-	if err = stub.PutState(ckCreatorResourceID, []byte{0x00}); err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-
-	// name~resourceid 绑定元数据中 name 字段与资源 ID（仅当 name 字段可用时绑定）
-	extensionsMap := encryptedData.Metadata.Extensions
-	name, ok := extensionsMap["name"].(string)
-	if ok {
-		ckObjectType = "name~resourceid"
-		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
-		if err != nil {
-			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-		}
-		if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
-			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-		}
 	}
 
 	txID := stub.GetTxID()
@@ -365,31 +315,6 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 	}
 	if err = stub.PutState(dbMetadataKey, metadataStoredBytes); err != nil {
 		return shim.Error(fmt.Sprintf("无法存储元数据: %v", err))
-	}
-
-	// 建立索引
-	// creator~resourceid 绑定创建者与资源 ID
-	ckObjectType := "creator~resourceid"
-	ckCreatorResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{creatorAsBase64, resourceID})
-	if err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-	if err = stub.PutState(ckCreatorResourceID, []byte{0x00}); err != nil {
-		return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-	}
-
-	// name~resourceid 绑定元数据中 name 字段与资源 ID（仅当 name 字段可用时绑定）
-	extensionsMap := offchainData.Metadata.Extensions
-	name, ok := extensionsMap["name"].(string)
-	if ok {
-		ckObjectType = "name~resourceid"
-		ckNameResourceID, err := stub.CreateCompositeKey(ckObjectType, []string{name, resourceID})
-		if err != nil {
-			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-		}
-		if err = stub.PutState(ckNameResourceID, []byte{0x00}); err != nil {
-			return shim.Error(fmt.Sprintf("无法创建索引 '%v': %v", ckObjectType, err))
-		}
 	}
 
 	txID := stub.GetTxID()
@@ -588,15 +513,23 @@ func (uc *UniversalCC) getPolicy(stub shim.ChaincodeStubInterface, args []string
 //	return shim.Success(paginationResultAsBytes)
 //}
 
-func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+func (uc *UniversalCC) listResourceIDsByCreator(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 	// 检查参数数量
 	lenArgs := len(args)
-	if lenArgs != 2 {
-		return shim.Error("参数数量不正确。应为 2 个")
+	if lenArgs != 4 {
+		return shim.Error("参数数量不正确。应为 4 个")
 	}
 
-	// args = [pageSize int, bookmark string]
-	pageSizeStr := args[0]
+	// args = [dataType string, isDesc bool, pageSize int, bookmark string]
+	dataType := args[0]
+
+	isDescStr := args[1]
+	isDesc, err := strconv.ParseBool(isDescStr)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法解析参数 isDesc，值为 %v。应为 bool", isDescStr))
+	}
+
+	pageSizeStr := args[2]
 	pageSize, err := strconv.Atoi(pageSizeStr)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法解析参数 pageSize，值为 %v。应为正整数", pageSizeStr))
@@ -605,7 +538,7 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 		return shim.Error(fmt.Sprintf("参数 pageSize 值为 %v。应为正整数", pageSizeStr))
 	}
 
-	bookmarkAsBase64 := args[1]
+	bookmarkAsBase64 := args[3]
 	bookmarkBytes, err := base64.StdEncoding.DecodeString(bookmarkAsBase64)
 	if err != nil {
 		return shim.Error(fmt.Sprintf("无法解析书签: %v", err))
@@ -618,36 +551,59 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 		return shim.Error(fmt.Sprintf("无法获取调用者信息: %v", err))
 	}
 
-	// 提供 creator 项以获取迭代器
-	ckObjectType := "creator~resourceid"
-	creatorAsBase64 := base64.StdEncoding.EncodeToString(creator)
-	it, respMetadata, err := stub.GetStateByPartialCompositeKeyWithPagination(ckObjectType, []string{creatorAsBase64}, int32(pageSize), bookmark)
+	// 获取关于 extensions.name 模糊匹配的迭代器
+	resourceIDSort := "asc"
+	if isDesc {
+		resourceIDSort = "desc"
+	}
+
+	queryConditions := map[string]interface{}{
+		"selector": map[string]interface{}{
+			"extensions.dataType": dataType,
+			"creator":             creator,
+		},
+		"sort": []interface{}{
+			map[string]string{
+				"resourceID": resourceIDSort,
+			},
+		},
+	}
+	queryConditionsBytes, err := json.Marshal(queryConditions)
 	if err != nil {
-		return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
+		return shim.Error(fmt.Sprintf("无法序列化查询条件: %v", err))
+	}
+	fmt.Printf("%v\n", string(queryConditionsBytes))
+
+	it, respMetadata, err := stub.GetQueryResultWithPagination(string(queryConditionsBytes), int32(pageSize), bookmark)
+	if err != nil {
+		return shim.Error(fmt.Sprintf("无法执行条件查询: %v", err))
 	}
 
 	defer it.Close()
 
-	// 遍历迭代器，解出 resourceid 项，组成列表
+	// 遍历迭代器，获取所有的 key 并抽取其中的 resourceID，组成列表
 	resourceIDs := []string{}
 	for it.HasNext() {
 		entry, err := it.Next()
 		if err != nil {
-			return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
+			return shim.Error(fmt.Sprintf("无法执行条件查询: %v", err))
 		}
 
-		_, ckParts, err := stub.SplitCompositeKey(entry.Key)
+		resourceID, err := extractResourceIDFromKeyForResMetadata(entry.Key)
 		if err != nil {
-			return shim.Error(fmt.Sprintf("无法查询索引 '%v': %v", ckObjectType, err))
+			return shim.Error(err.Error())
 		}
 
-		resourceIDs = append(resourceIDs, ckParts[1])
+		resourceIDs = append(resourceIDs, resourceID)
 	}
+
+	// 记录书签位置
+	returnedBookmark := respMetadata.Bookmark
 
 	// 序列化结果列表并返回
 	paginationResult := query.IDsWithPagination{
 		IDs:      resourceIDs,
-		Bookmark: base64.StdEncoding.EncodeToString([]byte(respMetadata.Bookmark)),
+		Bookmark: base64.StdEncoding.EncodeToString([]byte(returnedBookmark)),
 	}
 	paginationResultAsBytes, err := json.Marshal(paginationResult)
 	if err != nil {

@@ -177,7 +177,7 @@ func (c *DocumentQueryConditions) ToCouchDBConditions() (conditions map[string]i
 		return
 	}
 
-	conditions["selector"].(map[string]interface{})["extensions.dataType"] = "document"
+	conditions["selector"].(map[string]interface{})["extensions.dataType"] = documentDataType
 
 	if c.DocumentType != nil {
 		conditions["selector"].(map[string]interface{})["extensions.documentType"] = c.DocumentType
@@ -229,7 +229,7 @@ func (c *EntityAssetQueryConditions) ToCouchDBConditions() (conditions map[strin
 		return
 	}
 
-	conditions["selector"].(map[string]interface{})["extensions.dataType"] = "entityAsset"
+	conditions["selector"].(map[string]interface{})["extensions.dataType"] = entityAssetDataType
 
 	if c.DesignDocumentID != nil {
 		conditions["selector"].(map[string]interface{})["extensions.designDocumentID"] = *c.DesignDocumentID
