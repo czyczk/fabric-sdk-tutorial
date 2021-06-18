@@ -360,7 +360,7 @@ func (c *EntityAssetController) handleListAssetIDs(ctx *gin.Context) {
 	// Encapsulate the query conditions into a struct
 	queryConditions := service.EntityAssetQueryConditions{
 		CommonQueryConditions: service.CommonQueryConditions{
-			IsReverse:           isLatestFirst,
+			IsDesc:              isLatestFirst,
 			ResourceID:          resourceID,
 			IsNameExact:         isNameExact,
 			Name:                name,

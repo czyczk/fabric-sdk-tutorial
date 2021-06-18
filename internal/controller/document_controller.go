@@ -406,7 +406,7 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 	// Encapsulate the query conditions into a struct
 	queryConditions := service.DocumentQueryConditions{
 		CommonQueryConditions: service.CommonQueryConditions{
-			IsReverse:           isLatestFirst,
+			IsDesc:              isLatestFirst,
 			ResourceID:          resourceID,
 			IsNameExact:         isNameExact,
 			Name:                name,

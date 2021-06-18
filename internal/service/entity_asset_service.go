@@ -584,7 +584,7 @@ func (s *EntityAssetService) ListEntityAssetIDsByConditions(conditions EntityAss
 	}
 
 	// 从两个来源收集资源 ID
-	resourceIDs := collectResourceIDsFromSources(chaincodeResourceIDs.IDs, localDBResourceIDs, pageSize, conditions.IsReverse)
+	resourceIDs := collectResourceIDsFromSources(chaincodeResourceIDs.IDs, localDBResourceIDs, pageSize, conditions.IsDesc)
 
 	// 空结果早已提前返回，到此结果列表必有值。返回的书签是结果列表最后一项，即最后出现的资源 ID。
 	retBookmark := resourceIDs[len(resourceIDs)-1]

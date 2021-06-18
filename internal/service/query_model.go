@@ -15,7 +15,7 @@ type QueryConditions interface {
 
 // CommonQueryConditions 表示适用所有通用模型的查询条件。不单独使用，用于组合于其他查询条件。
 type CommonQueryConditions struct {
-	IsReverse           bool
+	IsDesc              bool
 	ResourceID          *string
 	IsNameExact         *bool // 名称是否为精确名称。`nil` 表示条件不启用。`true` 为精确名称，`false` 为部分名称（名称关键字）。该字段若不为 `nil` 则 `Name` 字段不可为 `nil`。
 	Name                *string
@@ -46,7 +46,7 @@ func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]int
 	conditions["selector"] = make(map[string]interface{})
 
 	resourceIDSort := "asc"
-	if c.IsReverse {
+	if c.IsDesc {
 		resourceIDSort = "desc"
 	}
 
@@ -59,7 +59,7 @@ func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]int
 	if c.ResourceID != nil {
 		conditions["selector"].(map[string]interface{})["resourceID"] = *c.ResourceID
 	} else if c.LastResourceID != nil {
-		if !c.IsReverse {
+		if !c.IsDesc {
 			conditions["selector"].(map[string]interface{})["resourceID"] = map[string]interface{}{
 				"$gt": *c.LastResourceID,
 			}
@@ -117,7 +117,7 @@ func (c *CommonQueryConditions) ToGormConditionedDB(db *gorm.DB) (tx *gorm.DB, e
 	tx = db
 
 	resourceIDSort := ""
-	if c.IsReverse {
+	if c.IsDesc {
 		resourceIDSort = " desc"
 	}
 	tx = tx.Order("id" + resourceIDSort)
@@ -125,7 +125,7 @@ func (c *CommonQueryConditions) ToGormConditionedDB(db *gorm.DB) (tx *gorm.DB, e
 	if c.ResourceID != nil {
 		tx = tx.Where("id = ?", *c.ResourceID)
 	} else if c.LastResourceID != nil {
-		if !c.IsReverse {
+		if !c.IsDesc {
 			tx = tx.Where("id > ?", *c.LastResourceID)
 		} else {
 			tx = tx.Where("id < ?", *c.LastResourceID)
