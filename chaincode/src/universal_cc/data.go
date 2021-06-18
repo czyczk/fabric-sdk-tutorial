@@ -737,7 +737,7 @@ func (uc *UniversalCC) listDocumentIDsByCreator(stub shim.ChaincodeStubInterface
 //	return shim.Success(resultAsBytes)
 //}
 
-func (uc *UniversalCC) listDocumentIDsByConditions(stub shim.ChaincodeStubInterface, args []string) peer.Response {
+func (uc *UniversalCC) listResourceIDsByConditions(stub shim.ChaincodeStubInterface, args []string) peer.Response {
 	// 检查参数数量
 	lenArgs := len(args)
 	if lenArgs != 3 {

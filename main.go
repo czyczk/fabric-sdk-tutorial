@@ -301,9 +301,9 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			DocumentSvc: documentSvc,
 		}
 
-		// Instantiate a entity controller
+		// Instantiate an entity controller
 		entityAssetController := &controller.EntityAssetController{
-			GroupName:      "/asset",
+			GroupName:      "/",
 			EntityAssetSvc: entityAssetSvc,
 		}
 

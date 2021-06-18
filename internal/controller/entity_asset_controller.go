@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
+	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
@@ -32,9 +34,10 @@ func (c *EntityAssetController) GetGroupName() string {
 // GetEndpointMap implements part of the interface `Controller`. It returns the API endpoints and handlers which are defined and managed by EntityAssetController.
 func (c *EntityAssetController) GetEndpointMap() EndpointMap {
 	return EndpointMap{
-		urlMethodPair{"", "POST"}:            []gin.HandlerFunc{c.handleCreateAsset},
-		urlMethodPair{":id/metadata", "GET"}: []gin.HandlerFunc{c.handleGetAssetMetadata},
-		urlMethodPair{":id", "GET"}:          []gin.HandlerFunc{c.handleGetAsset},
+		urlMethodPair{"asset", "POST"}:             []gin.HandlerFunc{c.handleCreateAsset},
+		urlMethodPair{"assets/list", "GET"}:        []gin.HandlerFunc{c.handleListAssetIDs},
+		urlMethodPair{"asset/:id/metadata", "GET"}: []gin.HandlerFunc{c.handleGetAssetMetadata},
+		urlMethodPair{"asset/:id", "GET"}:          []gin.HandlerFunc{c.handleGetAsset},
 	}
 }
 
@@ -273,6 +276,109 @@ func (c *EntityAssetController) handleGetAsset(ctx *gin.Context) {
 	} else if reflect.TypeOf(err) == reflect.TypeOf(&service.ErrorBadRequest{}) {
 		*pel = append(*pel, err.Error())
 		ctx.JSON(http.StatusBadRequest, pel)
+	} else if errors.Cause(err) == errorcode.ErrorNotFound {
+		ctx.Writer.WriteHeader(http.StatusNotFound)
+	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
+		ctx.Writer.WriteHeader(http.StatusNotImplemented)
+	} else {
+		ctx.String(http.StatusInternalServerError, err.Error())
+	}
+}
+
+func (c *EntityAssetController) handleListAssetIDs(ctx *gin.Context) {
+	// Extract and check parameters
+	pel := &ParameterErrorList{}
+	var err error
+
+	// Theses fields have their default values if not specified
+	pageSizeStr := ctx.Query("pageSize")
+	pageSize := 10
+	if strings.TrimSpace(pageSizeStr) != "" {
+		pageSize = pel.AppendIfNotPositiveInt(pageSizeStr, "分页大小应为正整数。")
+	}
+
+	bookmarkStr := strings.TrimSpace(ctx.Query("bookmark"))
+	var bookmark *string
+	if bookmarkStr != "" {
+		bookmark = &bookmarkStr
+	}
+
+	isLatestFirst := true
+	isLatestFirstStr := ctx.Query("isLatestFirst")
+	if isLatestFirstStr != "" {
+		isLatestFirst = pel.AppendIfNotBool(isLatestFirstStr, "最新于最前选项必须为 bool 值。")
+	}
+
+	// Optional fields
+	var resourceID *string
+	if temp := strings.TrimSpace(ctx.Query("resourceID")); temp != "" {
+		resourceID = &temp
+	}
+
+	var isNameExact *bool
+	if temp := strings.TrimSpace(ctx.Query("isNameExact")); temp != "" {
+		tempBool := pel.AppendIfNotBool(temp, "是否为精确名称选项必须为 bool 值。")
+		isNameExact = &tempBool
+	}
+	var name *string
+	if temp := strings.TrimSpace(ctx.Query("name")); temp != "" {
+		name = &temp
+	}
+
+	var isTimeExact *bool
+	if temp := strings.TrimSpace(ctx.Query("isTimeExact")); temp != "" {
+		tempBool := pel.AppendIfNotBool(temp, "是否为精确时间选项必须为 bool 值。")
+		isTimeExact = &tempBool
+	}
+	var exactTime *time.Time
+	if temp := strings.TrimSpace(ctx.Query("time")); temp != "" {
+		tempTime := pel.AppendIfNotTime(temp, "时间应为合法的 RFC3339 格式。")
+		exactTime = &tempTime
+	}
+	var timeAfterInclusive *time.Time
+	if temp := strings.TrimSpace(ctx.Query("timeAfterInclusive")); temp != "" {
+		tempTime := pel.AppendIfNotTime(temp, "开始时间应为合法的 RFC3339 格式。")
+		timeAfterInclusive = &tempTime
+	}
+	var timeBeforeExclusive *time.Time
+	if temp := strings.TrimSpace(ctx.Query("timeBeforeExclusive")); temp != "" {
+		tempTime := pel.AppendIfNotTime(temp, "结束时间应为合法的 RFC3339 格式。")
+		timeBeforeExclusive = &tempTime
+	}
+
+	var designDocumentID *string
+	if temp := strings.TrimSpace(ctx.Query("designDocumentID")); temp != "" {
+		designDocumentID = &temp
+	}
+
+	// Early return if the error list is not empty
+	if len(*pel) > 0 {
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
+		return
+	}
+
+	// Encapsulate the query conditions into a struct
+	queryConditions := service.EntityAssetQueryConditions{
+		CommonQueryConditions: service.CommonQueryConditions{
+			IsReverse:           isLatestFirst,
+			ResourceID:          resourceID,
+			IsNameExact:         isNameExact,
+			Name:                name,
+			IsTimeExact:         isTimeExact,
+			Time:                exactTime,
+			TimeAfterInclusive:  timeAfterInclusive,
+			TimeBeforeExclusive: timeBeforeExclusive,
+			LastResourceID:      bookmark,
+		},
+		DesignDocumentID: designDocumentID,
+	}
+
+	// Perform the query using the service function
+	resourceIDs, err := c.EntityAssetSvc.ListEntityAssetIDsByConditions(queryConditions, pageSize)
+
+	// Check error type and generate the corresponding response
+	if err == nil {
+		ctx.JSON(http.StatusOK, resourceIDs)
 	} else if errors.Cause(err) == errorcode.ErrorNotFound {
 		ctx.Writer.WriteHeader(http.StatusNotFound)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {

@@ -3,6 +3,7 @@ package service
 import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
 )
 
@@ -68,4 +69,14 @@ type EntityAssetServiceInterface interface {
 	// 返回：
 	//   解密后的资产
 	GetDecryptedEntityAssetFromDB(id string, metadata *data.ResMetadataStored) (*common.EntityAsset, error)
+
+	// ListEntityAssetIDsByConditions 获取满足所提供的搜索条件的实体资产的资源 ID。
+	//
+	// 参数：
+	//   搜索条件
+	//   分页大小
+	//
+	// 返回：
+	//   带分页的资源 ID 列表
+	ListEntityAssetIDsByConditions(conditions EntityAssetQueryConditions, pageSize int) (*query.IDsWithPagination, error)
 }

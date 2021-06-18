@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
@@ -17,9 +18,11 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -449,7 +452,7 @@ func (s *EntityAssetService) GetDecryptedEntityAssetFromDB(id string, metadata *
 		}
 	}
 
-	// 从数据库中读取解密后的文档
+	// 从数据库中读取解密后的实体资产
 	var assetDB sqlmodel.EntityAsset
 	dbResult := s.ServiceInfo.DB.Where("id = ?", id).Take(&assetDB)
 	if dbResult.Error != nil {
@@ -484,6 +487,114 @@ func (s *EntityAssetService) GetDecryptedEntityAssetFromDB(id string, metadata *
 	}
 
 	return asset, nil
+}
+
+// ListEntityAssetIDsByConditions 获取满足所提供的搜索条件的实体资产的资源 ID。
+//
+// 参数：
+//   搜索条件
+//   分页大小
+//
+// 返回：
+//   带分页的资源 ID 列表
+func (s *EntityAssetService) ListEntityAssetIDsByConditions(conditions EntityAssetQueryConditions, pageSize int) (*query.IDsWithPagination, error) {
+	// 从两处获取资源 ID。
+	// 第一是调用链码从链上获取，这部分的结果包括 明文资源以及所查寻属性为公开的那部分资源 中符合条件的条目；
+	// 第二是从本地数据库中获取，这部分内容为 用户已解密过的资源 中符合条件的条目。
+	//
+	// 最终目标是按资源 ID 正序或倒序（由查询参数决定）排列，凑够 `pageSize` 条结果，带书签信息返回。
+	// 关键点在于：
+	//   1. 必须从两个来源都获取资源，为确保凑够数量，它们各需查询 `pageSize` 条，在排序过程中剔除多余的部分，剩下的作为本次查询的结果；
+	//   2. 两个数据来源得到的内容并非互补的，即它们可能有交集，存在重复。以下一小段解释了这为什么会发生。
+	//      若要满足在以下两个用例中都能取到完整的条目信息，我们就将面临这样的副作用。
+	//      可能用例 1：资源 x 与资源 y 的 `name` 相同。x 的 `name` 是公开的。y 的 `name` 是非公开的。需要按照 `name` 精确匹配查询。
+	//      可能用例 2：资源 x 的 `name` 是公开的，但 `precedingDocumentID` 是非公开的。需要按照 `name` 和 `precedingDocumentID` 精确匹配查询。
+	//      为了满足用例 1 下资源 x 和 y 都能被获取到，只需要
+	//          - 在链上按 `name` 查找
+	//          - 在本地数据库上按 `name` 查找并限定 `is_name_public` 为 `false`。即隐藏了 `name` 的条目的范围内寻找匹配项。
+	//      这样在单条件情况下，两个数据源的查询结果互补。然而这并不适用于用例 2 中多条件查询。
+	//      在用例 2 中，为了得到资源 x，我们还是从两个数据源中查询。我们不能从链上查得，因为其 `precedingDocumentID` 是非公开的。
+	//      但按上例中的方法，我们同样无法从本地数据库中获得，因为 `name` 是公开的。值得提醒的是，我们在搜索时并不知道一个资源的某个属性是否公开。
+	//      从而，这决定了我们从本地数据库中获取条目时，**不能将范围限定在所有属性或任意某些属性是非公开属性的条目内**。
+	//      换而言之，我们在从本地数据库上搜索时，也要包括属性是公开的那一部分，这将导致用例 1 中，属性公开的资源 x 会从两个数据源中同时获得。
+	//
+	// 为了解决这些现象，我们应在从两个数据源各获取 `pageSize` 条之后，进行以下操作。简单起见，假设 `pageSize` 为 10。
+	//   1: 若两个数据源得到的结果均为空，则直接返回。
+	//   2: 为两个数据源分别维护一个 `consumed` 变量，从一个数据源中取得一条就将相应变量 +1。选择哪个数据源作为下一个条目取决于哪个符合我们的排序规则。
+	//      因为结果可能重复，我们在加入时，若遇重复项，则只为相应的 `consumed` 变量 +1，而将结果本身舍弃，不将其采纳进结果列表。
+	//      我们在两个列表均被遍历完或者结果列表达到 10 条时，停止这一过程。这之后可能出现 4 种情况：
+	//      2.1: 结果列表不满 10 条：两个数据源均用完，则采用该列表以及最后的 ID 信息返回。
+	//      2.2: 结果列表满 10 条：直接返回以及最后的 ID 信息。
+
+	// 为链码层所用的 CouchDB 生成查询条件。遇到错误视为参数错误。
+	couchDBConditions, err := conditions.ToCouchDBConditions()
+	if err != nil {
+		return nil, &ErrorBadRequest{
+			errMsg: err.Error(),
+		}
+	}
+	couchDBConditionsBytes, err := json.Marshal(couchDBConditions)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法序列化查询条件")
+	}
+	fmt.Println(string(couchDBConditionsBytes))
+
+	// 生成 GORM 可用的带查询条件的 DB 对象
+	gormConditionedDB, err := conditions.ToGormConditionedDB(s.ServiceInfo.DB)
+	if err != nil {
+		return nil, &ErrorBadRequest{
+			errMsg: err.Error(),
+		}
+	}
+
+	// 从链码获取资源 ID
+	chaincodeFcn := "listResourceIDsByConditions"
+	channelReq := channel.Request{
+		ChaincodeID: s.ServiceInfo.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）。为满足 3 个参数，最后的 bookmark 参数为空列表。
+		Args: [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), {}},
+	}
+
+	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
+	err = GetClassifiedError(chaincodeFcn, err)
+	if err != nil {
+		return nil, err
+	}
+
+	// 这里虽然包含查询后的新书签信息，但该书签信息无用
+	var chaincodeResourceIDs query.IDsWithPagination
+	err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析结果列表")
+	}
+
+	// 从本地数据库获取资源 ID
+	// TODO: Debug 期使用
+	log.Debug(gormConditionedDB.Statement.SQL.String())
+	var localDBResourceIDs []string
+	gormConditionedDB.Table("entity_assets").Select("id").Limit(pageSize).Find(&localDBResourceIDs)
+
+	// 若两个数据源得到的结果均为空，则直接返回
+	if len(chaincodeResourceIDs.IDs) == 0 && len(localDBResourceIDs) == 0 {
+		ret := &query.IDsWithPagination{
+			IDs: []string{},
+		}
+		return ret, nil
+	}
+
+	// 从两个来源收集资源 ID
+	resourceIDs := collectResourceIDsFromSources(chaincodeResourceIDs.IDs, localDBResourceIDs, pageSize, conditions.IsReverse)
+
+	// 空结果早已提前返回，到此结果列表必有值。返回的书签是结果列表最后一项，即最后出现的资源 ID。
+	retBookmark := resourceIDs[len(resourceIDs)-1]
+
+	ret := &query.IDsWithPagination{
+		IDs:      resourceIDs,
+		Bookmark: retBookmark,
+	}
+
+	return ret, nil
 }
 
 func deriveExtensionsMapFromAsset(asset *common.EntityAsset) map[string]interface{} {
