@@ -50,18 +50,20 @@ type Component struct {
 // ToModel 将一个 `sqlmodel.Document` 对象转为 `common.Document` 对象。
 func (d *Document) ToModel() *common.Document {
 	ret := &common.Document{
-		ID:                          parseInt64ToSnowflakeString(d.ID),
-		Name:                        d.Name,
-		Type:                        getDocumentTypeFromSQLValue(d.Type),
-		PrecedingDocumentID:         parseNullInt64ToSnowflakeString(d.PrecedingDocumentID),
-		HeadDocumentID:              parseNullInt64ToSnowflakeString(d.HeadDocumentID),
-		EntityAssetID:               parseNullInt64ToSnowflakeString(d.EntityAssetID),
-		IsNamePublic:                d.IsNamePublic,
-		IsTypePublic:                d.IsTypePublic,
-		IsPrecedingDocumentIDPublic: d.IsPrecedingDocumentIDPublic,
-		IsHeadDocumentIDPublic:      d.IsHeadDocumentIDPublic,
-		IsEntityAssetIDPublic:       d.IsEntityAssetIDPublic,
-		Contents:                    d.Contents,
+		DocumentProperties: common.DocumentProperties{
+			ID:                          parseInt64ToSnowflakeString(d.ID),
+			Name:                        d.Name,
+			Type:                        getDocumentTypeFromSQLValue(d.Type),
+			PrecedingDocumentID:         parseNullInt64ToSnowflakeString(d.PrecedingDocumentID),
+			HeadDocumentID:              parseNullInt64ToSnowflakeString(d.HeadDocumentID),
+			EntityAssetID:               parseNullInt64ToSnowflakeString(d.EntityAssetID),
+			IsNamePublic:                d.IsNamePublic,
+			IsTypePublic:                d.IsTypePublic,
+			IsPrecedingDocumentIDPublic: d.IsPrecedingDocumentIDPublic,
+			IsHeadDocumentIDPublic:      d.IsHeadDocumentIDPublic,
+			IsEntityAssetIDPublic:       d.IsEntityAssetIDPublic,
+		},
+		Contents: d.Contents,
 	}
 
 	return ret

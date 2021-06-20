@@ -152,18 +152,20 @@ func (c *DocumentController) handleCreateDocument(ctx *gin.Context) {
 
 	// Wrap the collected info into a document
 	document := &common.Document{
-		ID:                          id,
-		Name:                        name,
-		Type:                        documentType,
-		PrecedingDocumentID:         precedingDocumentID,
-		HeadDocumentID:              headDocumentID,
-		EntityAssetID:               entityAssetID,
-		IsNamePublic:                isNamePublic,
-		IsTypePublic:                isDocumentTypePublic,
-		IsPrecedingDocumentIDPublic: isPrecedingDocumentIDPublic,
-		IsHeadDocumentIDPublic:      isHeadDocumentIDPublic,
-		IsEntityAssetIDPublic:       isEntityAssetIDPublic,
-		Contents:                    contents,
+		DocumentProperties: common.DocumentProperties{
+			ID:                          id,
+			Name:                        name,
+			Type:                        documentType,
+			PrecedingDocumentID:         precedingDocumentID,
+			HeadDocumentID:              headDocumentID,
+			EntityAssetID:               entityAssetID,
+			IsNamePublic:                isNamePublic,
+			IsTypePublic:                isDocumentTypePublic,
+			IsPrecedingDocumentIDPublic: isPrecedingDocumentIDPublic,
+			IsHeadDocumentIDPublic:      isHeadDocumentIDPublic,
+			IsEntityAssetIDPublic:       isEntityAssetIDPublic,
+		},
+		Contents: contents,
 	}
 
 	// Invoke the service function according to the resource type

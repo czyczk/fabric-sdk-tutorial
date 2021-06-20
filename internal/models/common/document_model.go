@@ -2,8 +2,8 @@ package common
 
 import "fmt"
 
-// Document 表示用于传数字文档
-type Document struct {
+// DocumentProperties 表示数字文档的属性部分
+type DocumentProperties struct {
 	ID                          string       `json:"id"`                          // 数字文档 ID
 	Name                        string       `json:"name"`                        // 数字文档名称
 	Type                        DocumentType `json:"documentType"`                // 数字文档的文档类型
@@ -15,7 +15,12 @@ type Document struct {
 	IsPrecedingDocumentIDPublic bool         `json:"isPrecedingDocumentIDPublic"` // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
 	IsHeadDocumentIDPublic      bool         `json:"isHeadDocumentIDPublic"`      // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
 	IsEntityAssetIDPublic       bool         `json:"isEntityAssetIDPublic"`       // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
-	Contents                    []byte       `json:"contents"`                    // 数字文档内容
+}
+
+// Document 表示数字文档
+type Document struct {
+	DocumentProperties
+	Contents []byte `json:"contents"` // 数字文档内容
 }
 
 // DocumentType 表示数字文档的文档类型

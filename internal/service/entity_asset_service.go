@@ -3,12 +3,10 @@ package service
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -125,22 +123,10 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 
 	// 用 key 加密 assetBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedAssetBytes, err := encryptBytesUsingAESKey(assetBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密资产")
 	}
-
-	aesGCM, err := cipher.NewGCM(cipherBlock)
-	if err != nil {
-		return "", errors.Wrap(err, "无法加密资产")
-	}
-
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", errors.Wrap(err, "无法加密资产")
-	}
-
-	encryptedAssetBytes := aesGCM.Seal(nonce, nonce, assetBytes, nil)
 
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()

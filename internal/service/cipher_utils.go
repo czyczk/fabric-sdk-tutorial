@@ -1,7 +1,11 @@
 package service
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/XiaoYao-austin/ppks"
@@ -56,4 +60,25 @@ func DeserializeCipherText(encryptedKeyBytes []byte) (*ppks.CipherText, error) {
 // 对称密钥的生成是由 curvePoint 导出的 256 位信息，可用于创建 AES256 block
 func deriveSymmetricKeyBytesFromCurvePoint(curvePoint *ppks.CurvePoint) []byte {
 	return curvePoint.X.Bytes()
+}
+
+// 使用 AES 对称密钥加密数据
+func encryptBytesUsingAESKey(b []byte, key []byte) (encryptedBytes []byte, err error) {
+	cipherBlock, err := aes.NewCipher(key)
+	if err != nil {
+		return
+	}
+
+	aesGCM, err := cipher.NewGCM(cipherBlock)
+	if err != nil {
+		return
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return
+	}
+
+	encryptedBytes = aesGCM.Seal(nonce, nonce, b, nil)
+	return
 }

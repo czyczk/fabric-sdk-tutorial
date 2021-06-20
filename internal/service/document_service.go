@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -62,16 +60,16 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 	}
 
 	// 计算哈希，获取大小并准备可公开的扩展字段
-	hash := sha256.Sum256(documentBytes)
-	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
-	size := len(documentBytes)
-	extensions := deriveExtensionsMapFromDocument(document)
+	contentsHash := sha256.Sum256(document.Contents)
+	contentsHashBase64 := base64.StdEncoding.EncodeToString(contentsHash[:])
+	contentsSize := len(document.Contents)
+	extensions := deriveExtensionsMapFromDocumentProperties(&document.DocumentProperties, nil)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
 		ResourceID:   document.ID,
-		Hash:         hashBase64,
-		Size:         uint64(size),
+		Hash:         contentsHashBase64,
+		Size:         uint64(contentsSize),
 		Extensions:   extensions,
 	}
 
@@ -122,25 +120,21 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 	if err != nil {
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
+	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化文档属性")
+	}
 
-	// 用 key 加密 documentBytes
+	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedDocumentBytes, err := encryptBytesUsingAESKey(documentBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密文档")
 	}
-
-	aesGCM, err := cipher.NewGCM(cipherBlock)
+	encryptedDocumentPropertiesBytes, err := encryptBytesUsingAESKey(documentPropertiesBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密文档")
+		return "", errors.Wrap(err, "无法加密文档属性")
 	}
-
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", errors.Wrap(err, "无法加密文档")
-	}
-
-	encryptedDocumentBytes := aesGCM.Seal(nonce, nonce, documentBytes, nil)
 
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()
@@ -161,7 +155,7 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 	hash := sha256.Sum256(documentBytes)
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
-	extensions := deriveExtensionsMapFromDocument(document)
+	extensions := deriveExtensionsMapFromDocumentProperties(&document.DocumentProperties, encryptedDocumentPropertiesBytes)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Encrypted,
@@ -221,25 +215,21 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	if err != nil {
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
+	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化文档属性")
+	}
 
-	// 用 key 加密 documentBytes
+	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedDocumentBytes, err := encryptBytesUsingAESKey(documentBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密文档")
 	}
-
-	aesGCM, err := cipher.NewGCM(cipherBlock)
+	encryptedDocumentPropertiesBytes, err := encryptBytesUsingAESKey(documentPropertiesBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密文档")
+		return "", errors.Wrap(err, "无法加密文档属性")
 	}
-
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", errors.Wrap(err, "无法加密文档")
-	}
-
-	encryptedDocumentBytes := aesGCM.Seal(nonce, nonce, documentBytes, nil)
 
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()
@@ -260,7 +250,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	hash := sha256.Sum256(documentBytes)
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
-	extensions := deriveExtensionsMapFromDocument(document)
+	extensions := deriveExtensionsMapFromDocumentProperties(&document.DocumentProperties, encryptedDocumentPropertiesBytes)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Offchain,
@@ -888,23 +878,28 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	return ret, nil
 }
 
-func deriveExtensionsMapFromDocument(document *common.Document) map[string]interface{} {
+func deriveExtensionsMapFromDocumentProperties(publicProperties *common.DocumentProperties, encryptedProperties []byte) map[string]interface{} {
 	extensions := make(map[string]interface{})
 	extensions["dataType"] = documentDataType
-	if document.IsNamePublic {
-		extensions["name"] = document.Name
+	if publicProperties.IsNamePublic {
+		extensions["name"] = publicProperties.Name
 	}
-	if document.IsTypePublic {
-		extensions["documentType"] = document
+	if publicProperties.IsTypePublic {
+		extensions["documentType"] = publicProperties
 	}
-	if document.IsPrecedingDocumentIDPublic {
-		extensions["precedingDocumentID"] = document.PrecedingDocumentID
+	if publicProperties.IsPrecedingDocumentIDPublic {
+		extensions["precedingDocumentID"] = publicProperties.PrecedingDocumentID
 	}
-	if document.IsHeadDocumentIDPublic {
-		extensions["headDocumentID"] = document.HeadDocumentID
+	if publicProperties.IsHeadDocumentIDPublic {
+		extensions["headDocumentID"] = publicProperties.HeadDocumentID
 	}
-	if document.IsEntityAssetIDPublic {
-		extensions["entityAssetID"] = document.EntityAssetID
+	if publicProperties.IsEntityAssetIDPublic {
+		extensions["entityAssetID"] = publicProperties.EntityAssetID
+	}
+
+	if encryptedProperties != nil {
+		encryptedPropertiesBase64 := base64.StdEncoding.EncodeToString(encryptedProperties)
+		extensions["encrypted"] = encryptedPropertiesBase64
 	}
 
 	return extensions

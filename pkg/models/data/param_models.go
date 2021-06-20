@@ -49,22 +49,22 @@ func NewResourceTypeFromString(enumString string) (ret ResourceType, err error) 
 type ResMetadata struct {
 	ResourceType ResourceType           `json:"resourceType"` // 资源加密类别
 	ResourceID   string                 `json:"resourceID"`   // 资源 ID
-	Hash         string                 `json:"hash"`         // 资源的明文该有的哈希值（SHA256）（[32]byte 的 Base64 编码）
-	Size         uint64                 `json:"size"`         // 资源的明文该有的大小
-	Extensions   map[string]interface{} `json:"extensions"`   // 扩展字段
+	Hash         string                 `json:"hash"`         // 资源的明文的哈希值（[32]byte 的 Base64 编码）
+	Size         uint64                 `json:"size"`         // 资源的明文的内容部分的大小
+	Extensions   map[string]interface{} `json:"extensions"`   // 扩展字段（包含可公开的属性）
 }
 
 // PlainData 用于表示要传入链码的明文资源
 type PlainData struct {
 	Metadata ResMetadata `json:"metadata"` // 资源的元数据
-	Data     string      `json:"data"`     // 资源数据本体
+	Data     string      `json:"data"`     // 资源的数据本体（Base64 编码）
 }
 
 // EncryptedData 用于表示要传入链码的加密资源
 type EncryptedData struct {
 	Metadata ResMetadata `json:"metadata"` // 资源的元数据
-	Data     string      `json:"data"`     // 资源数据本体
-	Key      string      `json:"key"`      // 加密的对称密钥（Base64 编码）
+	Data     string      `json:"data"`     // 资源的数据本体（密文）（Base64 编码）
+	Key      string      `json:"key"`      // 对称密钥（密文）（Base64 编码）
 	Policy   string      `json:"policy"`   // 策略
 }
 
@@ -72,6 +72,6 @@ type EncryptedData struct {
 type OffchainData struct {
 	Metadata ResMetadata `json:"metadata"` // 资源的元数据
 	CID      string      `json:"cid"`      // 资源在 IPFS 网络上的内容 ID
-	Key      string      `json:"key"`      // 加密的对称密钥（Base64 编码）
+	Key      string      `json:"key"`      // 对称密钥（密文）（Base64 编码）
 	Policy   string      `json:"policy"`   // 策略
 }
