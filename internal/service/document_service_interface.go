@@ -83,6 +83,18 @@ type DocumentServiceInterface interface {
 	//   解密后的文档
 	GetOffchainDocument(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.Document, error)
 
+	// GetEncryptedDocumentProperties 获取加密与链下加密数字文档的加密属性部分，并使用密钥置换结果尝试进行解密。调用前应先获取元数据。
+	//
+	// 参数：
+	//   文档 ID
+	//   密钥置换会话 ID
+	//   预期的份额数量
+	//   文档元数据
+	//
+	// 返回：
+	//   解密后的文档属性
+	GetEncryptedDocumentProperties(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.DocumentProperties, error)
+
 	// GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。调用前应先获取元数据。
 	//
 	// 参数：
@@ -92,6 +104,16 @@ type DocumentServiceInterface interface {
 	// 返回：
 	//   解密后的文档
 	GetDecryptedDocumentFromDB(id string, metadata *data.ResMetadataStored) (*common.Document, error)
+
+	// GetDecryptedDocumentPropertiesFromDB 从数据库中获取经解密的数字文档的属性部分。返回解密后的属性明文。调用前应先获取元数据。
+	//
+	// 参数：
+	//   文档 ID
+	//   文档元数据
+	//
+	// 返回：
+	//   解密后的文档属性
+	GetDecryptedDocumentPropertiesFromDB(id string, metadata *data.ResMetadataStored) (*common.DocumentProperties, error)
 
 	// ListDocumentIDsByCreator 获取所有调用者创建的数字文档的资源 ID。
 	//

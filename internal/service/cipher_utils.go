@@ -82,3 +82,29 @@ func encryptBytesUsingAESKey(b []byte, key []byte) (encryptedBytes []byte, err e
 	encryptedBytes = aesGCM.Seal(nonce, nonce, b, nil)
 	return
 }
+
+// 使用 AES 对称密钥解密数据
+func decryptBytesUsingAESKey(b []byte, key []byte) (decryptedBytes []byte, err error) {
+	cipherBlock, err := aes.NewCipher(key)
+	if err != nil {
+		return
+	}
+
+	aesGCM, err := cipher.NewGCM(cipherBlock)
+	if err != nil {
+		return
+	}
+
+	nonceSize := aesGCM.NonceSize()
+	if len(b) < nonceSize {
+		err = fmt.Errorf("密文长度太短")
+	}
+
+	nonce, b := b[:nonceSize], b[nonceSize:]
+	decryptedBytes, err = aesGCM.Open(nil, nonce, b, nil)
+	if err != nil {
+		return
+	}
+
+	return
+}

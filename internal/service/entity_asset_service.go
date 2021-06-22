@@ -1,8 +1,6 @@
 package service
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -361,24 +359,8 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		return nil, errors.Wrap(err, "无法解密对称密钥")
 	}
 
-	// 用对称密钥解密 encryptedDocumentBytes
-	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解密资产")
-	}
-
-	aesGCM, err := cipher.NewGCM(cipherBlock)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解密资产")
-	}
-
-	nonceSize := aesGCM.NonceSize()
-	if len(encryptedAssetBytes) < nonceSize {
-		return nil, fmt.Errorf("无法解密资产: 密文长度太短")
-	}
-
-	nonce, encryptedAssetBytes := encryptedAssetBytes[:nonceSize], encryptedAssetBytes[nonceSize:]
-	assetBytes, err := aesGCM.Open(nil, nonce, encryptedAssetBytes, nil)
+	// 用对称密钥解密 encryptedAssetBytes
+	assetBytes, err := decryptBytesUsingAESKey(encryptedAssetBytes, deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密资产")
 	}

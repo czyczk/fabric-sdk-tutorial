@@ -10,8 +10,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// Document 定义了数据库表 documents，用于读写数据库中的数字文档。
-type Document struct {
+// Document 定义了数据库表 documents 的属性部分，用于读写数据库中的数字文档的属性部分。
+type DocumentProperties struct {
 	gorm.Model
 	ID                          int64
 	Name                        string `gorm:"type:VARCHAR(255) NOT NULL"`
@@ -25,7 +25,11 @@ type Document struct {
 	IsPrecedingDocumentIDPublic bool      `gorm:"not null"`
 	IsHeadDocumentIDPublic      bool      `gorm:"not null"`
 	IsEntityAssetIDPublic       bool      `gorm:"not null"`
-	Contents                    []byte
+}
+
+// Document 定义了数据库表 documents，用于读写数据库中的数字文档。
+type Document struct {
+	Contents []byte
 }
 
 // EntityAsset 定义了数据库表 entity_assets，用于读写数据库中的实体资产。
@@ -47,23 +51,35 @@ type Component struct {
 	EntityAssetID int64 `gorm:"not null"`
 }
 
+// 自定义 DocumentProperties 的表名。
+func (DocumentProperties) TableName() string {
+	return "document_properties"
+}
+
+// ToModel 将一个 `sqlmodel.DocumentProperties` 对象转为 `common.DocumentProperties` 对象。
+func (d *DocumentProperties) ToModel() *common.DocumentProperties {
+	ret := &common.DocumentProperties{
+		ID:                          parseInt64ToSnowflakeString(d.ID),
+		Name:                        d.Name,
+		Type:                        getDocumentTypeFromSQLValue(d.Type),
+		PrecedingDocumentID:         parseNullInt64ToSnowflakeString(d.PrecedingDocumentID),
+		HeadDocumentID:              parseNullInt64ToSnowflakeString(d.HeadDocumentID),
+		EntityAssetID:               parseNullInt64ToSnowflakeString(d.EntityAssetID),
+		IsNamePublic:                d.IsNamePublic,
+		IsTypePublic:                d.IsTypePublic,
+		IsPrecedingDocumentIDPublic: d.IsPrecedingDocumentIDPublic,
+		IsHeadDocumentIDPublic:      d.IsHeadDocumentIDPublic,
+		IsEntityAssetIDPublic:       d.IsEntityAssetIDPublic,
+	}
+
+	return ret
+}
+
 // ToModel 将一个 `sqlmodel.Document` 对象转为 `common.Document` 对象。
-func (d *Document) ToModel() *common.Document {
+func (d *Document) ToModel(p *DocumentProperties) *common.Document {
 	ret := &common.Document{
-		DocumentProperties: common.DocumentProperties{
-			ID:                          parseInt64ToSnowflakeString(d.ID),
-			Name:                        d.Name,
-			Type:                        getDocumentTypeFromSQLValue(d.Type),
-			PrecedingDocumentID:         parseNullInt64ToSnowflakeString(d.PrecedingDocumentID),
-			HeadDocumentID:              parseNullInt64ToSnowflakeString(d.HeadDocumentID),
-			EntityAssetID:               parseNullInt64ToSnowflakeString(d.EntityAssetID),
-			IsNamePublic:                d.IsNamePublic,
-			IsTypePublic:                d.IsTypePublic,
-			IsPrecedingDocumentIDPublic: d.IsPrecedingDocumentIDPublic,
-			IsHeadDocumentIDPublic:      d.IsHeadDocumentIDPublic,
-			IsEntityAssetIDPublic:       d.IsEntityAssetIDPublic,
-		},
-		Contents: d.Contents,
+		DocumentProperties: *p.ToModel(),
+		Contents:           d.Contents,
 	}
 
 	return ret
@@ -88,9 +104,9 @@ func (e *EntityAsset) ToModel() *common.EntityAsset {
 	return ret
 }
 
-// NewDocumentFromModel 通过 `common.Document` 对象创建一个 `sqlmodel.Document` 对象。
-func NewDocumentFromModel(model *common.Document, timeCreated time.Time) (*Document, error) {
-	errMsg := "无法转换数字文档对象为数据库对象"
+// NewDocumentPropertiesFromModel 通过 `common.DocumentProperties` 对象创建一个 `sqlmodel.DocumentProperties` 对象。
+func NewDocumentPropertiesFromModel(model *common.DocumentProperties, timeCreated time.Time) (*DocumentProperties, error) {
+	errMsg := "无法转换数字文档属性对象为数据库对象"
 
 	precedingDocumentID, err := parseSnowflakeStringToNullInt64(model.PrecedingDocumentID)
 	if err != nil {
@@ -112,7 +128,7 @@ func NewDocumentFromModel(model *common.Document, timeCreated time.Time) (*Docum
 		return nil, errors.Wrap(err, errMsg)
 	}
 
-	ret := &Document{
+	ret := &DocumentProperties{
 		ID:                          id,
 		Name:                        model.Name,
 		Type:                        getSQLValueFromDocumentType(model.Type),
@@ -125,10 +141,26 @@ func NewDocumentFromModel(model *common.Document, timeCreated time.Time) (*Docum
 		IsPrecedingDocumentIDPublic: model.IsPrecedingDocumentIDPublic,
 		IsHeadDocumentIDPublic:      model.IsHeadDocumentIDPublic,
 		IsEntityAssetIDPublic:       model.IsEntityAssetIDPublic,
-		Contents:                    model.Contents,
 	}
 
 	return ret, nil
+}
+
+// NewDocumentFromModel 通过 `common.Document` 对象创建一个 `sqlmodel.Document` 对象和一个 `sqlmodel.DocumentProperties` 对象。
+func NewDocumentFromModel(model *common.Document, timeCreated time.Time) (document *Document, documentProperties *DocumentProperties, err error) {
+	errMsg := "无法转换数字文档对象为数据库对象"
+
+	documentProperties, err = NewDocumentPropertiesFromModel(&model.DocumentProperties, timeCreated)
+	if err != nil {
+		err = errors.Wrap(err, errMsg)
+		return
+	}
+
+	document = &Document{
+		Contents: model.Contents,
+	}
+
+	return
 }
 
 // NewEntityAssetFromModel 通过 `common.EntityAsset` 对象创建一个 `sqlmodel.EntityAsset` 对象。
