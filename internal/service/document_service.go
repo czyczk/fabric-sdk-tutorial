@@ -769,7 +769,10 @@ func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.R
 		return nil, err
 	}
 
-	document := documentDB.ToModel(documentPropertiesDB)
+	document, err := documentDB.ToModel(documentPropertiesDB)
+	if err != nil {
+		return nil, err
+	}
 
 	// 检查解密出的内容的大小和哈希是否匹配
 	documentBytes, err := json.Marshal(document)

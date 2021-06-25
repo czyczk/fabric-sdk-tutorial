@@ -29,6 +29,8 @@ type DocumentProperties struct {
 
 // Document 定义了数据库表 documents，用于读写数据库中的数字文档。
 type Document struct {
+	gorm.Model
+	ID       int64
 	Contents []byte
 }
 
@@ -76,13 +78,17 @@ func (d *DocumentProperties) ToModel() *common.DocumentProperties {
 }
 
 // ToModel 将一个 `sqlmodel.Document` 对象转为 `common.Document` 对象。
-func (d *Document) ToModel(p *DocumentProperties) *common.Document {
+func (d *Document) ToModel(p *DocumentProperties) (*common.Document, error) {
+	if d.ID != p.ID {
+		return nil, fmt.Errorf("文档与文档属性的 ID 不匹配")
+	}
+
 	ret := &common.Document{
 		DocumentProperties: *p.ToModel(),
 		Contents:           d.Contents,
 	}
 
-	return ret
+	return ret, nil
 }
 
 // ToModel 将一个 `sqlmodel.EntityAsset` 对象转为 `common.EntityAsset` 对象。
@@ -156,7 +162,14 @@ func NewDocumentFromModel(model *common.Document, timeCreated time.Time) (docume
 		return
 	}
 
+	id, err := parseSnowflakeStringToInt64(model.ID)
+	if err != nil {
+		err = errors.Wrap(err, errMsg)
+		return
+	}
+
 	document = &Document{
+		ID:       id,
 		Contents: model.Contents,
 	}
 
