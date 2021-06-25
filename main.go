@@ -181,7 +181,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		}
 
 		// Auto migrate schemas
-		err = db.AutoMigrate(&sqlmodel.Document{}, &sqlmodel.EntityAsset{}, &sqlmodel.Component{})
+		err = db.AutoMigrate(&sqlmodel.DocumentProperties{}, &sqlmodel.Document{}, &sqlmodel.EntityAsset{}, &sqlmodel.Component{})
 		if err != nil {
 			return errors.Wrap(err, "无法创建数据库表")
 		}

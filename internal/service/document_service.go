@@ -59,16 +59,16 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 	}
 
 	// 计算哈希，获取大小并准备可公开的扩展字段
-	contentsHash := sha256.Sum256(document.Contents)
-	contentsHashBase64 := base64.StdEncoding.EncodeToString(contentsHash[:])
-	contentsSize := len(document.Contents)
+	hash := sha256.Sum256(documentBytes)
+	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
+	size := len(documentBytes)
 	extensions := deriveExtensionsMapFromDocumentProperties(&document.DocumentProperties, nil)
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Plain,
 		ResourceID:   document.ID,
-		Hash:         contentsHashBase64,
-		Size:         uint64(contentsSize),
+		Hash:         hashBase64,
+		Size:         uint64(size),
 		Extensions:   extensions,
 	}
 
