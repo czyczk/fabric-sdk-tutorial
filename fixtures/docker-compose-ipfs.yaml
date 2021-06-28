@@ -1,0 +1,37 @@
+version: '3.4'
+
+services:
+  ipfs0:
+    container_name: ipfs0
+    image: ipfs/go-ipfs:release
+    ports:
+      - "4001:4001" # ipfs swarm
+      - "5001:5001" # ipfs api
+    # - "10080:8080" # ipfs gateway
+    volumes:
+      - ./ipfs/ipfs0:/data/ipfs
+    environment:
+      LIBP2P_FORCE_PNET: 1
+      #command:
+      #  - |
+      #    bootstrap rm --all
+      #    config Addresses.API /ip4/0.0.0.0/tcp/5001
+      #    daemon &
+  ipfs1:
+    container_name: ipfs1
+    image: ipfs/go-ipfs:release
+    ports:
+      - "4101:4001" # ipfs swarm
+      - "5101:5001" # ipfs api
+    volumes:
+      - ./ipfs/ipfs1:/data/ipfs
+    environment:
+      LIBP2P_FORCE_PNET: 1
+      #command:
+      #  - |
+      #    bootstrap rm --all
+      #    config Addresses.API /ip4/0.0.0.0/tcp/5001
+      #    daemon &
+      #    #bootstrap add /ip4/ipfs0/tcp/4001/ipfs/Qm
+    depends_on:
+      - ipfs0

@@ -1,5 +1,5 @@
 export COMPOSE_PROJECT_NAME=lab805
-export DOCKER_FILES_PARAM=-f docker-compose.yaml -f docker-compose-couch.yaml
+export DOCKER_FILES_PARAM=-f docker-compose.yaml -f docker-compose-couch.yaml -f docker-compose-ipfs.yaml
 
 .PHONY: all dev clean build env-up env-down run run-init run-serve
 
