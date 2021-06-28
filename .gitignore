@@ -9,6 +9,9 @@ bin/
 fixtures/bin/
 fabric-sdk-tutorial
 
+# Auto created copies of templates
+fixtures/ipfs
+
 # Test binary, built with `go test -c`
 *.test
 

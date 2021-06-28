@@ -14,6 +14,7 @@ build:
 ##### ENV
 env-up:
 	@echo "Starting environment..."
+	@cd fixtures && rm -rf ./ipfs && cp -r ./ipfs-template ./ipfs
 	@cd fixtures && docker-compose ${DOCKER_FILES_PARAM} up --force-recreate -d
 	@sleep 3
 	@echo "Environment is up."
@@ -40,6 +41,7 @@ run-serve-u1o2:
 ##### CLEAN
 clean: env-down
 	@echo "Cleaning up..."
+	@rm -rf ./fixtures/ipfs
 	@docker rm -f -v `docker ps -a --no-trunc | grep "lab805" | cut -d ' ' -f 1` 2>/dev/null || true
 	@docker rmi `docker images --no-trunc | grep "lab805" | cut -d ' ' -f 1` 2>/dev/null || true
 	@echo "Done cleaning up."
