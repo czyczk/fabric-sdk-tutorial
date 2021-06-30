@@ -12,11 +12,7 @@ services:
       - ./ipfs/ipfs0:/data/ipfs
     environment:
       LIBP2P_FORCE_PNET: 1
-      #command:
-      #  - |
-      #    bootstrap rm --all
-      #    config Addresses.API /ip4/0.0.0.0/tcp/5001
-      #    daemon &
+
   ipfs1:
     container_name: ipfs1
     image: ipfs/go-ipfs:release
@@ -27,11 +23,18 @@ services:
       - ./ipfs/ipfs1:/data/ipfs
     environment:
       LIBP2P_FORCE_PNET: 1
-      #command:
-      #  - |
-      #    bootstrap rm --all
-      #    config Addresses.API /ip4/0.0.0.0/tcp/5001
-      #    daemon &
-      #    #bootstrap add /ip4/ipfs0/tcp/4001/ipfs/Qm
+    depends_on:
+      - ipfs0
+
+  ipfs2:
+    container_name: ipfs2
+    image: ipfs/go-ipfs:release
+    ports:
+      - "4201:4001" # ipfs swarm
+      - "5201:5001" # ipfs api
+    volumes:
+      - ./ipfs/ipfs2:/data/ipfs
+    environment:
+      LIBP2P_FORCE_PNET: 1
     depends_on:
       - ipfs0
