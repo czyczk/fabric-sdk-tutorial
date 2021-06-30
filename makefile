@@ -35,6 +35,9 @@ run-init:
 run-serve:
 	@./fabric-sdk-tutorial serve
 
+run-serve-ado1:
+	@./fabric-sdk-tutorial serve -c "server-ado1.yaml"
+
 run-serve-u1o2:
 	@./fabric-sdk-tutorial serve -c "server-u1o2.yaml"
 

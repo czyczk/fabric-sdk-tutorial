@@ -3,10 +3,11 @@ user:
   userID: User1
 channels:
   - mychannel
-port: 8082
+port: 8083
 localDBSourceName: "fabricphone:fabricphone@tcp(localhost:3306)/fabric_phone_u1o2?charset=utf8mb4&parseTime=True&loc=Local"
-ipfsAPI: "localhost:5101"
+ipfsAPI: "localhost:5201"
 isKeySwitchServer: true
+isRegulator: false
 keySwitchKeys:
   encryptionAlgorithm: "SM2"
   collectivePublicKey: "sm2keys/collPubKey.pem"
