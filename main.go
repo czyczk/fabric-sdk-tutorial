@@ -150,6 +150,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		orgName := serverInfo.User.OrgName
 		userID := serverInfo.User.UserID
 		isKeySwitchServer := serverInfo.IsKeySwitchServer
+		isRegulator := serverInfo.IsRegulator
 
 		// Create clients
 		if err = appinit.InstantiateResMgmtClient(orgName, userID); err != nil {
@@ -193,6 +194,17 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			return fmt.Errorf("未指定密钥置换集合公钥")
 		}
 
+		// Make sure the private key and public key are specified to participate in retrieving encrypted data
+		if serverInfo.KeySwitchKeys.PrivateKey == "" || serverInfo.KeySwitchKeys.PublicKey == "" {
+			return fmt.Errorf("未指定密钥置换所需的私钥和/或公钥。将无法获取加密资源")
+		}
+
+		// Load key switch keys
+		err = appinit.LoadKeySwitchServerKeys(serverInfo.KeySwitchKeys)
+		if err != nil {
+			return err
+		}
+
 		// Connect to IPFS service
 		ipfsSh := ipfs.NewShell(serverInfo.IPFSAPI)
 		ipfsSh.SetTimeout(20 * time.Second)
@@ -200,18 +212,12 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			return fmt.Errorf("无法连接到 IPFS 节点")
 		}
 
-		// Load key switch config and initialize key switch server if enabled
-		if isKeySwitchServer {
-			// Make sure the private key and the public key are specified if the app is enabled as a key switch server
-			if serverInfo.KeySwitchKeys.PrivateKey == "" || serverInfo.KeySwitchKeys.PublicKey == "" {
-				return fmt.Errorf("密钥置换所需的私钥和/或公钥未指定。请指定公私钥或将密钥置换服务器关闭")
+		// If enabled, load regulator config
+		if isRegulator {
+			// Make sure the collective private key is specified
+			if serverInfo.KeySwitchKeys.CollectivePrivateKey == "" {
+				return fmt.Errorf("未指定监管者功能所需的集合私钥。请指定集合私钥或将监管者关闭")
 			}
-
-		}
-
-		err = appinit.LoadKeySwitchServerKeys(serverInfo.KeySwitchKeys)
-		if err != nil {
-			return err
 		}
 
 		// Instantiate a screw service
@@ -268,6 +274,9 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 				return err
 			}
 		}
+
+		// TODO
+		// Prepare a regulator server. It will be of use if the app is enabled as a regulator server.
 
 		// // Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID
 		// respMsg, err := screwSvc.TransferAndShowEvent("Org1", "Org2", 10)

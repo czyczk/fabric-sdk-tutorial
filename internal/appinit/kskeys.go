@@ -13,10 +13,11 @@ import (
 
 // KeySwitchKeyLocations records the paths to the keys required to perform the key switch process.
 type KeySwitchKeyLocations struct {
-	EncryptionAlgorithm string `yaml:"encryptionAlgorithm"` // The encryption algorithm used by the keys
-	CollectivePublicKey string `yaml:"collectivePublicKey"` // The path to the collective public key
-	PrivateKey          string `yaml:"privateKey"`          // The path to the private key
-	PublicKey           string `yaml:"publicKey"`           // The path to the public key
+	EncryptionAlgorithm  string `yaml:"encryptionAlgorithm"`  // The encryption algorithm used by the keys
+	CollectivePrivateKey string `yaml:"collectivePrivateKey"` // The path to the collective private key
+	CollectivePublicKey  string `yaml:"collectivePublicKey"`  // The path to the collective public key
+	PrivateKey           string `yaml:"privateKey"`           // The path to the private key
+	PublicKey            string `yaml:"publicKey"`            // The path to the public key
 }
 
 // LoadKeySwitchServerKeys loads the keys required to perform the key switch process from the paths specified in `locations`. The keys will be available as singletons in `global.KeySwitchKeys`.

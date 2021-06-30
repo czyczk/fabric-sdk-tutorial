@@ -15,6 +15,7 @@ type ServerInfo struct {
 	LocalDBSourceName string                 `yaml:"localDBSourceName"`
 	IPFSAPI           string                 `yaml:"ipfsAPI"`
 	IsKeySwitchServer bool                   `yaml:"isKeySwitchServer"`
+	IsRegulator       bool                   `yaml:"isRegulator"`
 	KeySwitchKeys     *KeySwitchKeyLocations `yaml:"keySwitchKeys"`
 }
 
