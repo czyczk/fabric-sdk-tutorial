@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
@@ -126,7 +127,7 @@ func (s *KeySwitchService) GetDecryptedKey(shares [][]byte, encryptedKey []byte,
 			return nil, fmt.Errorf("份额长度不正确，应为 128 字节")
 		}
 
-		cipherText, err := DeserializeCipherText(share)
+		cipherText, err := cipherutils.DeserializeCipherText(share)
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +135,7 @@ func (s *KeySwitchService) GetDecryptedKey(shares [][]byte, encryptedKey []byte,
 	}
 
 	// 解析加密后的密钥材料
-	encryptedKeyAsCipherText, err := DeserializeCipherText(encryptedKey)
+	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKey)
 	if err != nil {
 		return nil, err
 	}

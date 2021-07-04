@@ -34,6 +34,21 @@ func LoadKeySwitchServerKeys(locations *KeySwitchKeyLocations) error {
 
 	global.KeySwitchKeys.EncryptionAlgorithm = locations.EncryptionAlgorithm
 
+	// Load and save the collective private key as a singleton
+	if locations.CollectivePrivateKey != "" {
+		collPrivKeyPem, err := ioutil.ReadFile(locations.CollectivePrivateKey)
+		if err != nil {
+			return errors.Wrap(err, "无法读取密钥置换所需的集合私钥")
+		}
+
+		collPrivKey, err := sm2keyutils.ConvertPEMToPrivateKey(collPrivKeyPem)
+		if err != nil {
+			return errors.Wrap(err, "无法解析密钥置换所需的集合私钥，可能不是合法的 SM2 私钥")
+		}
+
+		global.KeySwitchKeys.CollectivePrivateKey = collPrivKey
+	}
+
 	// Load and save the collective public key as a singleton
 	collPubKeyPem, err := ioutil.ReadFile(locations.CollectivePublicKey)
 	if err != nil {

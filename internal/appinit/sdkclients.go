@@ -2,6 +2,7 @@ package appinit
 
 import (
 	"fmt"
+
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/event"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
@@ -41,7 +42,7 @@ func InstantiateResMgmtClient(orgName, userID string) error {
 	// Create a resource management client instance using the client context
 	resMgmtClient, err := resmgmt.New(clientContext)
 	if err != nil {
-		return errors.Wrap(err, "无法创建资源管理端")
+		return errors.Wrap(err, "无法创建资源管理客户端")
 	}
 
 	global.ResMgmtClientInstances[orgName][userID] = resMgmtClient
@@ -114,7 +115,7 @@ func InstantiateChannelClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID 
 	}
 	global.ChannelClientInstances[channelID][orgName][userID] = channelClient
 
-	log.Printf("已在通道 '%v' 上为 %v@%v 创建通道客户端。\n", channelID, userID, orgName)
+	log.Infof("已在通道 '%v' 上为 %v@%v 创建通道客户端。", channelID, userID, orgName)
 
 	return nil
 }
@@ -150,7 +151,7 @@ func InstantiateEventClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID st
 	}
 	global.EventClientInstances[channelID][orgName][userID] = eventClient
 
-	log.Printf("已在通道 '%v' 上为 %v@%v 创建事件客户端。\n", channelID, userID, orgName)
+	log.Infof("已在通道 '%v' 上为 %v@%v 创建事件客户端。", channelID, userID, orgName)
 
 	return nil
 }
@@ -186,7 +187,7 @@ func InstantiateLedgerClient(sdk *fabsdk.FabricSDK, channelID, orgName, userID s
 	}
 	global.LedgerClientInstances[channelID][orgName][userID] = ledgerClient
 
-	log.Printf("已在通道 '%v' 上为 %v@%v 创建账本客户端。\n", channelID, userID, orgName)
+	log.Infof("已在通道 '%v' 上为 %v@%v 创建账本客户端。", channelID, userID, orgName)
 
 	return nil
 }

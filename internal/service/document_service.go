@@ -9,11 +9,11 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
-	"time"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/db"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
-	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/sqlmodel"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
@@ -23,8 +23,6 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // DocumentService 用于管理数字文档。
@@ -126,11 +124,11 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	encryptedDocumentBytes, err := encryptBytesUsingAESKey(documentBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedDocumentBytes, err := cipherutils.EncryptBytesUsingAESKey(documentBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密文档")
 	}
-	encryptedDocumentPropertiesBytes, err := encryptBytesUsingAESKey(documentPropertiesBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedDocumentPropertiesBytes, err := cipherutils.EncryptBytesUsingAESKey(documentPropertiesBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密文档属性")
 	}
@@ -148,7 +146,7 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
-	encryptedKeyBytes := SerializeCipherText(encryptedKey)
+	encryptedKeyBytes := cipherutils.SerializeCipherText(encryptedKey)
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(documentBytes)
@@ -180,7 +178,7 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{encryptedDataBytes},
+		Args:        [][]byte{encryptedDataBytes, []byte(encryptedResourceCreationEventName)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
@@ -221,11 +219,11 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	encryptedDocumentBytes, err := encryptBytesUsingAESKey(documentBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedDocumentBytes, err := cipherutils.EncryptBytesUsingAESKey(documentBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密文档")
 	}
-	encryptedDocumentPropertiesBytes, err := encryptBytesUsingAESKey(documentPropertiesBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedDocumentPropertiesBytes, err := cipherutils.EncryptBytesUsingAESKey(documentPropertiesBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密文档属性")
 	}
@@ -243,7 +241,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
-	encryptedKeyBytes := SerializeCipherText(encryptedKey)
+	encryptedKeyBytes := cipherutils.SerializeCipherText(encryptedKey)
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(documentBytes)
@@ -281,7 +279,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{offchainDataBytes},
+		Args:        [][]byte{offchainDataBytes, []byte(encryptedResourceCreationEventName)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
@@ -300,23 +298,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 // 返回：
 //   元数据
 func (s *DocumentService) GetDocumentMetadata(id string) (*data.ResMetadataStored, error) {
-	chaincodeFcn := "getMetadata"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	if err != nil {
-		return nil, GetClassifiedError(chaincodeFcn, err)
-	} else {
-		var resMetadataStored data.ResMetadataStored
-		if err = json.Unmarshal(resp.Payload, &resMetadataStored); err != nil {
-			return nil, errors.Wrap(err, "获取的元数据不合法")
-		}
-		return &resMetadataStored, nil
-	}
+	return getResourceMetadata(id, s.ServiceInfo)
 }
 
 // GetDocument 获取明文数字文档，调用前应先获取元数据。
@@ -456,7 +438,7 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	// 用对称密钥解密 encryptedDocumentBytes
-	documentBytes, err := decryptBytesUsingAESKey(encryptedDocumentBytes, deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
+	documentBytes, err := cipherutils.DecryptBytesUsingAESKey(encryptedDocumentBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密文档")
 	}
@@ -481,7 +463,7 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	// 将解密的文档属性与内容存入数据库（若已存在则覆盖）
-	err = saveDecryptedDocumentAndDocumentPropertiesToLocalDB(&document, metadata.Timestamp, s.ServiceInfo.DB)
+	err = db.SaveDecryptedDocumentAndDocumentPropertiesToLocalDB(&document, metadata.Timestamp, s.ServiceInfo.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +584,7 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 用对称密钥解密 encryptedDocumentBytes
-	documentBytes, err := decryptBytesUsingAESKey(encryptedDocumentBytes, deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
+	documentBytes, err := cipherutils.DecryptBytesUsingAESKey(encryptedDocumentBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密文档")
 	}
@@ -627,7 +609,7 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 将解密的文档属性与内容存入数据库（若已存在则覆盖）
-	err = saveDecryptedDocumentAndDocumentPropertiesToLocalDB(&document, metadata.Timestamp, s.ServiceInfo.DB)
+	err = db.SaveDecryptedDocumentAndDocumentPropertiesToLocalDB(&document, metadata.Timestamp, s.ServiceInfo.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -715,7 +697,7 @@ func (s *DocumentService) GetEncryptedDocumentProperties(id string, keySwitchSes
 	}
 
 	// 用对称密钥解密加密的文档属性
-	documentPropertiesBytes, err := decryptBytesUsingAESKey(encryptedDocumentPropertiesBytes, deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
+	documentPropertiesBytes, err := cipherutils.DecryptBytesUsingAESKey(encryptedDocumentPropertiesBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密文档属性")
 	}
@@ -728,7 +710,7 @@ func (s *DocumentService) GetEncryptedDocumentProperties(id string, keySwitchSes
 	}
 
 	// 将解密的文档属性存入数据库（若已存在则覆盖）
-	err = saveDecryptedDocumentPropertiesToLocalDB(&documentProperties, metadata.Timestamp, s.ServiceInfo.DB)
+	err = db.SaveDecryptedDocumentPropertiesToLocalDB(&documentProperties, metadata.Timestamp, s.ServiceInfo.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -753,7 +735,7 @@ func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.R
 	}
 
 	// 从数据库中读取解密后的文档内容部分
-	documentDB, err := getDecryptedDocumentContentsFromLocalDB(id, s.ServiceInfo.DB)
+	documentDB, err := db.GetDecryptedDocumentContentsFromLocalDB(id, s.ServiceInfo.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -764,7 +746,7 @@ func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.R
 	}
 
 	// 从数据库中读取解密后的文档属性部分
-	documentPropertiesDB, err := getDecryptedDocumentPropertiesFromLocalDB(id, s.ServiceInfo.DB)
+	documentPropertiesDB, err := db.GetDecryptedDocumentPropertiesFromLocalDB(id, s.ServiceInfo.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -815,7 +797,7 @@ func (s *DocumentService) GetDecryptedDocumentPropertiesFromDB(id string, metada
 	}
 
 	// 从数据库中读取解密后的文档属性部分
-	documentPropertiesDB, err := getDecryptedDocumentPropertiesFromLocalDB(id, s.ServiceInfo.DB)
+	documentPropertiesDB, err := db.GetDecryptedDocumentPropertiesFromLocalDB(id, s.ServiceInfo.DB)
 	if err != nil {
 		return nil, err
 	}
@@ -991,84 +973,4 @@ func deriveExtensionsMapFromDocumentProperties(publicProperties *common.Document
 	}
 
 	return extensions
-}
-
-func saveDecryptedDocumentAndDocumentPropertiesToLocalDB(document *common.Document, timeCreated time.Time, db *gorm.DB) error {
-	// 开一个交易，将解密的文档属性和内容存入数据库（若已存在则覆盖）
-	err := db.Transaction(func(tx *gorm.DB) error {
-		documentDB, documentPropertiesDB, err := sqlmodel.NewDocumentFromModel(document, timeCreated)
-		if err != nil {
-			return err
-		}
-
-		// 写入或覆盖文档属性部分于 document_properties 表
-		dbResult := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
-			UpdateAll: true,
-		}).Create(documentPropertiesDB)
-		if dbResult.Error != nil {
-			return errors.Wrap(dbResult.Error, "无法将解密后的文档属性存入数据库")
-		}
-
-		// 写入或覆盖文档内容部分于 documents 表
-		dbResult = tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "id"}},
-			UpdateAll: true,
-		}).Create(documentDB)
-		if dbResult.Error != nil {
-			return errors.Wrap(dbResult.Error, "无法将解密后的文档内容存入数据库")
-		}
-
-		return nil
-	})
-
-	return err
-}
-
-func saveDecryptedDocumentPropertiesToLocalDB(documentProperties *common.DocumentProperties, timeCreated time.Time, db *gorm.DB) error {
-	documentPropertiesDB, err := sqlmodel.NewDocumentPropertiesFromModel(documentProperties, timeCreated)
-	if err != nil {
-		return err
-	}
-
-	// 写入或覆盖文档属性部分于 document_properties 表
-	dbResult := db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "id"}},
-		UpdateAll: true,
-	}).Create(documentPropertiesDB)
-	if dbResult.Error != nil {
-		return errors.Wrap(dbResult.Error, "无法将解密后的文档属性存入数据库")
-	}
-
-	return nil
-}
-
-func getDecryptedDocumentContentsFromLocalDB(id string, db *gorm.DB) (*sqlmodel.Document, error) {
-	// 从数据库中读取解密后的文档内容部分
-	var documentDB sqlmodel.Document
-	dbResult := db.Where("id = ?", id).Take(&documentDB)
-	if dbResult.Error != nil {
-		if errors.Cause(dbResult.Error) == gorm.ErrRecordNotFound {
-			return nil, errorcode.ErrorNotFound
-		} else {
-			return nil, errors.Wrap(dbResult.Error, "无法从数据库中获取文档内容")
-		}
-	}
-
-	return &documentDB, nil
-}
-
-func getDecryptedDocumentPropertiesFromLocalDB(id string, db *gorm.DB) (*sqlmodel.DocumentProperties, error) {
-	// 从数据库中读取解密后的文档属性部分
-	var documentPropertiesDB sqlmodel.DocumentProperties
-	dbResult := db.Where("id = ?", id).Take(&documentPropertiesDB)
-	if dbResult.Error != nil {
-		if errors.Cause(dbResult.Error) == gorm.ErrRecordNotFound {
-			return nil, errorcode.ErrorNotFound
-		} else {
-			return nil, errors.Wrap(dbResult.Error, "无法从数据库中获取文档属性")
-		}
-	}
-
-	return &documentPropertiesDB, nil
 }

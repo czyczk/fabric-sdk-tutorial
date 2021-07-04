@@ -10,6 +10,7 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 	"github.com/XiaoYao-austin/ppks"
@@ -27,9 +28,7 @@ type KeySwitchServer struct {
 	chanKeySwitchSessionID chan string
 	NumWorkers             int // The number of Go routines that will be created to perform the task. Don't change the value after creation or the server might not be able to stop as expected.
 	reg                    *fab.Registration
-	isStarting             bool
-	isStarted              bool
-	isStopping             bool
+	serviceStatus          *backgroundServerStatus
 }
 
 func NewKeySwitchServer(serviceInfo *service.Info, keySwitchService service.KeySwitchServiceInterface, numWorkers int) *KeySwitchServer {
@@ -41,9 +40,7 @@ func NewKeySwitchServer(serviceInfo *service.Info, keySwitchService service.KeyS
 		chanKeySwitchSessionID: make(chan string),
 		NumWorkers:             numWorkers,
 		reg:                    nil,
-		isStarting:             false,
-		isStarted:              false,
-		isStopping:             false,
+		serviceStatus:          newBackgroundServerStatus(),
 	}
 }
 
@@ -52,17 +49,17 @@ func (s *KeySwitchServer) Start() error {
 	// Don't start the server again if it has been started.
 	log.Infoln("正在启动密钥置换服务器...")
 
-	if s.isStarting {
+	if s.serviceStatus.getIsStarting() {
 		return fmt.Errorf("密钥置换服务器正在启动")
-	} else if s.isStarted {
+	} else if s.serviceStatus.getIsStarted() {
 		return fmt.Errorf("密钥置换服务器已启动")
 	}
 
-	s.isStarting = true
+	s.serviceStatus.setIsStarting(true)
 
 	// Register the event chaincode and pass the chan object to the workers to be created.
 	eventID := "ks_trigger"
-	log.Debugf("正在尝试监听事件 '%v'...\n", eventID)
+	log.Debugf("正在尝试监听事件 '%v'...", eventID)
 	reg, notifier, err := service.RegisterEvent(s.ServiceInfo.EventClient, s.ServiceInfo.ChaincodeID, eventID)
 	if err != nil {
 		s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
@@ -72,21 +69,21 @@ func (s *KeySwitchServer) Start() error {
 	s.reg = &reg
 
 	// Start #NumWorkers Go routines with each running a worker.
-	log.Debugf("正在创建 %v 个密钥置换工作单元...\n", s.NumWorkers)
+	log.Debugf("正在创建 %v 个密钥置换工作单元...", s.NumWorkers)
 	for id := 0; id < s.NumWorkers; id++ {
 		s.wg.Add(1)
 		go s.createKeySwitchServerWorker(id, notifier)
 	}
 
-	s.isStarting = false
-	s.isStarted = true
+	s.serviceStatus.setIsStarting(false)
+	s.serviceStatus.setIsStarted(true)
 	log.Infoln("密钥置换服务器已启动。")
 
 	return nil
 }
 
 func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessionIDNotifier <-chan *fab.CCEvent) {
-	log.Debugf("密钥置换工作单元 %v 已创建。", id)
+	log.Debugf("密钥置换工作单元 #%v 已创建。", id)
 
 workerLoop:
 	for {
@@ -104,7 +101,7 @@ workerLoop:
 
 			// Check if the validation result is true. Ignore the trigger if it's false.
 			if !keySwitchTriggerStored.ValidationResult {
-				log.Debugf("密钥置换工作单元 #%v: 未通过验证，将忽略该会话。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID)
+				log.Debugf("密钥置换工作单元 #%v: 未通过验证，将忽略该会话。会话 ID: %v。", id, keySwitchTriggerStored.KeySwitchSessionID)
 				continue
 			}
 
@@ -115,7 +112,7 @@ workerLoop:
 				continue
 			}
 			if len(targetPubKeyBytes) != 64 {
-				log.Errorf("密钥置换工作单元 #%v 无法解析目标密钥: 密钥长度不正确。\n", id)
+				log.Errorf("密钥置换工作单元 #%v 无法解析目标密钥: 密钥长度不正确\n", id)
 				continue
 			}
 
@@ -136,7 +133,7 @@ workerLoop:
 				continue
 			}
 
-			curvePoints, err := service.DeserializeCipherText(encryptedKeyBytes)
+			curvePoints, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取资源 '%v' 的加密密钥。会话 ID: %v", id, keySwitchTriggerStored.ResourceID, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
@@ -151,11 +148,11 @@ workerLoop:
 			}
 			timeAfterShareCalc := time.Now()
 			timeDiffShareCalc := timeAfterShareCalc.Sub(timeBeforeShareCalc)
-			log.Debugf("密钥置换工作单元 #%v 完成份额计算，耗时 %v。会话 ID: %v", id, timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
+			log.Debugf("密钥置换工作单元 #%v 完成份额计算，耗时 %v。会话 ID: %v。", id, timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
 
 			// Invoke the service function to save the result onto the chain
 			// share.K and share.C each takes up 64 bytes
-			shareBytes := service.SerializeCipherText(share)
+			shareBytes := cipherutils.SerializeCipherText(share)
 
 			timeBeforeUploading := time.Now()
 			txID, err := s.KeySwitchService.CreateKeySwitchResult(keySwitchTriggerStored.KeySwitchSessionID, shareBytes)
@@ -165,7 +162,7 @@ workerLoop:
 			}
 			timeAfterUploading := time.Now()
 			timeDiffUploading := timeAfterUploading.Sub(timeBeforeUploading)
-			log.Debugf("密钥置换工作单元 #%v 完成份额结果上链，耗时 %v。会话 ID: %v。交易 ID: %v", id, timeDiffUploading, keySwitchTriggerStored.KeySwitchSessionID, txID)
+			log.Debugf("密钥置换工作单元 #%v 完成份额结果上链，耗时 %v。会话 ID: %v。交易 ID: %v。", id, timeDiffUploading, keySwitchTriggerStored.KeySwitchSessionID, txID)
 		case <-s.chanQuit:
 			// Break the for loop when receiving a quit signal
 			log.Debugf("密钥置换工作单元 #%v 收到退出信号。", id)
@@ -183,13 +180,13 @@ workerLoop:
 //   a wait group that can be used to block the caller Go routine
 func (s *KeySwitchServer) Stop() (*sync.WaitGroup, error) {
 	// Don't send stop signals again if the server has already been called to stop.
-	if s.isStopping {
+	if s.serviceStatus.getIsStopping() {
 		return nil, fmt.Errorf("密钥置换服务器正在停止")
-	} else if !s.isStarted {
+	} else if !s.serviceStatus.getIsStarted() {
 		return nil, fmt.Errorf("密钥置换服务器已停止")
 	}
 
-	s.isStopping = true
+	s.serviceStatus.setIsStopping(true)
 
 	// Start sending stop signals to all the workers
 	for id := 0; id < s.NumWorkers; id++ {
@@ -199,7 +196,7 @@ func (s *KeySwitchServer) Stop() (*sync.WaitGroup, error) {
 	// Unregister the chaincode event
 	s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(*s.reg)
 
-	s.isStarted = false
+	s.serviceStatus.setIsStarted(false)
 
 	return &s.wg, nil
 }

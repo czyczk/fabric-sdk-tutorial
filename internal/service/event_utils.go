@@ -11,6 +11,9 @@ import (
 
 const eventTimeout time.Duration = 20
 
+// 上传加密资源时的事件名称
+const encryptedResourceCreationEventName = "enc_res_creation"
+
 // RegisterEvent registers an event using a channel client.
 //
 // Returns:

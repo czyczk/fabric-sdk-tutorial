@@ -11,10 +11,11 @@ import (
 )
 
 type keySwitchKeys struct {
-	EncryptionAlgorithm string          // The encryption algorithm used by the keys
-	CollectivePublicKey *sm2.PublicKey  // The collective public key to be used in the key switch process
-	PrivateKey          *sm2.PrivateKey // The private key to be used in the key switch process
-	PublicKey           *sm2.PublicKey  // The public key to be used in the key switch process
+	EncryptionAlgorithm  string          // The encryption algorithm used by the keys
+	CollectivePrivateKey *sm2.PrivateKey // The collective private key to be used in regulator functions
+	CollectivePublicKey  *sm2.PublicKey  // The collective public key to be used in the key switch process
+	PrivateKey           *sm2.PrivateKey // The private key to be used in the key switch process
+	PublicKey            *sm2.PublicKey  // The public key to be used in the key switch process
 }
 
 var SDKInstance *fabsdk.FabricSDK

@@ -275,8 +275,15 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			}
 		}
 
-		// TODO
 		// Prepare a regulator server. It will be of use if the app is enabled as a regulator server.
+		regulatorServer := background.NewRegulatorServer(universalCcServiceInfo, documentSvc, entityAssetSvc)
+		if isRegulator {
+			// Start the server to listen encrypted resource creation events
+			err := regulatorServer.Start()
+			if err != nil {
+				return err
+			}
+		}
 
 		// // Make a "transfer" request to transfer 10 screws from "Org1" to "Org2" and show the transaction ID
 		// respMsg, err := screwSvc.TransferAndShowEvent("Org1", "Org2", 10)

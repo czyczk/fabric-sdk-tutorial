@@ -1,5 +1,33 @@
 package service
 
+import (
+	"encoding/json"
+
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/pkg/errors"
+)
+
+func getResourceMetadata(id string, serviceInfo *Info) (*data.ResMetadataStored, error) {
+	chaincodeFcn := "getMetadata"
+	channelReq := channel.Request{
+		ChaincodeID: serviceInfo.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{[]byte(id)},
+	}
+
+	resp, err := serviceInfo.ChannelClient.Query(channelReq)
+	if err != nil {
+		return nil, GetClassifiedError(chaincodeFcn, err)
+	} else {
+		var resMetadataStored data.ResMetadataStored
+		if err = json.Unmarshal(resp.Payload, &resMetadataStored); err != nil {
+			return nil, errors.Wrap(err, "获取的元数据不合法")
+		}
+		return &resMetadataStored, nil
+	}
+}
+
 func collectResourceIDsFromSources(chaincodeResourceIDs, localDBResourceIDs []string, pageSize int, isReverse bool) (resourceIDs []string) {
 	// 为两个数据源分别维护一个 `consumed` 变量，每从一个数据源中采用一条就将相应变量 +1。
 	chaincodeSrcConsumed := 0

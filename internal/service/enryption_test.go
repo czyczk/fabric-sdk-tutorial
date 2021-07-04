@@ -1,65 +1,14 @@
 package service
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
-	"io"
 	"testing"
+
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestAESEncryptionDecryption(t *testing.T) {
-	key := ppks.GenPoint()
-	documentBytes := []byte("Document for test")
-
-	// 用 key 加密 documentBytes
-	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	cipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(key))
-	if isNoError := assert.NoError(t, err); !isNoError {
-		t.FailNow()
-	}
-
-	aesGCM, err := cipher.NewGCM(cipherBlock)
-	if isNoError := assert.NoError(t, err); !isNoError {
-		t.FailNow()
-	}
-
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		t.FailNow()
-	}
-
-	encryptedDocumentBytes := aesGCM.Seal(nonce, nonce, documentBytes, nil)
-
-	// 用对称密钥解密 encryptedDocumentBytes
-	decCipherBlock, err := aes.NewCipher(deriveSymmetricKeyBytesFromCurvePoint(key))
-	if isNoError := assert.NoError(t, err); !isNoError {
-		t.FailNow()
-	}
-
-	decAesGCM, err := cipher.NewGCM(decCipherBlock)
-	if isNoError := assert.NoError(t, err); !isNoError {
-		t.FailNow()
-	}
-
-	nonceSize := decAesGCM.NonceSize()
-	if len(encryptedDocumentBytes) < nonceSize {
-		t.FailNow()
-	}
-
-	decNonce, encryptedDocumentBytes := encryptedDocumentBytes[:nonceSize], encryptedDocumentBytes[nonceSize:]
-	decDocumentBytes, err := aesGCM.Open(nil, decNonce, encryptedDocumentBytes, nil)
-	if isNoError := assert.NoError(t, err); !isNoError {
-		t.FailNow()
-	}
-	if isEqual := assert.Equal(t, documentBytes, decDocumentBytes); !isEqual {
-		t.FailNow()
-	}
-}
 
 func TestKeySwitchProcess(t *testing.T) {
 	collPubKeyPEM := "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAE2rffx6xbyAJYplmi2tfY7CI87Ls+\nObY6vcYIKD/qllWp9bOcC/KwojfrxRBDv54dVpJkn22v0PfxX8qZ5GF1vA==\n-----END PUBLIC KEY-----"
@@ -101,9 +50,9 @@ func TestKeySwitchProcess(t *testing.T) {
 	}
 
 	// 序列化加密后的 key
-	encryptedKeyBytes := SerializeCipherText(encryptedKey)
+	encryptedKeyBytes := cipherutils.SerializeCipherText(encryptedKey)
 	// 反序列化加密后的 key
-	unsEncryptedKeyBytes, err := DeserializeCipherText(encryptedKeyBytes)
+	unsEncryptedKeyBytes, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
 	if isNoError := assert.NoError(t, err); !isNoError {
 		t.FailNow()
 	}
@@ -124,8 +73,8 @@ func TestKeySwitchProcess(t *testing.T) {
 	}
 
 	var shares [][]byte
-	shares = append(shares, SerializeCipherText(share1))
-	shares = append(shares, SerializeCipherText(share2))
+	shares = append(shares, cipherutils.SerializeCipherText(share1))
+	shares = append(shares, cipherutils.SerializeCipherText(share2))
 
 	// 解密
 	// 组建一个 CipherVector。将每份 share 转化为两个 CurvePoint 后，分别作为 CipherText 的 K 和 C，将 CipherText 放入 CipherVector。
@@ -135,7 +84,7 @@ func TestKeySwitchProcess(t *testing.T) {
 			t.FailNow()
 		}
 
-		cipherText, err := DeserializeCipherText(share)
+		cipherText, err := cipherutils.DeserializeCipherText(share)
 		if isNoError := assert.NoError(t, err); !isNoError {
 			t.FailNow()
 		}
@@ -143,7 +92,7 @@ func TestKeySwitchProcess(t *testing.T) {
 	}
 
 	// 解析加密后的密钥材料
-	encryptedKeyAsCipherText, err := DeserializeCipherText(encryptedKeyBytes)
+	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
 	if isNoError := assert.NoError(t, err); !isNoError {
 		t.FailNow()
 	}

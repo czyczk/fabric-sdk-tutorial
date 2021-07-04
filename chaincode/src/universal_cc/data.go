@@ -213,7 +213,7 @@ func (uc *UniversalCC) createEncryptedData(stub shim.ChaincodeStubInterface, arg
 
 	// 发事件
 	if eventID != "" {
-		if err = stub.SetEvent(eventID, []byte(txID)); err != nil {
+		if err = stub.SetEvent(eventID, []byte(resourceID)); err != nil {
 			return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
 		}
 	}

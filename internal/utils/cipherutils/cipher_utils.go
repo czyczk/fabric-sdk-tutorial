@@ -1,4 +1,8 @@
-package service
+// This package contains helper functions that can be used within the entire app.
+// On one hand, it includes functions as extensions to the `ppks` package,
+// like the functions of serialization and deserialization of `*ppks.CipherText`.
+// On the other hand, it includes other handy tools for symmetric encryption and decryption using AES keys, etc..
+package cipherutils
 
 import (
 	"crypto/aes"
@@ -57,13 +61,13 @@ func DeserializeCipherText(encryptedKeyBytes []byte) (*ppks.CipherText, error) {
 	return &encryptedKeyAsCipherText, nil
 }
 
-// 对称密钥的生成是由 curvePoint 导出的 256 位信息，可用于创建 AES256 block
-func deriveSymmetricKeyBytesFromCurvePoint(curvePoint *ppks.CurvePoint) []byte {
+// DeriveSymmetricKeyBytesFromCurvePoint 从 curvePoint 中导出 256 位信息，在应用内作为对称密钥。具体使用上可用于创建 AES256 block。
+func DeriveSymmetricKeyBytesFromCurvePoint(curvePoint *ppks.CurvePoint) []byte {
 	return curvePoint.X.Bytes()
 }
 
-// 使用 AES 对称密钥加密数据
-func encryptBytesUsingAESKey(b []byte, key []byte) (encryptedBytes []byte, err error) {
+// EncryptBytesUsingAESKey 使用 AES 对称密钥加密数据
+func EncryptBytesUsingAESKey(b []byte, key []byte) (encryptedBytes []byte, err error) {
 	cipherBlock, err := aes.NewCipher(key)
 	if err != nil {
 		return
@@ -83,8 +87,8 @@ func encryptBytesUsingAESKey(b []byte, key []byte) (encryptedBytes []byte, err e
 	return
 }
 
-// 使用 AES 对称密钥解密数据
-func decryptBytesUsingAESKey(b []byte, key []byte) (decryptedBytes []byte, err error) {
+// DecryptBytesUsingAESKey 使用 AES 对称密钥解密数据
+func DecryptBytesUsingAESKey(b []byte, key []byte) (decryptedBytes []byte, err error) {
 	cipherBlock, err := aes.NewCipher(key)
 	if err != nil {
 		return
@@ -98,6 +102,7 @@ func decryptBytesUsingAESKey(b []byte, key []byte) (decryptedBytes []byte, err e
 	nonceSize := aesGCM.NonceSize()
 	if len(b) < nonceSize {
 		err = fmt.Errorf("密文长度太短")
+		return
 	}
 
 	nonce, b := b[:nonceSize], b[nonceSize:]

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/db"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
-	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/sqlmodel"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
@@ -20,8 +20,6 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // EntityAssetService 用于管理实体资产。
@@ -121,7 +119,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 
 	// 用 key 加密 assetBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	encryptedAssetBytes, err := encryptBytesUsingAESKey(assetBytes, deriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedAssetBytes, err := cipherutils.EncryptBytesUsingAESKey(assetBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
 	if err != nil {
 		return "", errors.Wrap(err, "无法加密资产")
 	}
@@ -139,7 +137,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
-	encryptedKeyBytes := SerializeCipherText(encryptedKey)
+	encryptedKeyBytes := cipherutils.SerializeCipherText(encryptedKey)
 
 	// 计算原始内容的哈希，获取大小并准备扩展字段
 	hash := sha256.Sum256(assetBytes)
@@ -172,7 +170,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{encryptedDataBytes},
+		Args:        [][]byte{encryptedDataBytes, []byte(encryptedResourceCreationEventName)},
 	}
 
 	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
@@ -191,23 +189,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 // 返回：
 //   资产资源元数据
 func (s *EntityAssetService) GetEntityAssetMetadata(id string) (*data.ResMetadataStored, error) {
-	chaincodeFcn := "getMetadata"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	if err != nil {
-		return nil, GetClassifiedError(chaincodeFcn, err)
-	} else {
-		var resMetadataStored data.ResMetadataStored
-		if err = json.Unmarshal(resp.Payload, &resMetadataStored); err != nil {
-			return nil, errors.Wrap(err, "获取的元数据不合法")
-		}
-		return &resMetadataStored, nil
-	}
+	return getResourceMetadata(id, s.ServiceInfo)
 }
 
 // 获取明文实体资产。调用前应先获取元数据。
@@ -360,7 +342,7 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 	}
 
 	// 用对称密钥解密 encryptedAssetBytes
-	assetBytes, err := decryptBytesUsingAESKey(encryptedAssetBytes, deriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
+	assetBytes, err := cipherutils.DecryptBytesUsingAESKey(encryptedAssetBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密资产")
 	}
@@ -385,23 +367,8 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 	}
 
 	// 将解密的资产存入数据库（若已存在则覆盖）
-	assetDB, err := sqlmodel.NewEntityAssetFromModel(&asset, metadata.Timestamp)
-	if err != nil {
+	if err := db.SaveDecryptedEntityAssetToLocalDB(&asset, metadata.Timestamp, s.ServiceInfo.DB); err != nil {
 		return nil, err
-	}
-
-	// dbResult := s.ServiceInfo.DB.Where("`entity_asset_id` = ?", id).Delete(&sqlmodel.Component{})
-	dbResult := s.ServiceInfo.DB.Exec("DELETE FROM `components` WHERE `entity_asset_id` = ?", id)
-	if dbResult.Error != nil {
-		return nil, errors.Wrap(dbResult.Error, "无法将解密后的实体资产存入数据库")
-	}
-
-	dbResult = s.ServiceInfo.DB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "id"}},
-		UpdateAll: true,
-	}).Create(assetDB)
-	if dbResult.Error != nil {
-		return nil, errors.Wrap(dbResult.Error, "无法将解密后的实体资产存入数据库")
 	}
 
 	return &asset, nil
@@ -424,14 +391,9 @@ func (s *EntityAssetService) GetDecryptedEntityAssetFromDB(id string, metadata *
 	}
 
 	// 从数据库中读取解密后的实体资产
-	var assetDB sqlmodel.EntityAsset
-	dbResult := s.ServiceInfo.DB.Where("id = ?", id).Take(&assetDB)
-	if dbResult.Error != nil {
-		if errors.Cause(dbResult.Error) == gorm.ErrRecordNotFound {
-			return nil, errorcode.ErrorNotFound
-		} else {
-			return nil, errors.Wrap(dbResult.Error, "无法从数据库中获取资产")
-		}
+	assetDB, err := db.GetDecryptedEntityAssetFromLocalDB(id, s.ServiceInfo.DB)
+	if err != nil {
+		return nil, err
 	}
 
 	asset := assetDB.ToModel()
