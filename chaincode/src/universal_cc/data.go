@@ -106,7 +106,7 @@ func (uc *UniversalCC) createPlainData(stub shim.ChaincodeStubInterface, args []
 
 	// 发事件
 	if eventID != "" {
-		if err = stub.SetEvent(eventID, []byte(txID)); err != nil {
+		if err = stub.SetEvent(eventID, []byte(resourceID)); err != nil {
 			return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
 		}
 	}
@@ -321,7 +321,7 @@ func (uc *UniversalCC) createOffchainData(stub shim.ChaincodeStubInterface, args
 
 	// 发事件
 	if eventID != "" {
-		if err = stub.SetEvent(eventID, []byte(txID)); err != nil {
+		if err = stub.SetEvent(eventID, []byte(resourceID)); err != nil {
 			return shim.Error(fmt.Sprintf("无法生成事件 '%v': %v", eventID, err))
 		}
 	}
