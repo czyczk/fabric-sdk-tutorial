@@ -134,6 +134,7 @@ func (s *AuthService) GetAuthSession(authSessionID string) (*common.AuthSession,
 	// 装填一部分结果
 	result := &common.AuthSession{
 		AuthSessionID:     authSessionID,
+		ResourceID:        authRequestStored.ResourceID,
 		Reason:            authRequestStored.Extensions["reason"].(string),
 		Requestor:         authRequestStored.Creator,
 		RequestTimestsamp: authRequestStored.Timestamp,
