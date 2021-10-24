@@ -61,13 +61,13 @@ func TestKeySwitchProcess(t *testing.T) {
 	}
 
 	// 参与者 1 计算份额
-	share1, _, err := ppks.ShareCal(targetPubKeyInSM2, &encryptedKey.K, participant1KeyInSM2)
+	share1, zkpRi1, err := ppks.ShareCal(targetPubKeyInSM2, &encryptedKey.K, participant1KeyInSM2)
 	if isNoError := assert.NoError(t, err); !isNoError {
 		t.FailNow()
 	}
 
 	// 参与者 2 计算份额
-	share2, _, err := ppks.ShareCal(targetPubKeyInSM2, &encryptedKey.K, participant2KeyInSM2)
+	share2, zkpRi2, err := ppks.ShareCal(targetPubKeyInSM2, &encryptedKey.K, participant2KeyInSM2)
 	if isNoError := assert.NoError(t, err); !isNoError {
 		t.FailNow()
 	}
@@ -75,6 +75,61 @@ func TestKeySwitchProcess(t *testing.T) {
 	var shares [][]byte
 	shares = append(shares, cipherutils.SerializeCipherText(share1))
 	shares = append(shares, cipherutils.SerializeCipherText(share2))
+
+	// 参与者 1 为份额 1 生成 ZKP
+	proof1 := &cipherutils.ZKProof{}
+	proof1.C, proof1.R1, proof1.R2, err = ppks.ShareProofGenNoB(zkpRi1, participant1KeyInSM2, share1, targetPubKeyInSM2, &encryptedKey.K)
+	if isNoError := assert.NoError(t, err); !isNoError {
+		t.FailNow()
+	}
+
+	// 序列化加密后的 ZKP 1
+	proof1Bytes := cipherutils.SerializeZKProof(proof1)
+	// 反序列化加密后的 ZKP 1
+	unsProof1, err := cipherutils.DeserializeZKProof(proof1Bytes)
+	if isNoError := assert.NoError(t, err); !isNoError {
+		t.FailNow()
+	}
+	if isEqual := assert.Equal(t, unsProof1, proof1); !isEqual {
+		t.FailNow()
+	}
+
+	// 参与者 2 为份额 2 生成 ZKP
+	proof2 := &cipherutils.ZKProof{}
+	proof2.C, proof2.R1, proof2.R2, err = ppks.ShareProofGenNoB(zkpRi2, participant2KeyInSM2, share2, targetPubKeyInSM2, &encryptedKey.K)
+	if isNoError := assert.NoError(t, err); !isNoError {
+		t.FailNow()
+	}
+
+	// 序列化加密后的 ZKP 2
+	proof2Bytes := cipherutils.SerializeZKProof(proof2)
+	// 反序列化加密后的 ZKP 2
+	unsProof2, err := cipherutils.DeserializeZKProof(proof2Bytes)
+	if isNoError := assert.NoError(t, err); !isNoError {
+		t.FailNow()
+	}
+	if isEqual := assert.Equal(t, unsProof2, proof2); !isEqual {
+		t.FailNow()
+	}
+
+	// 验证 ZKP
+	// 验证份额 1 的 ZKP
+	isProof1Valid, err := ppks.ShareProofVryNoB(proof1.C, proof1.R1, proof1.R2, share1, &participant1KeyInSM2.PublicKey, targetPubKeyInSM2, &encryptedKey.K)
+	if isNoError := assert.NoError(t, err); !isNoError {
+		t.FailNow()
+	}
+	if !isProof1Valid {
+		t.FailNow()
+	}
+
+	// 验证份额 2 的 ZKP
+	isProof2Valid, err := ppks.ShareProofVryNoB(proof2.C, proof2.R1, proof2.R2, share2, &participant2KeyInSM2.PublicKey, targetPubKeyInSM2, &encryptedKey.K)
+	if isNoError := assert.NoError(t, err); !isNoError {
+		t.FailNow()
+	}
+	if !isProof2Valid {
+		t.FailNow()
+	}
 
 	// 解密
 	// 组建一个 CipherVector。将每份 share 转化为两个 CurvePoint 后，分别作为 CipherText 的 K 和 C，将 CipherText 放入 CipherVector。

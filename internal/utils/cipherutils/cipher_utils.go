@@ -1,6 +1,6 @@
 // This package contains helper functions that can be used within the entire app.
 // On one hand, it includes functions as extensions to the `ppks` package,
-// like the functions of serialization and deserialization of `*ppks.CipherText`.
+// like the functions of serialization and deserialization for `*ppks.CipherText` and `*ZKProof`.
 // On the other hand, it includes other handy tools for symmetric encryption and decryption using AES keys, etc..
 package cipherutils
 
@@ -61,6 +61,40 @@ func DeserializeCipherText(encryptedKeyBytes []byte) (*ppks.CipherText, error) {
 	return &encryptedKeyAsCipherText, nil
 }
 
+// SerializeZKProof serializes a `ZKProof` object into a byte slice of length of 96.
+func SerializeZKProof(proof *ZKProof) []byte {
+	// 一份 proof 的内容是 3 个 big.Int，每个用 .Bytes() 提取信息得到长度为 32 的 []byte。
+	// 3 个 big.Int 提取 []byte 后按顺序拼接成长度为 96 的 []byte，作为序列化结果。
+	proofBytes := make([]byte, 96)
+	copy(proofBytes[:32], proof.C.Bytes())
+	copy(proofBytes[32:64], proof.R1.Bytes())
+	copy(proofBytes[64:], proof.R2.Bytes())
+
+	return proofBytes
+}
+
+// DeserializeZKProof parses a byte slice of length of 96 into a `ZKProof` object.
+func DeserializeZKProof(encryptedKeyBytes []byte) (*ZKProof, error) {
+	// Byte slice 内容是 ZKProof 中的 3 个 big.Int 的 .Bytes() 信息，各占长度 32。
+	// 将它们分 3 段装填入 3 个 big.Int 即可。
+	if len(encryptedKeyBytes) != 96 {
+		return nil, fmt.Errorf("序列化的零知识证明长度不正确，应为 96 字节")
+	}
+
+	var c, r1, r2 big.Int
+	_ = c.SetBytes(encryptedKeyBytes[:32])
+	_ = r1.SetBytes(encryptedKeyBytes[32:64])
+	_ = r2.SetBytes(encryptedKeyBytes[64:])
+
+	proof := ZKProof{
+		C:  &c,
+		R1: &r1,
+		R2: &r2,
+	}
+
+	return &proof, nil
+}
+
 // DeriveSymmetricKeyBytesFromCurvePoint 从 curvePoint 中导出 256 位信息，在应用内作为对称密钥。具体使用上可用于创建 AES256 block。
 func DeriveSymmetricKeyBytesFromCurvePoint(curvePoint *ppks.CurvePoint) []byte {
 	return curvePoint.X.Bytes()
@@ -112,4 +146,10 @@ func DecryptBytesUsingAESKey(b []byte, key []byte) (decryptedBytes []byte, err e
 	}
 
 	return
+}
+
+type ZKProof struct {
+	C  *big.Int
+	R1 *big.Int
+	R2 *big.Int
 }
