@@ -61,13 +61,13 @@ func TestKeySwitchProcess(t *testing.T) {
 	}
 
 	// 参与者 1 计算份额
-	share1, err := ppks.ShareCal(targetPubKeyInSM2, &encryptedKey.K, participant1KeyInSM2)
+	share1, _, err := ppks.ShareCal(targetPubKeyInSM2, &encryptedKey.K, participant1KeyInSM2)
 	if isNoError := assert.NoError(t, err); !isNoError {
 		t.FailNow()
 	}
 
 	// 参与者 2 计算份额
-	share2, err := ppks.ShareCal(targetPubKeyInSM2, &encryptedKey.K, participant2KeyInSM2)
+	share2, _, err := ppks.ShareCal(targetPubKeyInSM2, &encryptedKey.K, participant2KeyInSM2)
 	if isNoError := assert.NoError(t, err); !isNoError {
 		t.FailNow()
 	}

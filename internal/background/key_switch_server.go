@@ -141,7 +141,7 @@ workerLoop:
 
 			// Do share calculation
 			timeBeforeShareCalc := time.Now()
-			share, err := ppks.ShareCal(targetPubKey, &curvePoints.K, global.KeySwitchKeys.PrivateKey)
+			share, _, err := ppks.ShareCal(targetPubKey, &curvePoints.K, global.KeySwitchKeys.PrivateKey)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取用户的密钥置换密钥。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
