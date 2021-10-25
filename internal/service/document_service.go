@@ -20,6 +20,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
@@ -51,7 +52,16 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 		return "", fmt.Errorf("文档 ID 不能为空")
 	}
 
-	documentBytes, err := json.Marshal(document)
+	// 将 struct 转成 map 后再序列化，以使得键按字典序排序。
+	// 因为在 CouchDB 中存储 JSON 序列化后的对象时，不会保存键的顺序，取出时键将以字典序排序。
+	// 若此时直接按 struct 序列化，保持原始键顺序的话，此时计算的哈希将与取出后的哈希不同。
+	documentAsMap := make(map[string]interface{})
+	err := mapstructure.Decode(document, &documentAsMap)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化文档")
+	}
+
+	documentBytes, err := json.Marshal(documentAsMap)
 	if err != nil {
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
@@ -317,6 +327,7 @@ func (s *DocumentService) GetDocument(id string, metadata *data.ResMetadataStore
 		}
 	}
 
+	// 调用链码 getData 获取该资源的本体
 	chaincodeFcn := "getData"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
@@ -327,13 +338,22 @@ func (s *DocumentService) GetDocument(id string, metadata *data.ResMetadataStore
 	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
 	if err != nil {
 		return nil, GetClassifiedError(chaincodeFcn, err)
-	} else {
-		var document common.Document
-		if err = json.Unmarshal(resp.Payload, &document); err != nil {
-			return nil, fmt.Errorf("获取的数据不是合法的数字文档")
-		}
-		return &document, nil
 	}
+
+	documentBytes := resp.Payload
+
+	// 检查所获数据的大小与哈希是否匹配
+	err = checkSizeAndHashForDecryptedData(documentBytes, metadata).toError(metadata.ResourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析所获数据，得到 common.Document 作为结果
+	var document common.Document
+	if err = json.Unmarshal(documentBytes, &document); err != nil {
+		return nil, fmt.Errorf("获取的数据不是合法的数字文档")
+	}
+	return &document, nil
 }
 
 // GetEncryptedDocument 获取加密数字文档。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
@@ -384,18 +404,17 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 		return nil, err
 	}
 
-	encryptedKey := resp.Payload
-
-	// 检查加密的内容的大小和哈希是否匹配
-	encryptedSize := uint64(len(encryptedDocumentBytes))
-	if encryptedSize != metadata.SizeStored {
-		return nil, fmt.Errorf("获取的密文大小不正确")
+	// 解析加密后的密钥材料
+	encryptedKeyBytes := resp.Payload
+	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
+	if err != nil {
+		return nil, err
 	}
 
-	encryptedHash := sha256.Sum256(encryptedDocumentBytes)
-	encryptedHashBase64 := base64.StdEncoding.EncodeToString(encryptedHash[:])
-	if encryptedHashBase64 != metadata.HashStored {
-		return nil, fmt.Errorf("获取的密文哈希不匹配")
+	// 检查加密的内容的大小和哈希是否匹配
+	err = checkSizeAndHashForEncryptedData(encryptedDocumentBytes, metadata).toError(metadata.ResourceType)
+	if err != nil {
+		return nil, err
 	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
@@ -412,7 +431,7 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 		return nil, err
 	}
 
-	var ksResults []keyswitch.KeySwitchResultStored
+	var ksResults []*keyswitch.KeySwitchResultStored
 	err = json.Unmarshal(resp.Payload, &ksResults)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
@@ -422,17 +441,14 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 		return nil, fmt.Errorf("密钥置换结果只有 %v 份，不足 %v 份", len(ksResults), numSharesExpected)
 	}
 
-	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
-	var shares [][]byte
-	for _, ksResult := range ksResults {
-		share, err := base64.StdEncoding.DecodeString(ksResult.Share)
-		if err != nil {
-			return nil, errors.Wrap(err, "无法解析份额")
-		}
-		shares = append(shares, share)
+	// 解析并验证份额
+	shares, err := parseAndVerifySharesFromKeySwitchResults(ksResults, global.KeySwitchKeys.PublicKey, encryptedKeyAsCipherText, s.KeySwitchService)
+	if err != nil {
+		return nil, err
 	}
 
-	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKey, global.KeySwitchKeys.PrivateKey)
+	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
+	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKeyAsCipherText, global.KeySwitchKeys.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密对称密钥")
 	}
@@ -444,15 +460,9 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	// 检查解密出的内容的大小和哈希是否匹配
-	decryptedSize := uint64(len(documentBytes))
-	if decryptedSize != metadata.Size {
-		return nil, fmt.Errorf("解密后的文档大小不正确")
-	}
-
-	decryptedHash := sha256.Sum256(documentBytes)
-	decryptedHashBase64 := base64.StdEncoding.EncodeToString(decryptedHash[:])
-	if decryptedHashBase64 != metadata.Hash {
-		return nil, fmt.Errorf("解密后的文档哈希不匹配")
+	err = checkSizeAndHashForDecryptedData(documentBytes, metadata).toError(metadata.ResourceType)
+	if err != nil {
+		return nil, err
 	}
 
 	// 解析 documentBytes 为 common.Document
@@ -507,15 +517,9 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	cid := string(cidBytes)
 
 	// 检查链上记录的内容（CID）的大小和哈希是否匹配
-	encryptedSize := uint64(len(cidBytes))
-	if encryptedSize != metadata.SizeStored {
-		return nil, fmt.Errorf("获取的密文大小不正确")
-	}
-
-	encryptedHash := sha256.Sum256(cidBytes)
-	encryptedHashBase64 := base64.StdEncoding.EncodeToString(encryptedHash[:])
-	if encryptedHashBase64 != metadata.HashStored {
-		return nil, fmt.Errorf("获取的密文哈希不匹配")
+	err = checkSizeAndHashForEncryptedData(cidBytes, metadata).toError(metadata.ResourceType)
+	if err != nil {
+		return nil, err
 	}
 
 	// 从 IPFS 网络中获取文档的密文
@@ -542,7 +546,12 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 		return nil, err
 	}
 
-	encryptedKey := resp.Payload
+	// 解析加密后的密钥材料
+	encryptedKeyBytes := resp.Payload
+	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
+	if err != nil {
+		return nil, err
+	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
 	chaincodeFcn = "listKeySwitchResultsByID"
@@ -558,7 +567,7 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 		return nil, err
 	}
 
-	var ksResults []keyswitch.KeySwitchResultStored
+	var ksResults []*keyswitch.KeySwitchResultStored
 	err = json.Unmarshal(resp.Payload, &ksResults)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
@@ -568,17 +577,14 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 		return nil, fmt.Errorf("密钥置换结果只有 %v 份，不足 %v 份", len(ksResults), numSharesExpected)
 	}
 
-	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
-	var shares [][]byte
-	for _, ksResult := range ksResults {
-		share, err := base64.StdEncoding.DecodeString(ksResult.Share)
-		if err != nil {
-			return nil, errors.Wrap(err, "无法解析份额")
-		}
-		shares = append(shares, share)
+	// 解析并验证份额
+	shares, err := parseAndVerifySharesFromKeySwitchResults(ksResults, global.KeySwitchKeys.PublicKey, encryptedKeyAsCipherText, s.KeySwitchService)
+	if err != nil {
+		return nil, err
 	}
 
-	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKey, global.KeySwitchKeys.PrivateKey)
+	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
+	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKeyAsCipherText, global.KeySwitchKeys.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密对称密钥")
 	}
@@ -590,15 +596,9 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 检查解密出的内容的大小和哈希是否匹配
-	decryptedSize := uint64(len(documentBytes))
-	if decryptedSize != metadata.Size {
-		return nil, fmt.Errorf("解密后的文档大小不正确")
-	}
-
-	decryptedHash := sha256.Sum256(documentBytes)
-	decryptedHashBase64 := base64.StdEncoding.EncodeToString(decryptedHash[:])
-	if decryptedHashBase64 != metadata.Hash {
-		return nil, fmt.Errorf("解密后的文档哈希不匹配")
+	err = checkSizeAndHashForDecryptedData(documentBytes, metadata).toError(metadata.ResourceType)
+	if err != nil {
+		return nil, err
 	}
 
 	// 解析 documentBytes 为 common.Document
@@ -649,7 +649,12 @@ func (s *DocumentService) GetEncryptedDocumentProperties(id string, keySwitchSes
 		return nil, err
 	}
 
-	encryptedKey := resp.Payload
+	// 解析加密后的密钥材料
+	encryptedKeyBytes := resp.Payload
+	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
+	if err != nil {
+		return nil, err
+	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
 	chaincodeFcn = "listKeySwitchResultsByID"
@@ -665,7 +670,7 @@ func (s *DocumentService) GetEncryptedDocumentProperties(id string, keySwitchSes
 		return nil, err
 	}
 
-	var ksResults []keyswitch.KeySwitchResultStored
+	var ksResults []*keyswitch.KeySwitchResultStored
 	err = json.Unmarshal(resp.Payload, &ksResults)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
@@ -675,17 +680,14 @@ func (s *DocumentService) GetEncryptedDocumentProperties(id string, keySwitchSes
 		return nil, fmt.Errorf("密钥置换结果只有 %v 份，不足 %v 份", len(ksResults), numSharesExpected)
 	}
 
-	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
-	var shares [][]byte
-	for _, ksResult := range ksResults {
-		share, err := base64.StdEncoding.DecodeString(ksResult.Share)
-		if err != nil {
-			return nil, errors.Wrap(err, "无法解析份额")
-		}
-		shares = append(shares, share)
+	// 解析并验证份额
+	shares, err := parseAndVerifySharesFromKeySwitchResults(ksResults, global.KeySwitchKeys.PublicKey, encryptedKeyAsCipherText, s.KeySwitchService)
+	if err != nil {
+		return nil, err
 	}
 
-	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKey, global.KeySwitchKeys.PrivateKey)
+	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
+	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKeyAsCipherText, global.KeySwitchKeys.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密对称密钥")
 	}

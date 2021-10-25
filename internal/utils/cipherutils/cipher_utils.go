@@ -13,6 +13,7 @@ import (
 	"math/big"
 
 	"github.com/XiaoYao-austin/ppks"
+	"github.com/tjfoc/gmsm/sm2"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 )
@@ -33,7 +34,7 @@ func SerializeCipherText(cipherText *ppks.CipherText) []byte {
 func DeserializeCipherText(encryptedKeyBytes []byte) (*ppks.CipherText, error) {
 	// 解析加密后的密钥材料，将其转化为两个 CurvePoint 后，分别作为 CipherText 的 K 和 C
 	if len(encryptedKeyBytes) != 128 {
-		return nil, fmt.Errorf("密钥材料长度不正确，应为 128 字节")
+		return nil, fmt.Errorf("密钥材料或份额长度不正确，应为 128 字节")
 	}
 	var pointKX, pointKY big.Int
 	_ = pointKX.SetBytes(encryptedKeyBytes[:32])
@@ -93,6 +94,32 @@ func DeserializeZKProof(encryptedKeyBytes []byte) (*ZKProof, error) {
 	}
 
 	return &proof, nil
+}
+
+// SerializeSM2PublicKey 将一个 SM2 公钥序列化成一个长度为 64 的字节切片。
+func SerializeSM2PublicKey(publicKey *sm2.PublicKey) []byte {
+	pubKeyBytes := [64]byte{}
+	copy(pubKeyBytes[:32], publicKey.X.Bytes())
+	copy(pubKeyBytes[32:], publicKey.Y.Bytes())
+	return pubKeyBytes[:]
+}
+
+// DeserializeSM2PublicKey 解析一个长度为 64 的字节切片，得到 *sm2.PublicKey。
+func DeserializeSM2PublicKey(publicKeyBytes []byte) (*sm2.PublicKey, error) {
+	if len(publicKeyBytes) != 64 {
+		return nil, fmt.Errorf("公钥字节切片长度不正确")
+	}
+
+	publicKeyX, publicKeyY := big.Int{}, big.Int{}
+	_ = publicKeyX.SetBytes(publicKeyBytes[:32])
+	_ = publicKeyY.SetBytes(publicKeyBytes[32:])
+
+	publicKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&publicKeyX, &publicKeyY)
+	if err != nil {
+		return nil, err
+	}
+
+	return publicKey, nil
 }
 
 // DeriveSymmetricKeyBytesFromCurvePoint 从 curvePoint 中导出 256 位信息，在应用内作为对称密钥。具体使用上可用于创建 AES256 block。

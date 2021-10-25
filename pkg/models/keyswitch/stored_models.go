@@ -17,6 +17,8 @@ type KeySwitchTriggerStored struct {
 type KeySwitchResultStored struct {
 	KeySwitchSessionID string    `json:"keySwitchSessionID"` // 密钥置换会话 ID
 	Share              string    `json:"share"`              // 个人份额（[64]byte 的 Base64 编码）
+	ZKProof            string    `json:"zkproof"`            // 零知识证明（[96]byte 的 Base64 编码），用于验证份额
+	KeySwitchPK        string    `json:"keySwitchPK"`        // 份额生成者的密钥置换公钥（[64]byte 的 Base64 编码），用于验证份额
 	Creator            string    `json:"creator"`            // 密钥置换响应者的公钥（Base64 编码）
 	Timestamp          time.Time `json:"timestamp"`          // 时间戳
 }

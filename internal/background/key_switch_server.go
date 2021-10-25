@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
@@ -107,20 +105,12 @@ workerLoop:
 
 			// Parse the target public key
 			targetPubKeyBytes, err := base64.StdEncoding.DecodeString(keySwitchTriggerStored.KeySwitchPK)
-			if err != nil || len(targetPubKeyBytes) != 64 {
+			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析目标密钥。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
 			}
-			if len(targetPubKeyBytes) != 64 {
-				log.Errorf("密钥置换工作单元 #%v 无法解析目标密钥: 密钥长度不正确\n", id)
-				continue
-			}
 
-			targetPubKeyX, targetPubKeyY := big.Int{}, big.Int{}
-			_ = targetPubKeyX.SetBytes(targetPubKeyBytes[:32])
-			_ = targetPubKeyY.SetBytes(targetPubKeyBytes[32:])
-
-			targetPubKey, err := sm2keyutils.ConvertBigIntegersToPublicKey(&targetPubKeyX, &targetPubKeyY)
+			targetPubKey, err := cipherutils.DeserializeSM2PublicKey(targetPubKeyBytes)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析目标密钥。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
@@ -141,7 +131,7 @@ workerLoop:
 
 			// Do share calculation
 			timeBeforeShareCalc := time.Now()
-			share, _, err := ppks.ShareCal(targetPubKey, &curvePoints.K, global.KeySwitchKeys.PrivateKey)
+			share, zkpRi, err := ppks.ShareCal(targetPubKey, &curvePoints.K, global.KeySwitchKeys.PrivateKey) // `zkpRi` for calculating zkp
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取用户的密钥置换密钥。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
@@ -150,12 +140,17 @@ workerLoop:
 			timeDiffShareCalc := timeAfterShareCalc.Sub(timeBeforeShareCalc)
 			log.Debugf("密钥置换工作单元 #%v 完成份额计算，耗时 %v。会话 ID: %v。", id, timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
 
-			// Invoke the service function to save the result onto the chain
-			// share.K and share.C each takes up 64 bytes
-			shareBytes := cipherutils.SerializeCipherText(share)
+			// Generate a ZKP for the share
+			proof := &cipherutils.ZKProof{}
+			proof.C, proof.R1, proof.R2, err = ppks.ShareProofGenNoB(zkpRi, global.KeySwitchKeys.PrivateKey, share, targetPubKey, &curvePoints.K)
+			if err != nil {
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 已为份额生成零知识证明。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
+				continue
+			}
 
+			// Invoke the service function to save the result onto the chain
 			timeBeforeUploading := time.Now()
-			txID, err := s.KeySwitchService.CreateKeySwitchResult(keySwitchTriggerStored.KeySwitchSessionID, shareBytes)
+			txID, err := s.KeySwitchService.CreateKeySwitchResult(keySwitchTriggerStored.KeySwitchSessionID, share, proof)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法将份额结果上链。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue

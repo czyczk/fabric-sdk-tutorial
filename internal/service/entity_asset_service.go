@@ -208,6 +208,7 @@ func (s *EntityAssetService) GetEntityAsset(id string, metadata *data.ResMetadat
 		}
 	}
 
+	// 调用链码 getData 获取该资源的本体
 	chaincodeFcn := "getData"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
@@ -218,13 +219,22 @@ func (s *EntityAssetService) GetEntityAsset(id string, metadata *data.ResMetadat
 	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
 	if err != nil {
 		return nil, GetClassifiedError(chaincodeFcn, err)
-	} else {
-		var asset common.EntityAsset
-		if err = json.Unmarshal(resp.Payload, &asset); err != nil {
-			return nil, fmt.Errorf("获取的数据不是合法的实体资产")
-		}
-		return &asset, nil
 	}
+
+	assetBytes := resp.Payload
+
+	// 检查所获数据的大小与哈希是否匹配
+	err = checkSizeAndHashForDecryptedData(assetBytes, metadata).toError(metadata.ResourceType)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析所获数据，得到 common.EntityAsset 作为结果
+	var asset common.EntityAsset
+	if err = json.Unmarshal(resp.Payload, &asset); err != nil {
+		return nil, fmt.Errorf("获取的数据不是合法的实体资产")
+	}
+	return &asset, nil
 }
 
 // 获取加密实体资产。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
@@ -272,7 +282,12 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		return nil, err
 	}
 
-	encryptedKey := resp.Payload
+	// 解析加密后的密钥材料
+	encryptedKeyBytes := resp.Payload
+	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
+	if err != nil {
+		return nil, err
+	}
 
 	// 调用链码 getData 获取该资源的密文本体
 	chaincodeFcn = "getData"
@@ -291,15 +306,9 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 	encryptedAssetBytes := resp.Payload
 
 	// 检查加密的内容的大小和哈希是否匹配
-	encryptedSize := uint64(len(encryptedAssetBytes))
-	if encryptedSize != metadata.SizeStored {
-		return nil, fmt.Errorf("获取的密文大小不正确")
-	}
-
-	encryptedHash := sha256.Sum256(encryptedAssetBytes)
-	encryptedHashBase64 := base64.StdEncoding.EncodeToString(encryptedHash[:])
-	if encryptedHashBase64 != metadata.HashStored {
-		return nil, fmt.Errorf("获取的密文哈希不匹配")
+	err = checkSizeAndHashForEncryptedData(encryptedAssetBytes, metadata).toError(metadata.ResourceType)
+	if err != nil {
+		return nil, err
 	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
@@ -316,7 +325,7 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		return nil, err
 	}
 
-	var ksResults []keyswitch.KeySwitchResultStored
+	var ksResults []*keyswitch.KeySwitchResultStored
 	err = json.Unmarshal(resp.Payload, &ksResults)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
@@ -326,17 +335,14 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		return nil, fmt.Errorf("密钥置换结果只有 %v 份，不足 %v 份", len(ksResults), numSharesExpected)
 	}
 
-	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
-	var shares [][]byte
-	for _, ksResult := range ksResults {
-		share, err := base64.StdEncoding.DecodeString(ksResult.Share)
-		if err != nil {
-			return nil, errors.Wrap(err, "无法解析份额")
-		}
-		shares = append(shares, share)
+	// 解析并验证份额
+	shares, err := parseAndVerifySharesFromKeySwitchResults(ksResults, global.KeySwitchKeys.PublicKey, encryptedKeyAsCipherText, s.KeySwitchService)
+	if err != nil {
+		return nil, err
 	}
 
-	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKey, global.KeySwitchKeys.PrivateKey)
+	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
+	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKeyAsCipherText, global.KeySwitchKeys.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法解密对称密钥")
 	}
@@ -348,15 +354,9 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 	}
 
 	// 检查解密出的内容的大小和哈希是否匹配
-	decryptedSize := uint64(len(assetBytes))
-	if decryptedSize != metadata.Size {
-		return nil, fmt.Errorf("解密后的资产大小不正确")
-	}
-
-	decryptedHash := sha256.Sum256(assetBytes)
-	decryptedHashBase64 := base64.StdEncoding.EncodeToString(decryptedHash[:])
-	if decryptedHashBase64 != metadata.Hash {
-		return nil, fmt.Errorf("解密后的资产哈希不匹配")
+	err = checkSizeAndHashForDecryptedData(assetBytes, metadata).toError(metadata.ResourceType)
+	if err != nil {
+		return nil, err
 	}
 
 	// 解析 assetBytes 为 common.EntityAsset

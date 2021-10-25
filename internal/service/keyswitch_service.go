@@ -39,15 +39,13 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 	}
 
 	// 将公钥序列化为定长字节切片
-	ksPubKey := [64]byte{}
-	copy(ksPubKey[:32], global.KeySwitchKeys.PublicKey.X.Bytes())
-	copy(ksPubKey[32:], global.KeySwitchKeys.PublicKey.Y.Bytes())
+	ksPubKey := cipherutils.SerializeSM2PublicKey(global.KeySwitchKeys.PublicKey)
 
 	// 组装一个 KeySwitchTrigger 对象，并调用链码
 	ksTrigger := keyswitch.KeySwitchTrigger{
 		ResourceID:    resourceID,
 		AuthSessionID: authSessionID,
-		KeySwitchPK:   base64.StdEncoding.EncodeToString(ksPubKey[:]),
+		KeySwitchPK:   base64.StdEncoding.EncodeToString(ksPubKey),
 	}
 
 	ksTriggerBytes, err := json.Marshal(ksTrigger)
@@ -76,18 +74,32 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 // 参数：
 //   密钥置换会话 ID
 //   个人份额
+//   关于份额的零知识证明
 //
 // 返回：
 //   交易 ID
-func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, share []byte) (string, error) {
+func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, share *ppks.CipherText, proof *cipherutils.ZKProof) (string, error) {
 	if strings.TrimSpace(keySwitchSessionID) == "" {
 		return "", fmt.Errorf("密钥置换会话 ID 不能为空")
 	}
 
-	shareAsBase64 := base64.StdEncoding.EncodeToString(share)
+	// Serialize the materials
+	// share.K and share.C each takes up 64 bytes
+	shareBytes := cipherutils.SerializeCipherText(share)
+	// Each big.Int in the proof takes up 32 bytes
+	proofBytes := cipherutils.SerializeZKProof(proof)
+
+	ksPubKeyBytes := cipherutils.SerializeSM2PublicKey(global.KeySwitchKeys.PublicKey)
+
+	shareAsBase64 := base64.StdEncoding.EncodeToString(shareBytes)
+	proofAsBase64 := base64.StdEncoding.EncodeToString(proofBytes)
+	ksPubKeyAsBase64 := base64.StdEncoding.EncodeToString(ksPubKeyBytes)
+
 	keySwitchResult := keyswitch.KeySwitchResult{
 		KeySwitchSessionID: keySwitchSessionID,
 		Share:              shareAsBase64,
+		ZKProof:            proofAsBase64,
+		KeySwitchPK:        ksPubKeyAsBase64,
 	}
 
 	keySwitchResultBytes, err := json.Marshal(keySwitchResult)
@@ -110,38 +122,44 @@ func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, shar
 	}
 }
 
-// 获取解密后的对称密钥材料。
+// 验证所获得的份额。
 //
 // 参数：
 //   所获的份额
+//   所获的零知识证明
+//   份额生成者的密钥置换公钥
+//   目标用户的密钥置换公钥
+//   加密后的对称密钥材料
+//
+// 返回：
+//   该份额是否通过验证
+func (s *KeySwitchService) VerifyShare(share *ppks.CipherText, proof *cipherutils.ZKProof, shareCreatorPublicKey *sm2.PublicKey, targetPublicKey *sm2.PublicKey, encryptedKey *ppks.CipherText) (bool, error) {
+	isShareVerified, err := ppks.ShareProofVryNoB(proof.C, proof.R1, proof.R2, share, shareCreatorPublicKey, targetPublicKey, &encryptedKey.K)
+	if err != nil {
+		return isShareVerified, err
+	}
+
+	return isShareVerified, nil
+}
+
+// 获取解密后的对称密钥材料。调用前需要使用 `VerifyShare()` 对份额进行验证。
+//
+// 参数：
+//   经零知识证明验证的份额
 //   加密后的对称密钥材料
 //   目标用户用于密钥置换的私钥
 //
 // 返回：
 //   解密后的对称密钥材料
-func (s *KeySwitchService) GetDecryptedKey(shares [][]byte, encryptedKey []byte, targetPrivateKey *sm2.PrivateKey) (*ppks.CurvePoint, error) {
-	// 组建一个 CipherVector。将每份 share 转化为两个 CurvePoint 后，分别作为 CipherText 的 K 和 C，将 CipherText 放入 CipherVector。
+func (s *KeySwitchService) GetDecryptedKey(shares []*ppks.CipherText, encryptedKey *ppks.CipherText, targetPrivateKey *sm2.PrivateKey) (*ppks.CurvePoint, error) {
+	// 组建一个 CipherVector，将每个 CipherText 放入 CipherVector。
 	var cipherVector ppks.CipherVector
 	for _, share := range shares {
-		if len(share) != 128 {
-			return nil, fmt.Errorf("份额长度不正确，应为 128 字节")
-		}
-
-		cipherText, err := cipherutils.DeserializeCipherText(share)
-		if err != nil {
-			return nil, err
-		}
-		cipherVector = append(cipherVector, *cipherText)
-	}
-
-	// 解析加密后的密钥材料
-	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKey)
-	if err != nil {
-		return nil, err
+		cipherVector = append(cipherVector, *share)
 	}
 
 	// 密钥置换
-	shareReplacedCipherText, err := ppks.ShareReplace(&cipherVector, encryptedKeyAsCipherText)
+	shareReplacedCipherText, err := ppks.ShareReplace(&cipherVector, encryptedKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法进行密钥置换")
 	}

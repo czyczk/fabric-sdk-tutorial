@@ -3,6 +3,7 @@ package service
 import (
 	"crypto"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/tjfoc/gmsm/sm2"
 )
@@ -24,12 +25,26 @@ type KeySwitchServiceInterface interface {
 	// 参数：
 	//   密钥置换会话 ID
 	//   个人份额
+	//   关于份额的零知识证明
 	//
 	// 返回：
 	//   交易 ID
-	CreateKeySwitchResult(keySwitchSessionID string, share []byte) (string, error)
+	CreateKeySwitchResult(keySwitchSessionID string, share *ppks.CipherText, proof *cipherutils.ZKProof) (string, error)
 
-	// 获取解密后的对称密钥材料。
+	// 验证所获得的份额。
+	//
+	// 参数：
+	//   所获的份额
+	//   所获的零知识证明
+	//   份额生成者的密钥置换公钥
+	//   目标用户的密钥置换公钥
+	//   加密后的对称密钥材料
+	//
+	// 返回：
+	//   该份额是否通过验证
+	VerifyShare(share *ppks.CipherText, proof *cipherutils.ZKProof, shareCreatorPublicKey *sm2.PublicKey, targetPublicKey *sm2.PublicKey, encryptedKey *ppks.CipherText) (bool, error)
+
+	// 获取解密后的对称密钥材料。调用前需要使用 `VerifyShare()` 对份额进行验证。
 	//
 	// 参数：
 	//   所获的份额
@@ -38,7 +53,7 @@ type KeySwitchServiceInterface interface {
 	//
 	// 返回：
 	//   解密后的对称密钥材料
-	GetDecryptedKey(shares [][]byte, encryptedKey []byte, targetPrivateKey *sm2.PrivateKey) (*ppks.CurvePoint, error)
+	GetDecryptedKey(shares []*ppks.CipherText, encryptedKey *ppks.CipherText, targetPrivateKey *sm2.PrivateKey) (*ppks.CurvePoint, error)
 
 	// 等待并收集密钥置换结果。
 	//
