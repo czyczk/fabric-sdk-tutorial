@@ -17,6 +17,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
@@ -48,7 +49,16 @@ func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset) (strin
 		return "", fmt.Errorf("资产 ID 不能为空")
 	}
 
-	assetBytes, err := json.Marshal(asset)
+	// 将 struct 转成 map 后再序列化，以使得键按字典序排序。
+	// 因为在 CouchDB 中存储 JSON 序列化后的对象时，不会保存键的顺序，取出时键将以字典序排序。
+	// 若此时直接按 struct 序列化，保持原始键顺序的话，此时计算的哈希将与取出后的哈希不同。
+	assetAsMap := make(map[string]interface{})
+	err := mapstructure.Decode(asset, &assetAsMap)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化资产")
+	}
+
+	assetBytes, err := json.Marshal(assetAsMap)
 	if err != nil {
 		return "", errors.Wrap(err, "无法序列化资产")
 	}
