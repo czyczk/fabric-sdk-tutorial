@@ -234,6 +234,8 @@ func (uc *UniversalCC) createKeySwitchResult(stub shim.ChaincodeStubInterface, a
 	ksResultStored := keyswitch.KeySwitchResultStored{
 		KeySwitchSessionID: ksSessionID,
 		Share:              ksResult.Share,
+		ZKProof:            ksResult.ZKProof,
+		KeySwitchPK:        ksResult.KeySwitchPK,
 		Creator:            creatorAsBase64,
 		Timestamp:          timestamp,
 	}
