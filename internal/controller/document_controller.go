@@ -2,8 +2,10 @@ package controller
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -106,9 +108,14 @@ func (c *DocumentController) handleCreateDocument(ctx *gin.Context) {
 		isEntityAssetIDPublic = pel.AppendIfNotBool(isEntityAssetIDPublicStr, "必须指定相关实体资产 ID 公开性。")
 	}
 
-	// Check contents if it's not an offchain resource
-	contents := []byte(ctx.PostForm("contents"))
-	if len(contents) == 0 {
+	// Check contents
+	file, fileHeader, err := ctx.Request.FormFile("contents")
+	if err != nil {
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	if fileHeader.Size == 0 {
 		*pel = append(*pel, "文档内容不能为空。")
 	}
 
@@ -126,6 +133,21 @@ func (c *DocumentController) handleCreateDocument(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, pel)
 		return
 	}
+
+	// Read the contents from the multipart file
+	contents, err := io.ReadAll(file)
+	if err != nil {
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	if err = file.Close(); err != nil {
+		ctx.AbortWithError(http.StatusInternalServerError, err)
+		return
+	}
+
+	file = nil
+	runtime.GC()
 
 	// Generate an ID
 	sfNode, err := snowflake.NewNode(1)
