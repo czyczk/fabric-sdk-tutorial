@@ -14,3 +14,4 @@ keySwitchKeys:
   collectivePublicKey: "sm2keys/collPubKey.pem"
   privateKey: "sm2keys/Admin@org1.lab805.com/sk"
   publicKey: "sm2keys/Admin@org1.lab805.com/Admin@org1.lab805.com.pem"
+showTimingLogs: false

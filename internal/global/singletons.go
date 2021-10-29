@@ -25,3 +25,4 @@ var ChannelClientInstances map[string]map[string]map[string]*channel.Client // A
 var EventClientInstances map[string]map[string]map[string]*event.Client     // A lookup takes `channelID` followed by `orgName` and `username`.
 var LedgerClientInstances map[string]map[string]map[string]*ledger.Client   // A lookup takes `channelID` followed by `orgName` and `username`.
 var KeySwitchKeys keySwitchKeys                                             // The keys to be used in the key switch process
+var ShowTimingLogs bool                                                     // Whehter timers in several modules should be enabled and time consumption logged

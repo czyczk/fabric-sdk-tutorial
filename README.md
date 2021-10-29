@@ -308,6 +308,7 @@ chaincodes:
 |isKeySwitchServer|bool|是否启动为密钥置换服务器|
 |isRegulator|bool|是否启动为监管者|
 |keySwitchKeys|（见下）|启动为该角色所需要的密钥|
+|showTimingLogs|bool|是否显示一些关键流程的时间消耗，有助于了解性能。|
 
 - **user:**  
 

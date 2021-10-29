@@ -1,12 +1,12 @@
 package service
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -132,15 +132,18 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 		return "", errors.Wrap(err, "无法序列化文档属性")
 	}
 
+	document = nil
+
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	encryptedDocumentBytes, err := cipherutils.EncryptBytesUsingAESKey(documentBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedDocumentBytes, err := encryptDataWithTimer(documentBytes, key, "无法加密文档", "加密文档")
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密文档")
+		return "", err
 	}
-	encryptedDocumentPropertiesBytes, err := cipherutils.EncryptBytesUsingAESKey(documentPropertiesBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
+
+	encryptedDocumentPropertiesBytes, err := encryptDataWithTimer(documentPropertiesBytes, key, "无法加密文档属性", "加密文档属性")
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密文档属性")
+		return "", err
 	}
 
 	// 获取集合公钥（当前实现为 SM2 公钥）
@@ -164,6 +167,8 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 	size := len(documentBytes)
 	extensions := deriveExtensionsMapFromDocumentProperties(&document.DocumentProperties, encryptedDocumentPropertiesBytes)
 
+	documentBytes = nil
+
 	metadata := data.ResMetadata{
 		ResourceType: data.Encrypted,
 		ResourceID:   document.ID,
@@ -184,6 +189,8 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 		return "", errors.Wrapf(err, "无法序列化链码参数")
 	}
 
+	encryptedData.Data = ""
+
 	chaincodeFcn := "createEncryptedData"
 	channelReq := channel.Request{
 		ChaincodeID: s.ServiceInfo.ChaincodeID,
@@ -191,7 +198,7 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 		Args:        [][]byte{encryptedDataBytes, []byte(encryptedResourceCreationEventName)},
 	}
 
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
+	resp, err := executeChannelRequestWithTimer(s.ServiceInfo.ChannelClient, &channelReq, "链上存储文档")
 	if err != nil {
 		return "", GetClassifiedError(chaincodeFcn, err)
 	} else {
@@ -218,25 +225,40 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		return "", fmt.Errorf("文档 ID 不能为空")
 	}
 
-	documentBytes, err := json.Marshal(document)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化文档")
-	}
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
 	if err != nil {
 		return "", errors.Wrap(err, "无法序列化文档属性")
 	}
+	documentBytes, err := json.Marshal(document)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化文档")
+	}
 
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	encryptedDocumentBytes, err := cipherutils.EncryptBytesUsingAESKey(documentBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedDocumentPropertiesBytes, err := encryptDataWithTimer(documentPropertiesBytes, key, "无法加密文档属性", "加密文档属性")
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密文档")
+		return "", err
 	}
-	encryptedDocumentPropertiesBytes, err := cipherutils.EncryptBytesUsingAESKey(documentPropertiesBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
+
+	// 提前准备扩展字段，以便回收 `document`
+	extensions := deriveExtensionsMapFromDocumentProperties(&document.DocumentProperties, encryptedDocumentPropertiesBytes)
+	documentID := document.ID
+	document = nil
+	runtime.GC()
+
+	// 提前计算原始内容的哈希，获取大小，以便回收 `documentBytes`
+	hash := sha256.Sum256(documentBytes)
+	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
+	size := len(documentBytes)
+
+	encryptedDocumentBytes, err := encryptDataWithTimer(documentBytes, key, "无法加密文档", "加密文档")
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密文档属性")
+		return "", err
 	}
+
+	documentBytes = nil
+	runtime.GC()
 
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()
@@ -253,25 +275,22 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	// 序列化加密后的 key
 	encryptedKeyBytes := cipherutils.SerializeCipherText(encryptedKey)
 
-	// 计算原始内容的哈希，获取大小并准备扩展字段
-	hash := sha256.Sum256(documentBytes)
-	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
-	size := len(documentBytes)
-	extensions := deriveExtensionsMapFromDocumentProperties(&document.DocumentProperties, encryptedDocumentPropertiesBytes)
-
 	metadata := data.ResMetadata{
 		ResourceType: data.Offchain,
-		ResourceID:   document.ID,
+		ResourceID:   documentID,
 		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   extensions,
 	}
 
 	// 将加密后的文档上传至 IPFS 网络
-	cid, err := s.ServiceInfo.IPFSSh.Add(bytes.NewReader(encryptedDocumentBytes))
+	cid, err := uploadBytesToIPFSWithTimer(s.ServiceInfo.IPFSSh, encryptedDocumentBytes, "无法将加密后的文档上传至 IPFS 网络", "上传至 IPFS 网络")
 	if err != nil {
-		return "", errors.Wrap(err, "无法将加密后的文档上传至 IPFS 网络")
+		return "", err
 	}
+
+	encryptedDocumentBytes = nil
+	runtime.GC()
 
 	// 在传给链码的参数中传入 IPFS CID
 	offchainData := data.OffchainData{
@@ -292,12 +311,12 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		Args:        [][]byte{offchainDataBytes, []byte(encryptedResourceCreationEventName)},
 	}
 
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
+	resp, err := executeChannelRequestWithTimer(s.ServiceInfo.ChannelClient, &channelReq, "链上存储文档元数据与属性")
 	if err != nil {
 		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
 	}
+
+	return string(resp.TransactionID), nil
 }
 
 // GetDocumentMetadata 获取数字文档的元数据。

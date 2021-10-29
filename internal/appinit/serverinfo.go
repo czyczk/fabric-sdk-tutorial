@@ -17,6 +17,7 @@ type ServerInfo struct {
 	IsKeySwitchServer bool                   `yaml:"isKeySwitchServer"`
 	IsRegulator       bool                   `yaml:"isRegulator"`
 	KeySwitchKeys     *KeySwitchKeyLocations `yaml:"keySwitchKeys"`
+	ShowTimingLogs    bool                   `yaml:"showTimingLogs"`
 }
 
 // LoadServerInfo loads the server config file (in YAML) which contains info needed to start a server.

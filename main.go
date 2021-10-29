@@ -146,6 +146,9 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			return err
 		}
 
+		// Apply global settings
+		global.ShowTimingLogs = serverInfo.ShowTimingLogs
+
 		// Extract some info from the config for later use
 		orgName := serverInfo.User.OrgName
 		userID := serverInfo.User.UserID

@@ -129,9 +129,9 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 
 	// 用 key 加密 assetBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
-	encryptedAssetBytes, err := cipherutils.EncryptBytesUsingAESKey(assetBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(key))
+	encryptedAssetBytes, err := encryptDataWithTimer(assetBytes, key, "无法加密资产", "加密资产")
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密资产")
+		return "", err
 	}
 
 	// 获取集合公钥（当前实现为 SM2 公钥）
@@ -183,12 +183,12 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 		Args:        [][]byte{encryptedDataBytes, []byte(encryptedResourceCreationEventName)},
 	}
 
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
+	resp, err := executeChannelRequestWithTimer(s.ServiceInfo.ChannelClient, &channelReq, "链上存储资产")
 	if err != nil {
 		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
 	}
+
+	return string(resp.TransactionID), nil
 }
 
 // 获取实体资产的元数据。

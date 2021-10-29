@@ -308,6 +308,7 @@ chaincodes:
 |isKeySwitchServer|bool|Whether the server is a key-switch server|
 |isRegulator|bool|Whether the server is a regulator|
 |keySwitchKeys|(Seen below)|The required keys to be used by the role|
+|showTimingLogs|bool|Whether the time consumptions of some important processes should be shown. Useful to reveal the performance.|
 
 - **user:**  
 
