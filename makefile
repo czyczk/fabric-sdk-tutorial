@@ -40,30 +40,6 @@ run-serve-o1-bg:
 	@sleep 0.3
 	@nohup ./fabric-sdk-tutorial serve -c "server-u3o1.yaml" > nohup-u3o1.out &
 	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u4o1.yaml" > nohup-u4o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u5o1.yaml" > nohup-u5o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u6o1.yaml" > nohup-u6o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u7o1.yaml" > nohup-u7o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u8o1.yaml" > nohup-u8o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u9o1.yaml" > nohup-u9o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u10o1.yaml" > nohup-u10o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u11o1.yaml" > nohup-u11o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u12o1.yaml" > nohup-u12o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u13o1.yaml" > nohup-u13o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u14o1.yaml" > nohup-u14o1.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u15o1.yaml" > nohup-u15o1.out &
-	@sleep 0.3
 	@nohup ./fabric-sdk-tutorial serve -c "server-ado1.yaml" > nohup-ado1.out &
 
 run-serve-o2-bg:
@@ -72,30 +48,6 @@ run-serve-o2-bg:
 	@nohup ./fabric-sdk-tutorial serve -c "server-u2o2.yaml" > nohup-u2o2.out &
 	@sleep 0.3
 	@nohup ./fabric-sdk-tutorial serve -c "server-u3o2.yaml" > nohup-u3o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u4o2.yaml" > nohup-u4o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u5o2.yaml" > nohup-u5o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u6o2.yaml" > nohup-u6o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u7o2.yaml" > nohup-u7o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u8o2.yaml" > nohup-u8o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u9o2.yaml" > nohup-u9o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u10o2.yaml" > nohup-u10o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u11o2.yaml" > nohup-u11o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u12o2.yaml" > nohup-u12o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u13o2.yaml" > nohup-u13o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u14o2.yaml" > nohup-u14o2.out &
-	@sleep 0.3
-	@nohup ./fabric-sdk-tutorial serve -c "server-u15o2.yaml" > nohup-u15o2.out &
 	@sleep 0.3
 	@nohup ./fabric-sdk-tutorial serve -c "server-ado2.yaml" > nohup-ado2.out &
 

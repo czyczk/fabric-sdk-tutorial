@@ -97,66 +97,6 @@ organizations: # 这个网络中的参与组织
       #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User3@org1.lab805.com/msp/keystore/sk
       #  cert:
       #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User3@org1.lab805.com/msp/signcerts/User3@org1.lab805.com-cert.pem
-      #User4:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User4@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User4@org1.lab805.com/msp/signcerts/User4@org1.lab805.com-cert.pem
-      #User5:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User5@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User5@org1.lab805.com/msp/signcerts/User5@org1.lab805.com-cert.pem
-      #User6:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User6@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User6@org1.lab805.com/msp/signcerts/User6@org1.lab805.com-cert.pem
-      #User7:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User7@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User7@org1.lab805.com/msp/signcerts/User7@org1.lab805.com-cert.pem
-      #User8:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User8@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User8@org1.lab805.com/msp/signcerts/User8@org1.lab805.com-cert.pem
-      #User9:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User9@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User9@org1.lab805.com/msp/signcerts/User9@org1.lab805.com-cert.pem
-      #User10:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User10@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User10@org1.lab805.com/msp/signcerts/User10@org1.lab805.com-cert.pem
-      #User11:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User11@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User11@org1.lab805.com/msp/signcerts/User11@org1.lab805.com-cert.pem
-      #User12:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User12@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User12@org1.lab805.com/msp/signcerts/User12@org1.lab805.com-cert.pem
-      #User13:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User13@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User13@org1.lab805.com/msp/signcerts/User13@org1.lab805.com-cert.pem
-      #User14:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User14@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User14@org1.lab805.com/msp/signcerts/User14@org1.lab805.com-cert.pem
-      #User15:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User15@org1.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org1.lab805.com/users/User15@org1.lab805.com/msp/signcerts/User15@org1.lab805.com-cert.pem
     # [可选] 证书授权机构（Certificate Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
     # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
   #    certificateAuthorities:
@@ -188,66 +128,6 @@ organizations: # 这个网络中的参与组织
       #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User3@org2.lab805.com/msp/keystore/sk
       #  cert:
       #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User3@org2.lab805.com/msp/signcerts/User3@org2.lab805.com-cert.pem
-      #User4:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User4@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User4@org2.lab805.com/msp/signcerts/User4@org2.lab805.com-cert.pem
-      #User5:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User5@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User5@org2.lab805.com/msp/signcerts/User5@org2.lab805.com-cert.pem
-      #User6:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User6@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User6@org2.lab805.com/msp/signcerts/User6@org2.lab805.com-cert.pem
-      #User7:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User7@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User7@org2.lab805.com/msp/signcerts/User7@org2.lab805.com-cert.pem
-      #User8:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User8@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User8@org2.lab805.com/msp/signcerts/User8@org2.lab805.com-cert.pem
-      #User9:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User9@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User9@org2.lab805.com/msp/signcerts/User9@org2.lab805.com-cert.pem
-      #User10:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User10@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User10@org2.lab805.com/msp/signcerts/User10@org2.lab805.com-cert.pem
-      #User11:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User11@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User11@org2.lab805.com/msp/signcerts/User11@org2.lab805.com-cert.pem
-      #User12:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User12@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User12@org2.lab805.com/msp/signcerts/User12@org2.lab805.com-cert.pem
-      #User13:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User13@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User13@org2.lab805.com/msp/signcerts/User13@org2.lab805.com-cert.pem
-      #User14:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User14@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User14@org2.lab805.com/msp/signcerts/User14@org2.lab805.com-cert.pem
-      #User15:
-      #  key:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User15@org2.lab805.com/msp/keystore/sk
-      #  cert:
-      #    path: fixtures/crypto-config/peerOrganizations/org2.lab805.com/users/User15@org2.lab805.com/msp/signcerts/User15@org2.lab805.com-cert.pem
     # [可选] 证书授权机构（Certificate Authorities）颁布证书以便区分身份。通常提供证书的过程独立于运行时网络。
     # Fabric-CA 是个比较特殊的证书授权机构，它提供 REST API，可进行动态证书管理。
 #    certificateAuthorities:

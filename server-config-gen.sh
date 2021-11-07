@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Generate server config files for org1
-for i in {2..15}; do
+for i in {2..3}; do
     # IPFS port: localhost:5001 => localhost:5${i} where ${i} is formatted as "%03g"
     #   e.g.: i = 3 => 5003
     # User name and key file name: User1 => User${i}
@@ -14,7 +14,7 @@ for i in {2..15}; do
 done
 
 # Generate server config files for org2
-for i in {2..15}; do
+for i in {2..3}; do
     # IPFS port: localhost:5017 => localhost:5${i + 16} where ${i + 16} is formatted as "%03g"
     #   e.g.: i = 3 => 5019
     # User name and key file name: User1 => User${i}
