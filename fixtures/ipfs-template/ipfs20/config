@@ -1,0 +1,127 @@
+{
+  "API": {
+    "HTTPHeaders": {}
+  },
+  "Addresses": {
+    "API": "/ip4/127.0.0.1/tcp/5001",
+    "Announce": [],
+    "Gateway": "/ip4/127.0.0.1/tcp/8080",
+    "NoAnnounce": [],
+    "Swarm": [
+      "/ip4/0.0.0.0/tcp/4001",
+      "/ip6/::/tcp/4001"
+    ]
+  },
+  "Bootstrap": [
+    "/ip4/ipfs0/tcp/4001/ipfs/QmeUNYGNzYVfGsBZ6H6yXtp1LSvrNDYVdYc7Du1jNCpBJT"
+  ],
+  "Datastore": {
+    "BloomFilterSize": 0,
+    "GCPeriod": "1h",
+    "HashOnRead": false,
+    "Spec": {
+      "mounts": [
+        {
+          "child": {
+            "path": "blocks",
+            "shardFunc": "/repo/flatfs/shard/v1/next-to-last/2",
+            "sync": true,
+            "type": "flatfs"
+          },
+          "mountpoint": "/blocks",
+          "prefix": "flatfs.datastore",
+          "type": "measure"
+        },
+        {
+          "child": {
+            "compression": "none",
+            "path": "datastore",
+            "type": "levelds"
+          },
+          "mountpoint": "/",
+          "prefix": "leveldb.datastore",
+          "type": "measure"
+        }
+      ],
+      "type": "mount"
+    },
+    "StorageGCWatermark": 90,
+    "StorageMax": "10GB"
+  },
+  "Discovery": {
+    "MDNS": {
+      "Enabled": true,
+      "Interval": 10
+    }
+  },
+  "Experimental": {
+    "FilestoreEnabled": false,
+    "Libp2pStreamMounting": false,
+    "P2pHttpProxy": false,
+    "PreferTLS": false,
+    "QUIC": false,
+    "ShardingEnabled": false,
+    "UrlstoreEnabled": false
+  },
+  "Gateway": {
+    "APICommands": [],
+    "HTTPHeaders": {
+      "Access-Control-Allow-Headers": [
+        "X-Requested-With",
+        "Range",
+        "User-Agent"
+      ],
+      "Access-Control-Allow-Methods": [
+        "GET"
+      ],
+      "Access-Control-Allow-Origin": [
+        "*"
+      ]
+    },
+    "NoFetch": false,
+    "PathPrefixes": [],
+    "RootRedirect": "",
+    "Writable": false
+  },
+  "Identity": {
+    "PeerID": "QmfNcowNK2G2hhVBfNSiumWiHwvWmhEALHSaRGzC4qg11Z",
+    "PrivKey": "CAASqAkwggSkAgEAAoIBAQDZQK3dJv3Hwjl6D9OIW7bFVEq3RcPouN06mNji+2WF8SjjVj+56bcSfpZ0AVeG77jEqv2p+hiSlH2SDAVGUFXnhBf/tCLXENKjl0JrGmIORgTi6VY0PsJ3+LmvjmosX0HwtHrUzBhy34wD82rk6lWvSm2C4BUVJEDhWyUtt8k+yaUTSUjIOYOodojxR9RZIjePuIOP+ToFjyqI689En52Kb2ohSqzWF0FnCj7AsrXztdg4MP3clLEkbPaHgLkD23MTNJGJl9HRrwMTUrM7NGjTxcHMH+VD8NzpNFE+cD5elNRfzvVPsv0zVMy5BPlha7sGm2cxT69KtercHQpFoqLFAgMBAAECggEBAMIPqX7LrpO6Zbcn3e+G5TtdMSSG2BnQ0CTglZQjtiswITL5PxFluJd3phNXg4TQK77Zcp9b/IkqxQQpYqjNZ/7XGszZbumnaFCi87xSI9bWKtU6Uzt1+CZMcilkUGj0aiWGQdZFvW0XTK3WyNxUild7Z1kpqwtoh+AFl68/5S8EMFcr/U8tiNWJQ2D28+yXvAIvvk8Kqu93ncgeBRb8z7yQuw8je+iRlpfLoceCy7zKwyM2hpXu8ZxBS1bp8dXYS1gmmnIWE9Qlj1H6v7q3whbuKWqhENCSt6/Z7GuwgukicTnvGWn1OnoEkzaWL18Y8psw01fUdGuosvczijN+78ECgYEA33kuPo3zrMtaLj9We42D0KDtnLkpkNgazdd+ldP0FW12s1rgf01pme1j2/2SM06z3f1B4fG9vrVWx7xkN2t/ZJuuVFLnCVzLIBFctoljHtQ/M2S/Y3GKwf/iaXwR1OQ/l80wBO5H0jZxrNNc0h5lxHMbuYH0LOYg95BV7LfymfECgYEA+N+1k060RC8if6wV+uDdQummqRSCjl/0uMWu60pGh5Y2BU92WiNn+VumcKwPrpK8MYFNLpaLFg0Z5tAXSTTJJiUO+dgxKWM69KDlu+FZlnGo72/zSPhT9L3Itbq6vbHYwMwvhsWykYQl+mJ//wrEgCi0KBLhEGxVq5ehNEDqIhUCgYEA166JZ25xxE/vlbsjqNOIaQ8oxZ4f89/e3tQhJFIQva2MZsZK7hK03Q801doCBOrsxk/sCjnau/kg7F1zC9oAdgWbV188BNk+YpDfPn2S4OpQpTWTUlL/bQWea9iHDUXN6qDqu5eOUeCiDf9hEpqr9dJy67P1CnCBWO5BP9q5lsECgYB+HQ7sGMPskV4QCGoS+YPl9nTH1WbbMvDV+QbMoJTg/FNfmYbF4o87ox/SlL5VnnHTPEyaQRs2D2mCtww1wpPzym+uV8mByZEEicwgyu8U93+95aMI5R3WNZ3RyU/79HV8LXwf9WqppqeAHA30dcZhkz7H19lI8zzueSXtTr/WiQKBgDY1JYK/fXABBlWbCzSUBHOn89cKhHjCVXHVylTWTu6qvJrXll8QxtKuLZOJAiZ3jaWqwLV5EXJBoO1qifDpNKBAmoMhzkpdvZkIRUrgmySekLrFwyvRFCadX6+sUaRsEyQurQr+SJTTbvVFznatpt24X41bxdddm7nFeaiqnNY5"
+  },
+  "Ipns": {
+    "RecordLifetime": "",
+    "RepublishPeriod": "",
+    "ResolveCacheSize": 128
+  },
+  "Mounts": {
+    "FuseAllowOther": false,
+    "IPFS": "/ipfs",
+    "IPNS": "/ipns"
+  },
+  "Pubsub": {
+    "DisableSigning": false,
+    "Router": "",
+    "StrictSignatureVerification": false
+  },
+  "Reprovider": {
+    "Interval": "12h",
+    "Strategy": "all"
+  },
+  "Routing": {
+    "Type": "dht"
+  },
+  "Swarm": {
+    "AddrFilters": null,
+    "ConnMgr": {
+      "GracePeriod": "20s",
+      "HighWater": 900,
+      "LowWater": 600,
+      "Type": "basic"
+    },
+    "DisableBandwidthMetrics": false,
+    "DisableNatPortMap": false,
+    "DisableRelay": false,
+    "EnableAutoNATService": false,
+    "EnableAutoRelay": false,
+    "EnableRelayHop": false
+  }
+}

@@ -1,0 +1,32 @@
+=============== Nov 4, 2021 (CST) ===============
+21:13:56.400813 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+21:13:56.402371 db@open opening
+21:13:56.402792 version@stat F·[] S·0B[] Sc·[]
+21:13:56.403533 db@janitor F·2 G·0
+21:13:56.403555 db@open done T·1.172968ms
+21:13:56.443017 db@close closing
+21:13:56.443074 db@close done T·57.982µs
+=============== Nov 4, 2021 (CST) ===============
+21:13:56.443427 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+21:13:56.443489 version@stat F·[] S·0B[] Sc·[]
+21:13:56.443495 db@open opening
+21:13:56.443529 journal@recovery F·1
+21:13:56.443800 journal@recovery recovering @1
+21:13:56.444359 memdb@flush created L0@2 N·1 S·157B "/lo..ins,v1":"/lo..ins,v1"
+21:13:56.444600 version@stat F·[1] S·157B[157B] Sc·[0.25]
+21:13:56.446138 db@janitor F·3 G·0
+21:13:56.446164 db@open done T·2.664734ms
+21:13:56.452674 db@close closing
+21:13:56.452727 db@close done T·53.063µs
+=============== Nov 4, 2021 (CST) ===============
+21:13:56.467265 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+21:13:56.467343 version@stat F·[1] S·157B[157B] Sc·[0.25]
+21:13:56.467350 db@open opening
+21:13:56.467383 journal@recovery F·1
+21:13:56.468380 journal@recovery recovering @3
+21:13:56.469265 memdb@flush created L0@5 N·4 S·1KiB "/F5..DKO,v6":"/lo..ins,v3"
+21:13:56.472208 version@stat F·[2] S·1KiB[1KiB] Sc·[0.50]
+21:13:56.474540 db@janitor F·4 G·0
+21:13:56.474580 db@open done T·7.215311ms
+21:13:56.476185 db@close closing
+21:13:56.476213 db@close done T·27.826µs
