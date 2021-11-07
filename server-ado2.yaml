@@ -1,11 +1,11 @@
 user:
-  orgName: Org1
+  orgName: Org2
   userID: Admin
 channels:
   - mychannel
-port: 8096
+port: 8102
 localDBSourceName: "fabricphone:fabricphone@tcp(localhost:3306)/fabric_phone_ado1?charset=utf8mb4&parseTime=True&loc=Local"
-ipfsAPI: "localhost:5016"
+ipfsAPI: "localhost:5032"
 isKeySwitchServer: false
 isRegulator: true
 keySwitchKeys:

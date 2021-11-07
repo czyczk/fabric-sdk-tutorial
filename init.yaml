@@ -2,13 +2,13 @@ users:
   Org1:
     adminIDs:
       - Admin
-    userIDs:
-      - User1
+    #userIDs:
+    #  - User1
   Org2:
     adminIDs:
       - Admin
-    userIDs:
-      - User1
+    #userIDs:
+    #  - User1
 channels:
   mychannel:
     participants:
@@ -68,4 +68,3 @@ chaincodes:
         initArgs:
         orgName: Org1
         userID: Admin
-

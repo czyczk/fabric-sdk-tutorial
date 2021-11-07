@@ -1,0 +1,16 @@
+user:
+  orgName: Org1
+  userID: User4
+channels:
+  - mychannel
+port: 8084
+localDBSourceName: "fabricphone:fabricphone@tcp(localhost:3306)/fabric_phone?charset=utf8mb4&parseTime=True&loc=Local"
+ipfsAPI: "localhost:5004"
+isKeySwitchServer: true
+isRegulator: false
+keySwitchKeys:
+  encryptionAlgorithm: "SM2"
+  collectivePublicKey: "sm2keys/collPubKey.pem"
+  privateKey: "sm2keys/User4@org1.lab805.com/sk"
+  publicKey: "sm2keys/User4@org1.lab805.com/User4@org1.lab805.com.pem"
+showTimingLogs: false
