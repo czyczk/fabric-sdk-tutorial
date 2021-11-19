@@ -4,12 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
@@ -83,6 +85,61 @@ func (s *KeySwitchServer) Start() error {
 func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessionIDNotifier <-chan *fab.CCEvent) {
 	log.Debugf("密钥置换工作单元 #%v 已创建。", id)
 
+	// Get file descriptors to append timestamps to
+	var openedFileDescriptors []*os.File
+
+	filename := "time-before-share.out"
+	fShareBefore, err := timingutils.GetFileDescriptorAppendMode(filename)
+	if err != nil {
+		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		return
+	}
+	openedFileDescriptors = append(openedFileDescriptors, fShareBefore)
+
+	filename = "time-after-share.out"
+	fShareAfter, err := timingutils.GetFileDescriptorAppendMode(filename)
+	if err != nil {
+		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		return
+	}
+	openedFileDescriptors = append(openedFileDescriptors, fShareAfter)
+
+	filename = "time-before-proof.out"
+	fProofBefore, err := timingutils.GetFileDescriptorAppendMode(filename)
+	if err != nil {
+		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		return
+	}
+	openedFileDescriptors = append(openedFileDescriptors, fProofBefore)
+
+	filename = "time-after-proof.out"
+	fProofAfter, err := timingutils.GetFileDescriptorAppendMode(filename)
+	if err != nil {
+		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		return
+	}
+	openedFileDescriptors = append(openedFileDescriptors, fProofAfter)
+
+	filename = "time-before-upload.out"
+	fUploadBefore, err := timingutils.GetFileDescriptorAppendMode(filename)
+	if err != nil {
+		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		return
+	}
+	openedFileDescriptors = append(openedFileDescriptors, fUploadBefore)
+
+	filename = "time-after-upload.out"
+	fUploadAfter, err := timingutils.GetFileDescriptorAppendMode(filename)
+	if err != nil {
+		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		return
+	}
+	openedFileDescriptors = append(openedFileDescriptors, fUploadAfter)
+
+	for _, f := range openedFileDescriptors {
+		defer f.Close()
+	}
+
 workerLoop:
 	for {
 		select {
@@ -139,13 +196,35 @@ workerLoop:
 			timeAfterShareCalc := time.Now()
 			timeDiffShareCalc := timeAfterShareCalc.Sub(timeBeforeShareCalc)
 			log.Debugf("密钥置换工作单元 #%v 完成份额计算，耗时 %v。会话 ID: %v。", id, timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
+			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeShareCalc); err != nil {
+				log.Errorln(err)
+			} else {
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fShareBefore)
+			}
+			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterShareCalc); err != nil {
+				log.Errorln(err)
+			} else {
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fShareAfter)
+			}
 
 			// Generate a ZKP for the share
+			timeBeforeProofGen := time.Now()
 			proof := &cipherutils.ZKProof{}
 			proof.C, proof.R1, proof.R2, err = ppks.ShareProofGenNoB(zkpRi, global.KeySwitchKeys.PrivateKey, share, targetPubKey, &curvePoints.K)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 已为份额生成零知识证明。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
+			}
+			timeAfterProofGen := time.Now()
+			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeProofGen); err != nil {
+				log.Errorln(err)
+			} else {
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fProofBefore)
+			}
+			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterProofGen); err != nil {
+				log.Errorln(err)
+			} else {
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fProofAfter)
 			}
 
 			// Invoke the service function to save the result onto the chain
@@ -158,6 +237,16 @@ workerLoop:
 			timeAfterUploading := time.Now()
 			timeDiffUploading := timeAfterUploading.Sub(timeBeforeUploading)
 			log.Debugf("密钥置换工作单元 #%v 完成份额结果上链，耗时 %v。会话 ID: %v。交易 ID: %v。", id, timeDiffUploading, keySwitchTriggerStored.KeySwitchSessionID, txID)
+			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeUploading); err != nil {
+				log.Errorln(err)
+			} else {
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fUploadBefore)
+			}
+			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterUploading); err != nil {
+				log.Errorln(err)
+			} else {
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fUploadAfter)
+			}
 		case <-s.chanQuit:
 			// Break the for loop when receiving a quit signal
 			log.Debugf("密钥置换工作单元 #%v 收到退出信号。", id)
