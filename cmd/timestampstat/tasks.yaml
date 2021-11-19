@@ -1,0 +1,10 @@
+tasks:
+  - before: "time-before-share.out"
+    after: "time-after-share.out"
+    diff: "time-diff-share.out"
+  - before: "time-before-proof.out"
+    after: "time-after-proof.out"
+    diff: "time-diff-proof.out"
+  - before: "time-before-upload.out"
+    after: "time-after-upload.out"
+    diff: "time-diff-upload.out"
