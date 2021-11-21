@@ -5,7 +5,7 @@ channels:
   - mychannel
 port: 8096
 localDBSourceName: "fabricphone:fabricphone@tcp(localhost:3306)/fabric_phone_ado1?charset=utf8mb4&parseTime=True&loc=Local"
-ipfsAPI: "localhost:5016"
+ipfsAPI: "localhost:5004"
 isKeySwitchServer: false
 isRegulator: true
 keySwitchKeys:
