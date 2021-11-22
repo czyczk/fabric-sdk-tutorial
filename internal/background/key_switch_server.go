@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -84,6 +85,7 @@ func (s *KeySwitchServer) Start() error {
 
 func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessionIDNotifier <-chan *fab.CCEvent) {
 	log.Debugf("密钥置换工作单元 #%v 已创建。", id)
+	loggerID := rand.Uint32()
 
 	// Get file descriptors to append timestamps to
 	var openedFileDescriptors []*os.File
@@ -199,12 +201,12 @@ workerLoop:
 			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeShareCalc); err != nil {
 				log.Errorln(err)
 			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fShareBefore)
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fShareBefore)
 			}
 			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterShareCalc); err != nil {
 				log.Errorln(err)
 			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fShareAfter)
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fShareAfter)
 			}
 
 			// Generate a ZKP for the share
@@ -219,12 +221,12 @@ workerLoop:
 			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeProofGen); err != nil {
 				log.Errorln(err)
 			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fProofBefore)
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fProofBefore)
 			}
 			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterProofGen); err != nil {
 				log.Errorln(err)
 			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fProofAfter)
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fProofAfter)
 			}
 
 			// Invoke the service function to save the result onto the chain
@@ -240,12 +242,12 @@ workerLoop:
 			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeUploading); err != nil {
 				log.Errorln(err)
 			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fUploadBefore)
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fUploadBefore)
 			}
 			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterUploading); err != nil {
 				log.Errorln(err)
 			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", id, timestampStr), fUploadAfter)
+				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fUploadAfter)
 			}
 		case <-s.chanQuit:
 			// Break the for loop when receiving a quit signal
