@@ -4,8 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"math/rand"
-	"os"
 	"sync"
 	"time"
 
@@ -15,6 +13,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
+	"github.com/bwmarrin/snowflake"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/pkg/errors"
@@ -85,62 +84,41 @@ func (s *KeySwitchServer) Start() error {
 
 func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessionIDNotifier <-chan *fab.CCEvent) {
 	log.Debugf("密钥置换工作单元 #%v 已创建。", id)
-	loggerID := rand.Uint32()
 
-	// Get file descriptors to append timestamps to
-	var openedFileDescriptors []*os.File
+	// Generate an ID for logger
+	var loggerID string
+	{
+		sfNode, err := snowflake.NewNode(1)
+		if err != nil {
+			log.Errorln(errors.Wrapf(err, "无法为日志器生成 ID"))
+			return
+		}
 
-	filename := "time-before-share.out"
-	fShareBefore, err := timingutils.GetFileDescriptorAppendMode(filename)
+		loggerID = sfNode.Generate().Base64()
+	}
+
+	// Create file loggers
+	fileLoggerShare, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-share.out", "time-after-share.out")
 	if err != nil {
-		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		log.Errorln(errors.Wrap(err, "无法为份额任务创建文件日志器"))
 		return
 	}
-	openedFileDescriptors = append(openedFileDescriptors, fShareBefore)
+	// The logger contains opened file descriptors that should be closed before the function exits
+	defer fileLoggerShare.Close()
 
-	filename = "time-after-share.out"
-	fShareAfter, err := timingutils.GetFileDescriptorAppendMode(filename)
+	fileLoggerProof, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-proof.out", "time-after-proof.out")
 	if err != nil {
-		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		log.Errorln(errors.Wrap(err, "无法为 ZKP 任务创建文件日志器"))
 		return
 	}
-	openedFileDescriptors = append(openedFileDescriptors, fShareAfter)
+	defer fileLoggerProof.Close()
 
-	filename = "time-before-proof.out"
-	fProofBefore, err := timingutils.GetFileDescriptorAppendMode(filename)
+	fileLoggerUpload, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-upload.out", "time-after-upload.out")
 	if err != nil {
-		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
+		log.Errorln(errors.Wrap(err, "无法为上链任务创建文件日志器"))
 		return
 	}
-	openedFileDescriptors = append(openedFileDescriptors, fProofBefore)
-
-	filename = "time-after-proof.out"
-	fProofAfter, err := timingutils.GetFileDescriptorAppendMode(filename)
-	if err != nil {
-		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
-		return
-	}
-	openedFileDescriptors = append(openedFileDescriptors, fProofAfter)
-
-	filename = "time-before-upload.out"
-	fUploadBefore, err := timingutils.GetFileDescriptorAppendMode(filename)
-	if err != nil {
-		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
-		return
-	}
-	openedFileDescriptors = append(openedFileDescriptors, fUploadBefore)
-
-	filename = "time-after-upload.out"
-	fUploadAfter, err := timingutils.GetFileDescriptorAppendMode(filename)
-	if err != nil {
-		log.Errorln(errors.Wrapf(err, "无法打开时间戳日志文件 %v", filename))
-		return
-	}
-	openedFileDescriptors = append(openedFileDescriptors, fUploadAfter)
-
-	for _, f := range openedFileDescriptors {
-		defer f.Close()
-	}
+	defer fileLoggerUpload.Close()
 
 workerLoop:
 	for {
@@ -191,63 +169,71 @@ workerLoop:
 			// Do share calculation
 			timeBeforeShareCalc := time.Now()
 			share, zkpRi, err := ppks.ShareCal(targetPubKey, &curvePoints.K, global.KeySwitchKeys.PrivateKey) // `zkpRi` for calculating zkp
+			timeAfterShareCalc := time.Now()
+			if loggerErr := fileLoggerShare.LogStartWithTimestamp(timeBeforeShareCalc); loggerErr != nil {
+				log.Errorln(loggerErr)
+			}
+
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法获取用户的密钥置换密钥。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
+
+				if loggerErr := fileLoggerShare.LogFailureWithTimestamp(timeAfterShareCalc); loggerErr != nil {
+					log.Errorln(loggerErr)
+				}
+
 				continue
 			}
-			timeAfterShareCalc := time.Now()
 			timeDiffShareCalc := timeAfterShareCalc.Sub(timeBeforeShareCalc)
 			log.Debugf("密钥置换工作单元 #%v 完成份额计算，耗时 %v。会话 ID: %v。", id, timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
-			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeShareCalc); err != nil {
-				log.Errorln(err)
-			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fShareBefore)
-			}
-			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterShareCalc); err != nil {
-				log.Errorln(err)
-			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fShareAfter)
+			if loggerErr := fileLoggerShare.LogSuccessWithTimestamp(timeAfterShareCalc); loggerErr != nil {
+				log.Errorln(loggerErr)
 			}
 
 			// Generate a ZKP for the share
 			timeBeforeProofGen := time.Now()
 			proof := &cipherutils.ZKProof{}
 			proof.C, proof.R1, proof.R2, err = ppks.ShareProofGenNoB(zkpRi, global.KeySwitchKeys.PrivateKey, share, targetPubKey, &curvePoints.K)
+			timeAfterProofGen := time.Now()
+			if loggerErr := fileLoggerProof.LogStartWithTimestamp(timeBeforeProofGen); loggerErr != nil {
+				log.Errorln(loggerErr)
+			}
+
 			if err != nil {
-				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 已为份额生成零知识证明。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法为份额生成零知识证明。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
+
+				if loggerErr := fileLoggerProof.LogFailureWithTimestamp(timeAfterProofGen); loggerErr != nil {
+					log.Errorln(loggerErr)
+				}
+
 				continue
 			}
-			timeAfterProofGen := time.Now()
-			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeProofGen); err != nil {
-				log.Errorln(err)
-			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fProofBefore)
-			}
-			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterProofGen); err != nil {
-				log.Errorln(err)
-			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fProofAfter)
+			timeDiffProofGen := timeAfterProofGen.Sub(timeBeforeProofGen)
+			log.Debugf("密钥置换工作单元 #%v 完成为份额生成零知识证明，耗时 %v。会话 ID: %v", id, timeDiffProofGen, keySwitchTriggerStored.KeySwitchSessionID)
+			if loggerErr := fileLoggerProof.LogSuccessWithTimestamp(timeAfterProofGen); loggerErr != nil {
+				log.Errorln(loggerErr)
 			}
 
 			// Invoke the service function to save the result onto the chain
 			timeBeforeUploading := time.Now()
 			txID, err := s.KeySwitchService.CreateKeySwitchResult(keySwitchTriggerStored.KeySwitchSessionID, share, proof)
+			timeAfterUploading := time.Now()
+			if loggerErr := fileLoggerUpload.LogStartWithTimestamp(timeBeforeUploading); loggerErr != nil {
+				log.Errorln(loggerErr)
+			}
+
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法将份额结果上链。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
+
+				if loggerErr := fileLoggerUpload.LogFailureWithTimestamp(timeAfterUploading); loggerErr != nil {
+					log.Errorln(loggerErr)
+				}
+
 				continue
 			}
-			timeAfterUploading := time.Now()
 			timeDiffUploading := timeAfterUploading.Sub(timeBeforeUploading)
 			log.Debugf("密钥置换工作单元 #%v 完成份额结果上链，耗时 %v。会话 ID: %v。交易 ID: %v。", id, timeDiffUploading, keySwitchTriggerStored.KeySwitchSessionID, txID)
-			if timestampStr, err := timingutils.SerializeTimestamp(timeBeforeUploading); err != nil {
-				log.Errorln(err)
-			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fUploadBefore)
-			}
-			if timestampStr, err := timingutils.SerializeTimestamp(timeAfterUploading); err != nil {
-				log.Errorln(err)
-			} else {
-				timingutils.WriteStringToFile(fmt.Sprintf("%v~%v", loggerID, timestampStr), fUploadAfter)
+			if loggerErr := fileLoggerUpload.LogSuccessWithTimestamp(timeAfterUploading); loggerErr != nil {
+				log.Errorln(loggerErr)
 			}
 		case <-s.chanQuit:
 			// Break the for loop when receiving a quit signal

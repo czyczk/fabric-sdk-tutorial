@@ -7,12 +7,7 @@ import (
 
 func CalcTimeConsumptions(filePathBefore, filePathAfter string) (overallConsumption time.Duration, avgConsumption time.Duration, err error) {
 	// Parse timestamps from the files
-	timestampsBefore, err := loadTimestamps(filePathBefore)
-	if err != nil {
-		return
-	}
-
-	timestampsAfter, err := loadTimestamps(filePathAfter)
+	timestampsBefore, timestampsAfter, err := loadStartEndTimestamps(filePathBefore, filePathAfter)
 	if err != nil {
 		return
 	}
