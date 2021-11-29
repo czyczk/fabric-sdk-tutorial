@@ -141,12 +141,16 @@ workerLoop:
 			log.Debugf("密钥置换工作单元 #%v 完成份额计算，耗时 %v。会话 ID: %v。", id, timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
 
 			// Generate a ZKP for the share
+			timeBeforeProofGen := time.Now()
 			proof := &cipherutils.ZKProof{}
 			proof.C, proof.R1, proof.R2, err = ppks.ShareProofGenNoB(zkpRi, global.KeySwitchKeys.PrivateKey, share, targetPubKey, &curvePoints.K)
+			timeAfterProofGen := time.Now()
 			if err != nil {
-				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 已为份额生成零知识证明。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
+				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法为份额生成零知识证明。会话 ID: %v", id, keySwitchTriggerStored.KeySwitchSessionID))
 				continue
 			}
+			timeDiffProofGen := timeAfterProofGen.Sub(timeBeforeProofGen)
+			log.Debugf("密钥置换工作单元 #%v 完成为份额生成零知识证明，耗时 %v。会话 ID: %v", id, timeDiffProofGen, keySwitchTriggerStored.KeySwitchSessionID)
 
 			// Invoke the service function to save the result onto the chain
 			timeBeforeUploading := time.Now()
