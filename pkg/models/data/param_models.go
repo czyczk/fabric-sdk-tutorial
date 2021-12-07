@@ -1,6 +1,9 @@
 package data
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // ResourceType 用于标志一个资源的加密类别
 type ResourceType int
@@ -14,35 +17,58 @@ const (
 	Offchain
 )
 
+var resourceTypeToStringMap = map[ResourceType]string{
+	Plain:     "plain",
+	Encrypted: "encrypted",
+	Offchain:  "offchain",
+}
+
+var resourceTypeFromStringMap = map[string]ResourceType{
+	"plain":     Plain,
+	"encrypted": Encrypted,
+	"offchain":  Offchain,
+}
+
 func (t ResourceType) String() string {
-	switch t {
-	case Plain:
-		return "Plain"
-	case Encrypted:
-		return "Encrypted"
-	case Offchain:
-		return "Offchain"
-	default:
-		return fmt.Sprintf("%d", int(t))
+	str, ok := resourceTypeToStringMap[t]
+	if ok {
+		return str
 	}
+
+	return fmt.Sprintf("%d", int(t))
 }
 
 // NewResourceTypeFromString 从 enum 名称获得 ResourceType enum。
 func NewResourceTypeFromString(enumString string) (ret ResourceType, err error) {
-	switch enumString {
-	case "Plain":
-		ret = Plain
-		return
-	case "Encrypted":
-		ret = Encrypted
-		return
-	case "Offchain":
-		ret = Offchain
-		return
-	default:
+	ret, ok := resourceTypeFromStringMap[enumString]
+	if !ok {
 		err = fmt.Errorf("不正确的 enum 字符串")
 		return
 	}
+
+	return
+}
+
+// MarshalJSON marshals the enum as a quoted JSON string
+func (t ResourceType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
+// UnmarshalJSON unmarshals a quoted JSON string to the enum value
+func (t *ResourceType) UnmarshalJSON(b []byte) error {
+	var jsonStr string
+	err := json.Unmarshal(b, &jsonStr)
+	if err != nil {
+		return err
+	}
+
+	enum, err := NewResourceTypeFromString(jsonStr)
+	if err != nil {
+		return err
+	}
+
+	*t = enum
+	return nil
 }
 
 // ResMetadata 包含要传入链码的资源的元数据
