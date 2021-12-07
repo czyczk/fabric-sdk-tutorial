@@ -1,6 +1,9 @@
 package common
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // DocumentProperties 表示数字文档的属性部分
 type DocumentProperties struct {
@@ -39,43 +42,60 @@ const (
 	RepairDocument
 )
 
+var documentTypeToStringMap = map[DocumentType]string{
+	DesignDocument:     "designDocument",
+	ProductionDocument: "productionDocument",
+	TransferDocument:   "transferDocument",
+	UsageDocument:      "usageDocument",
+	RepairDocument:     "repairDocument",
+}
+
+var documentTypeFromStringMap = map[string]DocumentType{
+	"designDocument":     DesignDocument,
+	"productionDocument": ProductionDocument,
+	"transferDocument":   TransferDocument,
+	"usageDocument":      UsageDocument,
+	"repairDocument":     RepairDocument,
+}
+
 func (t DocumentType) String() string {
-	switch t {
-	case DesignDocument:
-		return "designDocument"
-	case ProductionDocument:
-		return "productionDocument"
-	case TransferDocument:
-		return "transferDocument"
-	case UsageDocument:
-		return "usageDocument"
-	case RepairDocument:
-		return "repairDocument"
-	default:
-		return fmt.Sprintf("%d", int(t))
+	str, ok := documentTypeToStringMap[t]
+	if ok {
+		return str
 	}
+
+	return fmt.Sprintf("%d", int(t))
 }
 
 // NewDocumentTypeFromString 从 enum 名称获得 DocumentType enum。
 func NewDocumentTypeFromString(enumString string) (ret DocumentType, err error) {
-	switch enumString {
-	case "designDocument":
-		ret = DesignDocument
-		return
-	case "productionDocument":
-		ret = ProductionDocument
-		return
-	case "transferDocument":
-		ret = TransferDocument
-		return
-	case "usageDocument":
-		ret = UsageDocument
-		return
-	case "repairDocument":
-		ret = RepairDocument
-		return
-	default:
+	ret, ok := documentTypeFromStringMap[enumString]
+	if !ok {
 		err = fmt.Errorf("不正确的 enum 字符串")
 		return
 	}
+
+	return
+}
+
+// MarshalJSON marshals the enum as a quoted JSON string
+func (t DocumentType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
+// UnmarshalJSON unmarshals a quoted JSON string to the enum value
+func (t *DocumentType) UnmarshalJSON(b []byte) error {
+	var jsonStr string
+	err := json.Unmarshal(b, &jsonStr)
+	if err != nil {
+		return err
+	}
+
+	enum, err := NewDocumentTypeFromString(jsonStr)
+	if err != nil {
+		return err
+	}
+
+	*t = enum
+	return nil
 }
