@@ -19,8 +19,8 @@ type DocumentProperties struct {
 
 // Document 表示数字文档
 type Document struct {
-	DocumentProperties
-	Contents []byte `json:"contents"` // 数字文档内容
+	DocumentProperties `mapstructure:",squash"`
+	Contents           []byte `json:"contents"` // 数字文档内容
 }
 
 // DocumentType 表示数字文档的文档类型
