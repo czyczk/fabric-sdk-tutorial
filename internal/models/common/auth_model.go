@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -28,33 +29,56 @@ const (
 	Rejected
 )
 
+var authSessionStatusToStringMap = map[AuthSessionStatus]string{
+	Pending:  "pending",
+	Approved: "approved",
+	Rejected: "rejected",
+}
+
+var authSessionStatusFromStringMap = map[string]AuthSessionStatus{
+	"pending":  Pending,
+	"approved": Approved,
+	"rejected": Rejected,
+}
+
 func (t AuthSessionStatus) String() string {
-	switch t {
-	case Pending:
-		return "pending"
-	case Approved:
-		return "approved"
-	case Rejected:
-		return "rejected"
-	default:
-		return fmt.Sprintf("%d", int(t))
+	str, ok := authSessionStatusToStringMap[t]
+	if ok {
+		return str
 	}
+
+	return fmt.Sprintf("%d", int(t))
 }
 
 // NewAuthSessionStatusFromString 从 enum 名称获得 AuthSessionStatus enum。
 func NewAuthSessionStatusFromString(enumString string) (ret AuthSessionStatus, err error) {
-	switch enumString {
-	case "pending":
-		ret = Pending
-		return
-	case "approved":
-		ret = Approved
-		return
-	case "rejected":
-		ret = Rejected
-		return
-	default:
+	ret, ok := authSessionStatusFromStringMap[enumString]
+	if !ok {
 		err = fmt.Errorf("不正确的 enum 字符串")
 		return
 	}
+
+	return
+}
+
+// MarshalJSON marshals the enum as a quoted JSON string
+func (s AuthSessionStatus) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.String())
+}
+
+// UnmarshalJSON unmarshals a quoted JSON string to the enum value
+func (s *AuthSessionStatus) UnmarshalJSON(b []byte) error {
+	var jsonStr string
+	err := json.Unmarshal(b, &jsonStr)
+	if err != nil {
+		return err
+	}
+
+	enum, err := NewAuthSessionStatusFromString(jsonStr)
+	if err != nil {
+		return err
+	}
+
+	*s = enum
+	return nil
 }
