@@ -88,7 +88,7 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 		Data:     base64.StdEncoding.EncodeToString(documentBytes),
 	}
 
-	txID, err := s.DataBCAO.CreatePlainData(&plainData, nil)
+	txID, err := s.DataBCAO.CreatePlainData(&plainData)
 	return txID, err
 }
 

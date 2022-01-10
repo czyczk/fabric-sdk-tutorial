@@ -93,3 +93,18 @@ func (o *DataBCAOPolkadotImpl) GetKey(resourceID string) ([]byte, error) {
 	// TODO
 	return nil, errorcode.ErrorNotImplemented
 }
+
+func (o *DataBCAOPolkadotImpl) GetPolicy(resourceID string) ([]byte, error) {
+	// TODO
+	return nil, errorcode.ErrorNotImplemented
+}
+
+func (o *DataBCAOPolkadotImpl) ListResourceIDsByCreator(dataType string, isDesc bool, pageSize int, bookmark string) ([]byte, error) {
+	// TODO
+	return nil, errorcode.ErrorNotImplemented
+}
+
+func (o *DataBCAOPolkadotImpl) ListResourceIDsByConditions(queryConditions map[string]interface{}, pageSize int, bookmark string) ([]byte, error) {
+	// TODO
+	return nil, errorcode.ErrorNotImplemented
+}

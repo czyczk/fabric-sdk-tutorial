@@ -9,4 +9,7 @@ type IDataBCAO interface {
 	GetMetadata(resourceID string) ([]byte, error)
 	GetData(resourceID string) ([]byte, error)
 	GetKey(resourceID string) ([]byte, error)
+	GetPolicy(resourceID string) ([]byte, error)
+	ListResourceIDsByCreator(dataType string, isDesc bool, pageSize int, bookmark string) ([]byte, error)
+	ListResourceIDsByConditions(queryConditions map[string]interface{}, pageSize int, bookmark string) ([]byte, error)
 }
