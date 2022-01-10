@@ -2,8 +2,11 @@ package bcao
 
 import "gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 
-type DataBCAOInterface interface {
-	CreatePlainData(plainData data.PlainData, eventID *string) (string, error)
+type IDataBCAO interface {
+	CreatePlainData(plainData *data.PlainData, eventID ...string) (string, error)
+	CreateEncryptedData(encryptedData *data.EncryptedData, eventID ...string) (string, error)
+	CreateOffchainData(offchainData *data.OffchainData, eventID ...string) (string, error)
+	GetMetadata(resourceID string) ([]byte, error)
 	GetData(resourceID string) ([]byte, error)
-	// TODO: GetMetadata
+	GetKey(resourceID string) ([]byte, error)
 }

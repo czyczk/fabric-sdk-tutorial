@@ -8,23 +8,23 @@ import (
 	"net/url"
 	"strings"
 
-	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/contractctx"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
 	"github.com/pkg/errors"
 )
 
-func fillPostFormBase(ctx *contractctx.PolkadotContractCtx, form *url.Values) {
+func fillPostFormBase(ctx *chaincodectx.PolkadotChaincodeCtx, form *url.Values) {
 	form.Add("abi", ctx.ContractABI)
 	form.Add("contractAddress", ctx.ContractAddress)
 	form.Add("signerAddress", ctx.CallerAddress)
 }
 
-func fillGetQueryStringBase(ctx *contractctx.PolkadotContractCtx, queryString *url.Values) {
+func fillGetQueryStringBase(ctx *chaincodectx.PolkadotChaincodeCtx, queryString *url.Values) {
 	queryString.Add("abi", ctx.ContractABI)
 	queryString.Add("contractAddress", ctx.ContractAddress)
 	queryString.Add("signerAddress", ctx.CallerAddress)
 }
 
-func sendTx(ctx *contractctx.PolkadotContractCtx, client *http.Client, funcName string, funcArgs []interface{}, queryIfNoEvent bool) (*ContractTxSuccessResult, error) {
+func sendTx(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcName string, funcArgs []interface{}, queryIfNoEvent bool) (*ContractTxSuccessResult, error) {
 	// Prepare a POST form
 	endpoint := ctx.APIPrefix + "/contract/tx"
 	form := url.Values{}
@@ -87,7 +87,7 @@ func sendTx(ctx *contractctx.PolkadotContractCtx, client *http.Client, funcName 
 	}
 }
 
-func sendQuery(ctx *contractctx.PolkadotContractCtx, client *http.Client, funcName string, funcArgs []interface{}) (*ContractQuerySuccessResult, error) {
+func sendQuery(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcName string, funcArgs []interface{}) (*ContractQuerySuccessResult, error) {
 	// Prepare a GET query string
 	endpoint := ctx.APIPrefix + "/contract/query"
 	req, err := http.NewRequest("GET", endpoint, nil)

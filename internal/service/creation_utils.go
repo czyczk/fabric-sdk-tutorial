@@ -7,7 +7,6 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	shell "github.com/ipfs/go-ipfs-api"
 	"github.com/pkg/errors"
 )
@@ -21,13 +20,6 @@ func encryptDataWithTimer(bytes []byte, key *ppks.CurvePoint, errMsg string, tim
 		return
 	}
 
-	return
-}
-
-func executeChannelRequestWithTimer(channelClient *channel.Client, channelRequest *channel.Request, timerMsg string) (resp channel.Response, err error) {
-	defer timingutils.GetDeferrableTimingLogger(timerMsg)()
-
-	resp, err = channelClient.Execute(*channelRequest)
 	return
 }
 

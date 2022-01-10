@@ -19,7 +19,7 @@ func SetupSDK(configFilePath string) error {
 	if err != nil {
 		return errors.Wrap(err, "初始化 Fabric SDK 失败")
 	}
-	global.SDKInstance = sdk
+	global.FabricSDKInstance = sdk
 
 	return nil
 }
@@ -27,7 +27,7 @@ func SetupSDK(configFilePath string) error {
 // InitApp instantiates clients, configure channels and chaincodes according to the init info
 func InitApp(initInfo *InitInfo) error {
 	// Make sure the SDK instance is instantiated
-	sdk := global.SDKInstance
+	sdk := global.FabricSDKInstance
 	if sdk == nil {
 		return fmt.Errorf("Fabric SDK 未实例化")
 	}

@@ -99,7 +99,7 @@ func getInitFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context)
 			return err
 		}
 
-		defer global.SDKInstance.Close()
+		defer global.FabricSDKInstance.Close()
 
 		// Load init info from `init.yaml`
 		initInfo, err := appinit.LoadInitInfo(*configPath)
@@ -113,7 +113,7 @@ func getInitFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context)
 		}
 
 		// Fetch the network config info
-		sdkConfig, err := global.SDKInstance.Config()
+		sdkConfig, err := global.FabricSDKInstance.Config()
 		if err != nil {
 			return err
 		}
@@ -138,7 +138,7 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 			return err
 		}
 
-		defer global.SDKInstance.Close()
+		defer global.FabricSDKInstance.Close()
 
 		// Load serve info from `serve.yaml`
 		serverInfo, err := appinit.LoadServerInfo(*configPath)
@@ -165,15 +165,15 @@ func getServeFunc(configPath *string, sdkConfigPath *string) func(c *cli.Context
 		}
 
 		for _, channelID := range serverInfo.Channels {
-			if err = appinit.InstantiateChannelClient(global.SDKInstance, channelID, orgName, userID); err != nil {
+			if err = appinit.InstantiateChannelClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
 				return err
 			}
 
-			if err = appinit.InstantiateEventClient(global.SDKInstance, channelID, orgName, userID); err != nil {
+			if err = appinit.InstantiateEventClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
 				return err
 			}
 
-			if err = appinit.InstantiateLedgerClient(global.SDKInstance, channelID, orgName, userID); err != nil {
+			if err = appinit.InstantiateLedgerClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
 				return err
 			}
 		}

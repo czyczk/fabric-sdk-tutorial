@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/db"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
@@ -29,6 +30,7 @@ import (
 // DocumentService 用于管理数字文档。
 type DocumentService struct {
 	ServiceInfo      *Info
+	DataBCAO         bcao.IDataBCAO
 	KeySwitchService KeySwitchServiceInterface
 }
 
@@ -85,24 +87,9 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 		Metadata: metadata,
 		Data:     base64.StdEncoding.EncodeToString(documentBytes),
 	}
-	plainDataBytes, err := json.Marshal(plainData)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
-	}
 
-	chaincodeFcn := "createPlainData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{plainDataBytes},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
-	}
+	txID, err := s.DataBCAO.CreatePlainData(&plainData, nil)
+	return txID, err
 }
 
 // CreateEncryptedDocument 创建加密数字文档。
@@ -184,26 +171,9 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 		Key:      base64.StdEncoding.EncodeToString(encryptedKeyBytes),
 		Policy:   policy,
 	}
-	encryptedDataBytes, err := json.Marshal(encryptedData)
-	if err != nil {
-		return "", errors.Wrapf(err, "无法序列化链码参数")
-	}
 
-	encryptedData.Data = ""
-
-	chaincodeFcn := "createEncryptedData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{encryptedDataBytes, []byte(encryptedResourceCreationEventName)},
-	}
-
-	resp, err := executeChannelRequestWithTimer(s.ServiceInfo.ChannelClient, &channelReq, "链上存储文档")
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
-	}
+	txID, err := s.DataBCAO.CreateEncryptedData(&encryptedData, encryptedResourceCreationEventName)
+	return txID, err
 }
 
 // CreateOffchainDocument 创建链下加密数字文档。
@@ -299,24 +269,9 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		Key:      base64.StdEncoding.EncodeToString(encryptedKeyBytes),
 		Policy:   policy,
 	}
-	offchainDataBytes, err := json.Marshal(offchainData)
-	if err != nil {
-		return "", errors.Wrapf(err, "无法序列化链码参数")
-	}
 
-	chaincodeFcn := "createOffchainData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{offchainDataBytes, []byte(encryptedResourceCreationEventName)},
-	}
-
-	resp, err := executeChannelRequestWithTimer(s.ServiceInfo.ChannelClient, &channelReq, "链上存储文档元数据与属性")
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	}
-
-	return string(resp.TransactionID), nil
+	txID, err := s.DataBCAO.CreateOffchainData(&offchainData, encryptedResourceCreationEventName)
+	return txID, err
 }
 
 // GetDocumentMetadata 获取数字文档的元数据。
@@ -327,7 +282,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 // 返回：
 //   元数据
 func (s *DocumentService) GetDocumentMetadata(id string) (*data.ResMetadataStored, error) {
-	return getResourceMetadata(id, s.ServiceInfo)
+	return getResourceMetadata(id, s.DataBCAO)
 }
 
 // GetDocument 获取明文数字文档，调用前应先获取元数据。
@@ -347,19 +302,10 @@ func (s *DocumentService) GetDocument(id string, metadata *data.ResMetadataStore
 	}
 
 	// 调用链码 getData 获取该资源的本体
-	chaincodeFcn := "getData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
+	documentBytes, err := s.DataBCAO.GetData(id)
 	if err != nil {
-		return nil, GetClassifiedError(chaincodeFcn, err)
+		return nil, err
 	}
-
-	documentBytes := resp.Payload
 
 	// 检查所获数据的大小与哈希是否匹配
 	err = checkSizeAndHashForDecryptedData(documentBytes, metadata).toError(metadata.ResourceType)
@@ -394,37 +340,18 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	// 调用链码 getData 获取该资源的密文本体
-	chaincodeFcn := "getData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	encryptedDocumentBytes, err := s.DataBCAO.GetData(id)
 	if err != nil {
 		return nil, err
 	}
 
-	encryptedDocumentBytes := resp.Payload
-
 	// 调用链码 getKey 获取该资源的加密后的密钥
-	chaincodeFcn = "getKey"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	encryptedKeyBytes, err := s.DataBCAO.GetKey(id)
 	if err != nil {
 		return nil, err
 	}
 
 	// 解析加密后的密钥材料
-	encryptedKeyBytes := resp.Payload
 	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
 	if err != nil {
 		return nil, err

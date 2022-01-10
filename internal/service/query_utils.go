@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
 	"github.com/tjfoc/gmsm/sm2"
 )
@@ -58,24 +58,17 @@ func (r integrityCheckResult) toError(resourceEncryptionType data.ResourceType) 
 	panic("未知的检查结果类型")
 }
 
-func getResourceMetadata(id string, serviceInfo *Info) (*data.ResMetadataStored, error) {
-	chaincodeFcn := "getMetadata"
-	channelReq := channel.Request{
-		ChaincodeID: serviceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
+func getResourceMetadata(id string, dataBCAO bcao.IDataBCAO) (*data.ResMetadataStored, error) {
+	metadataBytes, err := dataBCAO.GetMetadata(id)
+	if err != nil {
+		return nil, err
 	}
 
-	resp, err := serviceInfo.ChannelClient.Query(channelReq)
-	if err != nil {
-		return nil, GetClassifiedError(chaincodeFcn, err)
-	} else {
-		var resMetadataStored data.ResMetadataStored
-		if err = json.Unmarshal(resp.Payload, &resMetadataStored); err != nil {
-			return nil, errors.Wrap(err, "获取的元数据不合法")
-		}
-		return &resMetadataStored, nil
+	var resMetadataStored data.ResMetadataStored
+	if err = json.Unmarshal(metadataBytes, &resMetadataStored); err != nil {
+		return nil, errors.Wrap(err, "获取的元数据不合法")
 	}
+	return &resMetadataStored, nil
 }
 
 // 同时从区块链的 CouchDB 和本地数据库的查询结果中挑取到满足分页数量要求的条目。
