@@ -3,7 +3,6 @@ package service
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
@@ -59,16 +58,12 @@ func (r integrityCheckResult) toError(resourceEncryptionType data.ResourceType) 
 }
 
 func getResourceMetadata(id string, dataBCAO bcao.IDataBCAO) (*data.ResMetadataStored, error) {
-	metadataBytes, err := dataBCAO.GetMetadata(id)
+	metadata, err := dataBCAO.GetMetadata(id)
 	if err != nil {
 		return nil, err
 	}
 
-	var resMetadataStored data.ResMetadataStored
-	if err = json.Unmarshal(metadataBytes, &resMetadataStored); err != nil {
-		return nil, errors.Wrap(err, "获取的元数据不合法")
-	}
-	return &resMetadataStored, nil
+	return metadata, nil
 }
 
 // 同时从区块链的 CouchDB 和本地数据库的查询结果中挑取到满足分页数量要求的条目。

@@ -2,6 +2,7 @@ package polkadot
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"github.com/pkg/errors"
 )
 
 type DataBCAOPolkadotImpl struct {
@@ -52,7 +54,7 @@ func (o *DataBCAOPolkadotImpl) CreateOffchainData(offchainData *data.OffchainDat
 	return "", errorcode.ErrorNotImplemented
 }
 
-func (o *DataBCAOPolkadotImpl) GetMetadata(resourceID string) ([]byte, error) {
+func (o *DataBCAOPolkadotImpl) GetMetadata(resourceID string) (*data.ResMetadataStored, error) {
 	funcName := "getMetadata"
 	funcArgs := []interface{}{resourceID}
 	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs)
@@ -65,7 +67,13 @@ func (o *DataBCAOPolkadotImpl) GetMetadata(resourceID string) ([]byte, error) {
 		return nil, err
 	}
 
-	return []byte(metadataStr), nil
+	metadataBytes := []byte(metadataStr)
+
+	var resMetadataStored data.ResMetadataStored
+	if err = json.Unmarshal(metadataBytes, &resMetadataStored); err != nil {
+		return nil, errors.Wrap(err, "获取的元数据不合法")
+	}
+	return &resMetadataStored, nil
 }
 
 func (o *DataBCAOPolkadotImpl) GetData(resourceID string) ([]byte, error) {

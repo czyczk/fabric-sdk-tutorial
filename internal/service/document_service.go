@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
@@ -17,10 +16,8 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -31,6 +28,7 @@ import (
 type DocumentService struct {
 	ServiceInfo      *Info
 	DataBCAO         bcao.IDataBCAO
+	KeySwitchBCAO    bcao.IKeySwitchBCAO
 	KeySwitchService KeySwitchServiceInterface
 }
 
@@ -364,23 +362,9 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
-	chaincodeFcn = "listKeySwitchResultsByID"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(keySwitchSessionID)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	ksResults, err := s.KeySwitchBCAO.ListKeySwitchResultsByID(keySwitchSessionID)
 	if err != nil {
 		return nil, err
-	}
-
-	var ksResults []*keyswitch.KeySwitchResultStored
-	err = json.Unmarshal(resp.Payload, &ksResults)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
 	}
 
 	if len(ksResults) != numSharesExpected {
@@ -446,20 +430,10 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 调用链码 getData 获取该资源在 IPFS 网络上的 CID
-	chaincodeFcn := "getData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	cidBytes, err := s.DataBCAO.GetData(id)
 	if err != nil {
 		return nil, err
 	}
-
-	cidBytes := resp.Payload
 	cid := string(cidBytes)
 
 	// 检查链上记录的内容（CID）的大小和哈希是否匹配
@@ -479,44 +453,21 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 调用链码 getKey 获取该资源的加密后的密钥
-	chaincodeFcn = "getKey"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	encryptedKeyBytes, err := s.DataBCAO.GetKey(id)
 	if err != nil {
 		return nil, err
 	}
 
 	// 解析加密后的密钥材料
-	encryptedKeyBytes := resp.Payload
 	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
-	chaincodeFcn = "listKeySwitchResultsByID"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(keySwitchSessionID)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	ksResults, err := s.KeySwitchBCAO.ListKeySwitchResultsByID(keySwitchSessionID)
 	if err != nil {
 		return nil, err
-	}
-
-	var ksResults []*keyswitch.KeySwitchResultStored
-	err = json.Unmarshal(resp.Payload, &ksResults)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
 	}
 
 	if len(ksResults) != numSharesExpected {
@@ -582,44 +533,21 @@ func (s *DocumentService) GetEncryptedDocumentProperties(id string, keySwitchSes
 	}
 
 	// 调用链码 getKey 获取该资源的加密后的密钥
-	chaincodeFcn := "getKey"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	encryptedKeyBytes, err := s.DataBCAO.GetKey(id)
 	if err != nil {
 		return nil, err
 	}
 
 	// 解析加密后的密钥材料
-	encryptedKeyBytes := resp.Payload
 	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
-	chaincodeFcn = "listKeySwitchResultsByID"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(keySwitchSessionID)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	ksResults, err := s.KeySwitchBCAO.ListKeySwitchResultsByID(keySwitchSessionID)
 	if err != nil {
 		return nil, err
-	}
-
-	var ksResults []*keyswitch.KeySwitchResultStored
-	err = json.Unmarshal(resp.Payload, &ksResults)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
 	}
 
 	if len(ksResults) != numSharesExpected {
@@ -766,26 +694,7 @@ func (s *DocumentService) GetDecryptedDocumentPropertiesFromDB(id string, metada
 //   带分页的资源 ID 列表
 func (s *DocumentService) ListDocumentIDsByCreator(isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// 调用 listResourceIDsByCreator 拿到一个 ID 列表
-	chaincodeFcn := "listResourceIDsByCreator"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(documentDataType), []byte(fmt.Sprintf("%v", isDesc)), []byte(strconv.Itoa(pageSize)), []byte(bookmark)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
-	if err != nil {
-		return nil, err
-	}
-
-	var resourceIDs query.IDsWithPagination
-	err = json.Unmarshal(resp.Payload, &resourceIDs)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析结果列表")
-	}
-
-	return &resourceIDs, nil
+	return s.DataBCAO.ListResourceIDsByCreator(documentDataType, isDesc, pageSize, bookmark)
 }
 
 // ListDocumentIDsByConditions 获取满足所提供的搜索条件的数字文档的资源 ID。
@@ -832,11 +741,6 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 			errMsg: err.Error(),
 		}
 	}
-	couchDBConditionsBytes, err := json.Marshal(couchDBConditions)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法序列化查询条件")
-	}
-	fmt.Println(string(couchDBConditionsBytes))
 
 	// 生成 GORM 可用的带查询条件的 DB 对象
 	gormConditionedDB, err := conditions.ToGormConditionedDB(s.ServiceInfo.DB)
@@ -847,26 +751,9 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	}
 
 	// 从链码获取资源 ID
-	chaincodeFcn := "listResourceIDsByConditions"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）。为满足 3 个参数，最后的 bookmark 参数为空列表。
-		Args: [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), {}},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
-	if err != nil {
-		return nil, err
-	}
-
+	// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）。为满足 3 个参数，最后的 bookmark 参数为空列表。
 	// 这里虽然包含查询后的新书签信息，但该书签信息无用
-	var chaincodeResourceIDs query.IDsWithPagination
-	err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析结果列表")
-	}
+	chaincodeResourceIDs, err := s.DataBCAO.ListResourceIDsByConditions(couchDBConditions, pageSize, "")
 
 	// 从本地数据库获取资源 ID
 	// TODO: Debug 期使用

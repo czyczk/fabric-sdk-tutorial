@@ -1,22 +1,21 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/auth"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
 )
 
 // AuthService 用于管理访问权请求。
 type AuthService struct {
 	ServiceInfo *Info
+	AuthBCAO    bcao.IAuthBCAO
 }
 
 // 创建访问权申请。
@@ -40,24 +39,8 @@ func (s *AuthService) CreateAuthRequest(resourceID string, reason string) (strin
 		ResourceID: resourceID,
 		Extensions: extensions,
 	}
-	authRequestBytes, err := json.Marshal(authRequest)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
-	}
 
-	chaincodeFcn := "createAuthRequest"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{authRequestBytes},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
-	}
+	return s.AuthBCAO.CreateAuthRequest(&authRequest)
 }
 
 // 创建访问权批复。
@@ -84,24 +67,8 @@ func (s *AuthService) CreateAuthResponse(authSessionID string, result bool) (str
 		Result:        result,
 		Extensions:    extensions,
 	}
-	authResponseBytes, err := json.Marshal(authResponse)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
-	}
 
-	chaincodeFcn := "createAuthResponse"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{authResponseBytes},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
-	}
+	return s.AuthBCAO.CreateAuthResponse(&authResponse)
 }
 
 // 获取访问权会话。
@@ -113,22 +80,9 @@ func (s *AuthService) CreateAuthResponse(authSessionID string, result bool) (str
 //   授权会话
 func (s *AuthService) GetAuthSession(authSessionID string) (*common.AuthSession, error) {
 	// 获取授权申请
-	chaincodeFcn := "getAuthRequest"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(authSessionID)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
+	authRequestStored, err := s.AuthBCAO.GetAuthRequest(authSessionID)
 	if err != nil {
-		return nil, GetClassifiedError(chaincodeFcn, err)
-	}
-
-	var authRequestStored auth.AuthRequestStored
-	err = json.Unmarshal(resp.Payload, &authRequestStored)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析授权申请")
+		return nil, err
 	}
 
 	// 装填一部分结果
@@ -141,24 +95,10 @@ func (s *AuthService) GetAuthSession(authSessionID string) (*common.AuthSession,
 	}
 
 	// 获取授权批复
-	chaincodeFcn = "getAuthResponse"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(authSessionID)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	authResponseStored, err := s.AuthBCAO.GetAuthResponse(authSessionID)
 
 	if err == nil {
 		// 可以从链码中获得该会话的批复，则将批复结果附加在结果中
-		var authResponseStored auth.AuthResponseStored
-		err = json.Unmarshal(resp.Payload, &authResponseStored)
-		if err != nil {
-			return nil, errors.Wrap(err, "无法解析授权批复")
-		}
-
 		if authResponseStored.Result {
 			result.Status = common.Approved
 		} else {
@@ -188,26 +128,7 @@ func (s *AuthService) GetAuthSession(authSessionID string) (*common.AuthSession,
 //   带分页书签的授权会话 ID 列表
 func (s *AuthService) ListPendingAuthSessionIDsByResourceCreator(pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// 调用链码函数 listPendingAuthSessionIDsByResourceCreator
-	chaincodeFcn := "listPendingAuthSessionIDsByResourceCreator"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(strconv.Itoa(pageSize)), []byte(bookmark)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	if err != nil {
-		return nil, GetClassifiedError(chaincodeFcn, err)
-	}
-
-	// 解析结果列表
-	var result query.IDsWithPagination
-	err = json.Unmarshal(resp.Payload, &result)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析结果列表")
-	}
-
-	return &result, nil
+	return s.AuthBCAO.ListPendingAuthSessionIDsByResourceCreator(pageSize, bookmark)
 }
 
 // 列出当前用户申请的授权会话 ID。
@@ -221,24 +142,5 @@ func (s *AuthService) ListPendingAuthSessionIDsByResourceCreator(pageSize int, b
 //   带分页书签的授权会话 ID 列表
 func (s *AuthService) ListAuthSessionIDsByRequestor(pageSize int, bookmark string, isLatestFirst bool) (*query.IDsWithPagination, error) {
 	// 调用链码函数 listAuthSessionIDsByRequestor
-	chaincodeFcn := "listAuthSessionIDsByRequestor"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(strconv.Itoa(pageSize)), []byte(bookmark), []byte(fmt.Sprintf("%v", isLatestFirst))},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	if err != nil {
-		return nil, GetClassifiedError(chaincodeFcn, err)
-	}
-
-	// 解析结果列表
-	var result query.IDsWithPagination
-	err = json.Unmarshal(resp.Payload, &result)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析结果列表")
-	}
-
-	return &result, nil
+	return s.AuthBCAO.ListAuthSessionIDsByRequestor(pageSize, bookmark, isLatestFirst)
 }
