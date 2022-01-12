@@ -3,18 +3,17 @@ package service
 import (
 	"crypto"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
@@ -22,7 +21,8 @@ import (
 
 // KeySwitchService 实现了 `KeySwitchServiceInterface` 接口，提供有关于密钥置换的服务
 type KeySwitchService struct {
-	ServiceInfo *Info
+	ServiceInfo   *Info
+	KeySwitchBCAO bcao.IKeySwitchBCAO
 }
 
 // 创建密文访问申请/密钥置换触发器。
@@ -48,25 +48,10 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 		KeySwitchPK:   base64.StdEncoding.EncodeToString(ksPubKey),
 	}
 
-	ksTriggerBytes, err := json.Marshal(ksTrigger)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
-	}
-
-	chaincodeFcn := "createKeySwitchTrigger"
+	// 固定的事件 ID
 	eventID := "ks_trigger"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{ksTriggerBytes, []byte(eventID)},
-	}
 
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
-	}
+	return s.KeySwitchBCAO.CreateKeySwitchTrigger(&ksTrigger, eventID)
 }
 
 // 创建密钥置换结果。
@@ -102,24 +87,7 @@ func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, shar
 		KeySwitchPK:        ksPubKeyAsBase64,
 	}
 
-	keySwitchResultBytes, err := json.Marshal(keySwitchResult)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
-	}
-
-	chaincodeFcn := "createKeySwitchResult"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{keySwitchResultBytes},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
-	}
+	return s.KeySwitchBCAO.CreateKeySwitchResult(&keySwitchResult)
 }
 
 // 验证所获得的份额。
@@ -182,7 +150,7 @@ func (s *KeySwitchService) GetDecryptedKey(shares []*ppks.CipherText, encryptedK
 //
 // 返回：
 //   预期个数的份额列表
-func (s *KeySwitchService) AwaitKeySwitchResults(keySwitchSessionID string, numExpected int, timeout ...int) ([][]byte, error) {
+func (s *KeySwitchService) AwaitKeySwitchResults(keySwitchSessionID string, numExpected int, timeout ...int) ([]*keyswitch.KeySwitchResultStored, error) {
 	// keySwitchSessionID 不能为空
 	if strings.TrimSpace(keySwitchSessionID) == "" {
 		return nil, fmt.Errorf("密钥转换会话 ID 不能为空")
@@ -207,7 +175,7 @@ func (s *KeySwitchService) AwaitKeySwitchResults(keySwitchSessionID string, numE
 
 	// 接收 channel 内容（一个密钥置换会话 ID），对每个 ID 新开一个 Go routine 调用链码获取一次置换份额，并将结果放入列表。若在时限内未能接收到预期数量的 ID，则等待已发送的 Go routine 结束后，放弃此次结果，并返回超时错误。
 	receivedIDs := []string{}
-	ret := [][]byte{}
+	var ret []*keyswitch.KeySwitchResultStored
 	var wg sync.WaitGroup
 	chanError := make(chan error)
 
@@ -227,33 +195,18 @@ eventHandler:
 			go func(chanErr chan error) {
 				defer wg.Done()
 
-				chaincodeFcn := "getKeySwitchResult"
-
 				query := keyswitch.KeySwitchResultQuery{
 					KeySwitchSessionID: dbKeyParts[1],
 					ResultCreator:      dbKeyParts[3],
 				}
 
-				queryBytes, err := json.Marshal(query)
+				ksResult, err := s.KeySwitchBCAO.GetKeySwitchResult(&query)
 				if err != nil {
-					chanError <- errors.Wrap(err, "无法序列化链码参数")
+					chanError <- err
 					return
 				}
 
-				channelReq := channel.Request{
-					ChaincodeID: s.ServiceInfo.ChaincodeID,
-					Fcn:         chaincodeFcn,
-					Args:        [][]byte{queryBytes},
-				}
-
-				resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-
-				if err != nil {
-					chanError <- GetClassifiedError(chaincodeFcn, err)
-					return
-				}
-
-				ret = append(ret, resp.Payload)
+				ret = append(ret, ksResult)
 			}(chanError)
 
 			err := <-chanError

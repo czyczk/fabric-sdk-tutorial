@@ -5,7 +5,6 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/pkg/errors"
@@ -22,18 +21,76 @@ func NewKeySwitchBCAOFabricImpl(ctx *chaincodectx.FabricChaincodeCtx) *KeySwitch
 }
 
 func (o *KeySwitchBCAOFabricImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.KeySwitchTrigger, eventID ...string) (string, error) {
-	// TODO
-	return "", errorcode.ErrorNotImplemented
+	ksTriggerBytes, err := json.Marshal(ksTrigger)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化链码参数")
+	}
+
+	chaincodeFcn := "createKeySwitchTrigger"
+	chaincodeArgs := [][]byte{ksTriggerBytes}
+	if len(eventID) != 0 {
+		chaincodeArgs = append(chaincodeArgs, []byte(eventID[0]))
+	}
+	channelReq := channel.Request{
+		ChaincodeID: o.ctx.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        chaincodeArgs,
+	}
+
+	resp, err := o.ctx.ChannelClient.Execute(channelReq)
+	if err != nil {
+		return "", bcao.GetClassifiedError(chaincodeFcn, err)
+	} else {
+		return string(resp.TransactionID), nil
+	}
 }
 
 func (o *KeySwitchBCAOFabricImpl) CreateKeySwitchResult(ksResult *keyswitch.KeySwitchResult) (string, error) {
-	// TODO
-	return "", errorcode.ErrorNotImplemented
+	keySwitchResultBytes, err := json.Marshal(ksResult)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化链码参数")
+	}
+
+	chaincodeFcn := "createKeySwitchResult"
+	channelReq := channel.Request{
+		ChaincodeID: o.ctx.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{keySwitchResultBytes},
+	}
+
+	resp, err := o.ctx.ChannelClient.Execute(channelReq)
+	if err != nil {
+		return "", bcao.GetClassifiedError(chaincodeFcn, err)
+	} else {
+		return string(resp.TransactionID), nil
+	}
 }
 
 func (o *KeySwitchBCAOFabricImpl) GetKeySwitchResult(query *keyswitch.KeySwitchResultQuery) (*keyswitch.KeySwitchResultStored, error) {
-	// TODO
-	return nil, errorcode.ErrorNotImplemented
+	queryBytes, err := json.Marshal(query)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法序列化链码参数")
+	}
+
+	chaincodeFcn := "getKeySwitchResult"
+	channelReq := channel.Request{
+		ChaincodeID: o.ctx.ChaincodeID,
+		Fcn:         chaincodeFcn,
+		Args:        [][]byte{queryBytes},
+	}
+
+	resp, err := o.ctx.ChannelClient.Query(channelReq)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
+	}
+
+	var ksResult *keyswitch.KeySwitchResultStored
+	err = json.Unmarshal(resp.Payload, &ksResult)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析密钥置换结果")
+	}
+
+	return ksResult, nil
 }
 
 func (o *KeySwitchBCAOFabricImpl) ListKeySwitchResultsByID(ksSessionID string) ([]*keyswitch.KeySwitchResultStored, error) {

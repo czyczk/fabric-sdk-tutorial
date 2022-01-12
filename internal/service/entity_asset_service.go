@@ -5,18 +5,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/db"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -26,6 +24,8 @@ import (
 // EntityAssetService 用于管理实体资产。
 type EntityAssetService struct {
 	ServiceInfo      *Info
+	DataBCAO         bcao.IDataBCAO
+	KeySwitchBCAO    bcao.IKeySwitchBCAO
 	KeySwitchService KeySwitchServiceInterface
 }
 
@@ -82,25 +82,9 @@ func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset) (strin
 		Metadata: metadata,
 		Data:     base64.StdEncoding.EncodeToString(assetBytes),
 	}
-	plainDataBytes, err := json.Marshal(plainData)
-	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
-	}
 
-	// 调用链码将数据上链
-	chaincodeFcn := "createPlainData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{plainDataBytes},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
-	}
+	txID, err := s.DataBCAO.CreatePlainData(&plainData)
+	return txID, err
 }
 
 // 创建加密的实体资产。
@@ -171,24 +155,8 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 		Policy:   policy,
 	}
 
-	encryptedDataBytes, err := json.Marshal(encryptedData)
-	if err != nil {
-		return "", errors.Wrapf(err, "无法序列化链码参数")
-	}
-
-	chaincodeFcn := "createEncryptedData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{encryptedDataBytes, []byte(encryptedResourceCreationEventName)},
-	}
-
-	resp, err := executeChannelRequestWithTimer(s.ServiceInfo.ChannelClient, &channelReq, "链上存储资产")
-	if err != nil {
-		return "", GetClassifiedError(chaincodeFcn, err)
-	}
-
-	return string(resp.TransactionID), nil
+	txID, err := s.DataBCAO.CreateEncryptedData(&encryptedData, encryptedResourceCreationEventName)
+	return txID, err
 }
 
 // 获取实体资产的元数据。
@@ -199,7 +167,7 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 // 返回：
 //   资产资源元数据
 func (s *EntityAssetService) GetEntityAssetMetadata(id string) (*data.ResMetadataStored, error) {
-	return getResourceMetadata(id, s.ServiceInfo)
+	return getResourceMetadata(id, s.DataBCAO)
 }
 
 // 获取明文实体资产。调用前应先获取元数据。
@@ -219,19 +187,10 @@ func (s *EntityAssetService) GetEntityAsset(id string, metadata *data.ResMetadat
 	}
 
 	// 调用链码 getData 获取该资源的本体
-	chaincodeFcn := "getData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
+	assetBytes, err := s.DataBCAO.GetData(id)
 	if err != nil {
-		return nil, GetClassifiedError(chaincodeFcn, err)
+		return nil, err
 	}
-
-	assetBytes := resp.Payload
 
 	// 检查所获数据的大小与哈希是否匹配
 	err = checkSizeAndHashForDecryptedData(assetBytes, metadata).toError(metadata.ResourceType)
@@ -241,7 +200,7 @@ func (s *EntityAssetService) GetEntityAsset(id string, metadata *data.ResMetadat
 
 	// 解析所获数据，得到 common.EntityAsset 作为结果
 	var asset common.EntityAsset
-	if err = json.Unmarshal(resp.Payload, &asset); err != nil {
+	if err = json.Unmarshal(assetBytes, &asset); err != nil {
 		return nil, fmt.Errorf("获取的数据不是合法的实体资产")
 	}
 	return &asset, nil
@@ -265,55 +224,23 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 		}
 	}
 
-	chaincodeFcn := "getData"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
-	if err != nil {
-		return nil, err
-	}
-
 	// 调用链码 getKey 获取该资源的加密后的密钥
-	chaincodeFcn = "getKey"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	encryptedKeyBytes, err := s.DataBCAO.GetKey(id)
 	if err != nil {
 		return nil, err
 	}
 
 	// 解析加密后的密钥材料
-	encryptedKeyBytes := resp.Payload
 	encryptedKeyAsCipherText, err := cipherutils.DeserializeCipherText(encryptedKeyBytes)
 	if err != nil {
 		return nil, err
 	}
 
 	// 调用链码 getData 获取该资源的密文本体
-	chaincodeFcn = "getData"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(id)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	encryptedAssetBytes, err := s.DataBCAO.GetData(id)
 	if err != nil {
 		return nil, err
 	}
-
-	encryptedAssetBytes := resp.Payload
 
 	// 检查加密的内容的大小和哈希是否匹配
 	err = checkSizeAndHashForEncryptedData(encryptedAssetBytes, metadata).toError(metadata.ResourceType)
@@ -322,23 +249,9 @@ func (s *EntityAssetService) GetEncryptedEntityAsset(id string, keySwitchSession
 	}
 
 	// 调用链码 listKeySwitchResultsByID 看是否有 numSharesExpected 份。若不足则报错。
-	chaincodeFcn = "listKeySwitchResultsByID"
-	channelReq = channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(keySwitchSessionID)},
-	}
-
-	resp, err = s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
+	ksResults, err := s.KeySwitchBCAO.ListKeySwitchResultsByID(keySwitchSessionID)
 	if err != nil {
 		return nil, err
-	}
-
-	var ksResults []*keyswitch.KeySwitchResultStored
-	err = json.Unmarshal(resp.Payload, &ksResults)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析密钥置换结果列表")
 	}
 
 	if len(ksResults) != numSharesExpected {
@@ -443,26 +356,7 @@ func (s *EntityAssetService) GetDecryptedEntityAssetFromDB(id string, metadata *
 //   带分页的资源 ID 列表
 func (s *EntityAssetService) ListEntityAssetIDsByCreator(isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// 调用 listResourceIDsByCreator 拿到一个 ID 列表
-	chaincodeFcn := "listResourceIDsByCreator"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(entityAssetDataType), []byte(fmt.Sprintf("%v", isDesc)), []byte(strconv.Itoa(pageSize)), []byte(bookmark)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
-	if err != nil {
-		return nil, err
-	}
-
-	var resourceIDs query.IDsWithPagination
-	err = json.Unmarshal(resp.Payload, &resourceIDs)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析结果列表")
-	}
-
-	return &resourceIDs, nil
+	return s.DataBCAO.ListResourceIDsByCreator(entityAssetDataType, isDesc, pageSize, bookmark)
 }
 
 // ListEntityAssetIDsByConditions 获取满足所提供的搜索条件的实体资产的资源 ID。
@@ -509,11 +403,6 @@ func (s *EntityAssetService) ListEntityAssetIDsByConditions(conditions EntityAss
 			errMsg: err.Error(),
 		}
 	}
-	couchDBConditionsBytes, err := json.Marshal(couchDBConditions)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法序列化查询条件")
-	}
-	fmt.Println(string(couchDBConditionsBytes))
 
 	// 生成 GORM 可用的带查询条件的 DB 对象
 	gormConditionedDB, err := conditions.ToGormConditionedDB(s.ServiceInfo.DB)
@@ -524,26 +413,9 @@ func (s *EntityAssetService) ListEntityAssetIDsByConditions(conditions EntityAss
 	}
 
 	// 从链码获取资源 ID
-	chaincodeFcn := "listResourceIDsByConditions"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）。为满足 3 个参数，最后的 bookmark 参数为空列表。
-		Args: [][]byte{couchDBConditionsBytes, []byte(strconv.Itoa(pageSize)), {}},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	err = GetClassifiedError(chaincodeFcn, err)
-	if err != nil {
-		return nil, err
-	}
-
+	// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）。为满足 3 个参数，最后的 bookmark 参数为空列表。
 	// 这里虽然包含查询后的新书签信息，但该书签信息无用
-	var chaincodeResourceIDs query.IDsWithPagination
-	err = json.Unmarshal(resp.Payload, &chaincodeResourceIDs)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法解析结果列表")
-	}
+	chaincodeResourceIDs, err := s.DataBCAO.ListResourceIDsByConditions(couchDBConditions, pageSize, "")
 
 	// 从本地数据库获取资源 ID
 	// TODO: Debug 期使用
