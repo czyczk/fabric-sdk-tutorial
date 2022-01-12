@@ -22,7 +22,6 @@ import (
 
 // KeySwitchService 实现了 `KeySwitchServiceInterface` 接口，提供有关于密钥置换的服务
 type KeySwitchService struct {
-	ServiceInfo   *Info
 	KeySwitchBCAO bcao.IKeySwitchBCAO
 	EventManager  eventmgr.IEventManager
 }

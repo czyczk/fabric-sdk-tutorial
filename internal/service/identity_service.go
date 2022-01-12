@@ -8,7 +8,6 @@ import (
 
 // IdentityService 实现了 `IdentityServiceInterface` 接口，提供有关于使用者身份的服务
 type IdentityService struct {
-	ServiceInfo  *Info
 	IdentityBCAO bcao.IIdentityBCAO
 	ServerInfo   *appinit.ServerInfo
 }

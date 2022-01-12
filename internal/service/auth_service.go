@@ -14,8 +14,7 @@ import (
 
 // AuthService 用于管理访问权请求。
 type AuthService struct {
-	ServiceInfo *Info
-	AuthBCAO    bcao.IAuthBCAO
+	AuthBCAO bcao.IAuthBCAO
 }
 
 // 创建访问权申请。
