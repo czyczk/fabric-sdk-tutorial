@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/eventmgr"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
@@ -23,6 +24,7 @@ import (
 type KeySwitchService struct {
 	ServiceInfo   *Info
 	KeySwitchBCAO bcao.IKeySwitchBCAO
+	EventManager  eventmgr.IEventManager
 }
 
 // 创建密文访问申请/密钥置换触发器。
@@ -166,8 +168,8 @@ func (s *KeySwitchService) AwaitKeySwitchResults(keySwitchSessionID string, numE
 
 	// 尝试监听事件 "ks_${keySwitchSessionID}_result"。事件内容为 "ks_${keySwitchSessionID}_result_${creator}"。若失败则提前返回。
 	eventID := "ks_" + keySwitchSessionID + "_result"
-	reg, notifier, err := RegisterEvent(s.ServiceInfo.EventClient, s.ServiceInfo.ChaincodeID, eventID)
-	defer s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
+	reg, notifier, err := s.EventManager.RegisterEvent(eventID)
+	defer s.EventManager.UnregisterEvent(reg)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "无法监听密钥置换结果事件")
@@ -183,8 +185,8 @@ eventHandler:
 	for {
 		select {
 		case eventVal := <-notifier:
-			log.Debugf("收到事件 {'%v': '%s'}", eventID, eventVal.Payload)
-			dbKeyParts := strings.Split(string(eventVal.Payload), "_")
+			log.Debugf("收到事件 {'%v': '%s'}", eventID, eventVal.GetPayload())
+			dbKeyParts := strings.Split(string(eventVal.GetPayload()), "_")
 			if len(dbKeyParts) != 4 {
 				wg.Wait()
 				return nil, fmt.Errorf("不合法的事件内容: %v", eventVal)

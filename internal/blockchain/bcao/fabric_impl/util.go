@@ -1,4 +1,4 @@
-package fabric
+package fabricbcao
 
 import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"

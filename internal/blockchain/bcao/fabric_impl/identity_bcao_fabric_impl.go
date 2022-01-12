@@ -1,4 +1,4 @@
-package fabric
+package fabricbcao
 
 import (
 	"encoding/json"
