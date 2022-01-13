@@ -19,7 +19,6 @@ import (
 )
 
 type KeySwitchServer struct {
-	ServiceInfo            *service.Info
 	EventManager           eventmgr.IEventManager
 	DataBCAO               bcao.IDataBCAO
 	KeySwitchService       service.KeySwitchServiceInterface
@@ -31,9 +30,10 @@ type KeySwitchServer struct {
 	serviceStatus          *backgroundServerStatus
 }
 
-func NewKeySwitchServer(serviceInfo *service.Info, keySwitchService service.KeySwitchServiceInterface, numWorkers int) *KeySwitchServer {
+func NewKeySwitchServer(serviceInfo *service.Info, eventManager eventmgr.IEventManager, dataBCAO bcao.IDataBCAO, keySwitchService service.KeySwitchServiceInterface, numWorkers int) *KeySwitchServer {
 	return &KeySwitchServer{
-		ServiceInfo:            serviceInfo,
+		EventManager:           eventManager,
+		DataBCAO:               dataBCAO,
 		KeySwitchService:       keySwitchService,
 		wg:                     sync.WaitGroup{},
 		chanQuit:               make(chan int),
