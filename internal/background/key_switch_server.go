@@ -7,25 +7,27 @@ import (
 	"sync"
 	"time"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/eventmgr"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 type KeySwitchServer struct {
 	ServiceInfo            *service.Info
+	EventManager           eventmgr.IEventManager
+	DataBCAO               bcao.IDataBCAO
 	KeySwitchService       service.KeySwitchServiceInterface
 	wg                     sync.WaitGroup
 	chanQuit               chan int
 	chanKeySwitchSessionID chan string
 	NumWorkers             int // The number of Go routines that will be created to perform the task. Don't change the value after creation or the server might not be able to stop as expected.
-	reg                    *fab.Registration
+	reg                    eventmgr.IEventRegistration
 	serviceStatus          *backgroundServerStatus
 }
 
@@ -58,13 +60,13 @@ func (s *KeySwitchServer) Start() error {
 	// Register the event chaincode and pass the chan object to the workers to be created.
 	eventID := "ks_trigger"
 	log.Debugf("正在尝试监听事件 '%v'...", eventID)
-	reg, notifier, err := service.RegisterEvent(s.ServiceInfo.EventClient, s.ServiceInfo.ChaincodeID, eventID)
+	reg, notifier, err := s.EventManager.RegisterEvent(eventID)
 	if err != nil {
-		s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
+		s.EventManager.UnregisterEvent(reg)
 		return errors.Wrap(err, "无法监听密钥置换触发器")
 	}
 
-	s.reg = &reg
+	s.reg = reg
 
 	// Start #NumWorkers Go routines with each running a worker.
 	log.Debugf("正在创建 %v 个密钥置换工作单元...", s.NumWorkers)
@@ -80,7 +82,7 @@ func (s *KeySwitchServer) Start() error {
 	return nil
 }
 
-func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessionIDNotifier <-chan *fab.CCEvent) {
+func (s *KeySwitchServer) createKeySwitchServerWorker(id int, chanKeySwitchSessionIDNotifier <-chan eventmgr.IEvent) {
 	log.Debugf("密钥置换工作单元 #%v 已创建。", id)
 
 workerLoop:
@@ -90,7 +92,7 @@ workerLoop:
 			// On receiving a key switch session ID, calculate the share and invoke the service function to save the result onto the chain
 			// First parse the event payload
 			var keySwitchTriggerStored keyswitch.KeySwitchTriggerStored
-			if err := json.Unmarshal(event.Payload, &keySwitchTriggerStored); err != nil {
+			if err := json.Unmarshal(event.GetPayload(), &keySwitchTriggerStored); err != nil {
 				log.Errorln(errors.Wrapf(err, "密钥置换工作单元 #%v 无法解析事件内容", id))
 				continue
 			}
@@ -193,7 +195,7 @@ func (s *KeySwitchServer) Stop() (*sync.WaitGroup, error) {
 	}
 
 	// Unregister the chaincode event
-	s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(*s.reg)
+	s.EventManager.UnregisterEvent(s.reg)
 
 	s.serviceStatus.setIsStarted(false)
 
@@ -201,17 +203,5 @@ func (s *KeySwitchServer) Stop() (*sync.WaitGroup, error) {
 }
 
 func (s *KeySwitchServer) getResourceKeyFromCC(resourceID string) ([]byte, error) {
-	chaincodeFcn := "getKey"
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         chaincodeFcn,
-		Args:        [][]byte{[]byte(resourceID)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	if err != nil {
-		return nil, service.GetClassifiedError(chaincodeFcn, err)
-	}
-
-	return resp.Payload, nil
+	return s.DataBCAO.GetKey(resourceID)
 }
