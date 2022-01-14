@@ -754,6 +754,9 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）。为满足 3 个参数，最后的 bookmark 参数为空列表。
 	// 这里虽然包含查询后的新书签信息，但该书签信息无用
 	chaincodeResourceIDs, err := s.DataBCAO.ListResourceIDsByConditions(couchDBConditions, pageSize, "")
+	if err != nil {
+		return nil, err
+	}
 
 	// 从本地数据库获取资源 ID
 	// TODO: Debug 期使用

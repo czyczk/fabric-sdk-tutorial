@@ -1,0 +1,9 @@
+organizations: # 这个网络中的参与组织
+  Org1:
+    users:
+      BuiltInAlice:
+        address: "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+chaincodes:
+  universalCc:
+    address: "5CVxfpAARVp1XEv9EvcyQkA6BgumMAVTe1uusQbo5mTx14GE"
+    abiPath: "blbc/metadata.json"

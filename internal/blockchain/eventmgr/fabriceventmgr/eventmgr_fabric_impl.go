@@ -60,7 +60,7 @@ func (m *FabricEventManager) RegisterEvent(eventID string) (eventmgr.IEventRegis
 	return fabricReg, notifier, nil
 }
 
-func (m *FabricEventManager) Unregister(reg eventmgr.IEventRegistration) error {
+func (m *FabricEventManager) UnregisterEvent(reg eventmgr.IEventRegistration) error {
 	// Cannot unregister non-Fabric registration with a Fabric event manager
 	fabricReg := reg.(*FabricEventRegistration)
 

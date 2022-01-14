@@ -30,7 +30,9 @@ run:
 	$(MAKE) run-init && $(MAKE) run-serve
 
 run-init:
-	@cd chaincode/src/universal_cc && go mod vendor && cd ../../.. && ./fabric-sdk-tutorial init
+	@cd chaincode/src/screw_example && go mod vendor
+	@cd chaincode/src/universal_cc && go mod vendor
+	@./fabric-sdk-tutorial init
 
 run-serve:
 	@./fabric-sdk-tutorial serve
@@ -40,6 +42,9 @@ run-serve-ado1:
 
 run-serve-u1o2:
 	@./fabric-sdk-tutorial serve -c "server-u1o2.yaml"
+
+run-polkadot-serve-alice:
+	@./fabric-sdk-tutorial serve -t "polkadot" -b "polkadot-config-network" -c "server-polkadot-alice.yaml"
 
 ##### CLEAN
 clean: env-down

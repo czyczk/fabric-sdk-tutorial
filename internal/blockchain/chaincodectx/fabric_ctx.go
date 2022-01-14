@@ -5,8 +5,6 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/event"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/msp"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/resmgmt"
 )
 
 type FabricChaincodeCtx struct {
@@ -14,13 +12,11 @@ type FabricChaincodeCtx struct {
 	OrgName       string
 	Username      string
 	ChaincodeID   string
-	ResMgmtClient *resmgmt.Client
-	MSPClient     *msp.Client
 	ChannelClient *channel.Client
 	EventClient   *event.Client
 	LedgerClient  *ledger.Client
 }
 
-func (ctx *FabricChaincodeCtx) GetType() blockchain.BCType {
+func (ctx *FabricChaincodeCtx) GetBCType() blockchain.BCType {
 	return blockchain.Fabric
 }

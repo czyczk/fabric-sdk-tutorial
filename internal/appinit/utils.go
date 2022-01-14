@@ -2,14 +2,32 @@ package appinit
 
 import (
 	"fmt"
+	"io/ioutil"
+	"strings"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/polkadotnetwork"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	errors "github.com/pkg/errors"
+	yaml "gopkg.in/yaml.v2"
 )
 
-// SetupSDK creates a Fabric SDK instance from the specified config file(s). The SDK instance will be available as `global.SDKInstance`.
+func ParseBlockchainType(blockchainTypeStr string) error {
+	switch strings.ToLower(blockchainTypeStr) {
+	case "fabric":
+		global.BlockchainType = blockchain.Fabric
+	case "polkadot":
+		global.BlockchainType = blockchain.Polkadot
+	default:
+		return fmt.Errorf("未知的区块链类型")
+	}
+
+	return nil
+}
+
+// SetupSDK creates a Fabric SDK instance from the specified config file. The SDK instance will be available as `global.SDKInstance`.
 //
 // Parameters:
 //   the path to the config file
@@ -21,6 +39,26 @@ func SetupSDK(configFilePath string) error {
 	}
 	global.FabricSDKInstance = sdk
 
+	return nil
+}
+
+// LoadPolkadotNetworkConfig creates a `polkadotnetwork.PolkadotNetworkConfig` object from the specified config file. The config object will be available as `global.PolkadotNetworkConfig`.
+//
+// Parameters:
+//   the path to the config file
+func LoadPolkadotNetworkConfig(configFilePath string) error {
+	yamlStr, err := ioutil.ReadFile(configFilePath)
+	if err != nil {
+		return errors.Wrap(err, "读取 Polkadot 网络配置文件失败")
+	}
+
+	var config *polkadotnetwork.PolkadotNetworkConfig
+	err = yaml.Unmarshal(yamlStr, &config)
+	if err != nil {
+		return errors.Wrap(err, "解析 YAML 文件时出现错误")
+	}
+
+	global.PolkadotNetworkConfig = config
 	return nil
 }
 

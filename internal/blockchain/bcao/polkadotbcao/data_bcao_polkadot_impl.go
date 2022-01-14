@@ -10,6 +10,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/pkg/errors"
 )
 
@@ -107,12 +108,12 @@ func (o *DataBCAOPolkadotImpl) GetPolicy(resourceID string) ([]byte, error) {
 	return nil, errorcode.ErrorNotImplemented
 }
 
-func (o *DataBCAOPolkadotImpl) ListResourceIDsByCreator(dataType string, isDesc bool, pageSize int, bookmark string) ([]byte, error) {
+func (o *DataBCAOPolkadotImpl) ListResourceIDsByCreator(dataType string, isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// TODO
 	return nil, errorcode.ErrorNotImplemented
 }
 
-func (o *DataBCAOPolkadotImpl) ListResourceIDsByConditions(queryConditions map[string]interface{}, pageSize int, bookmark string) ([]byte, error) {
+func (o *DataBCAOPolkadotImpl) ListResourceIDsByConditions(queryConditions map[string]interface{}, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// TODO
 	return nil, errorcode.ErrorNotImplemented
 }
