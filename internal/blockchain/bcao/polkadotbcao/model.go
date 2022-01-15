@@ -22,7 +22,7 @@ type ContractInstantiationErrorResult struct {
 // ContractQuerySuccessResult contains all the info to be returned to the client about the result of a successful contract query.
 type ContractQuerySuccessResult struct {
 	contractQueryResultBase
-	Output string `json:"output"`
+	Output interface{} `json:"output"`
 }
 
 // ContractQueryErrorResult contains all the info to be returned to the client about the result of a failed contract query.

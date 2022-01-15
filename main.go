@@ -194,26 +194,28 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		isKeySwitchServer := serverInfo.IsKeySwitchServer
 		isRegulator := serverInfo.IsRegulator
 
-		// Create clients
-		if err = appinit.InstantiateResMgmtClient(orgName, userID); err != nil {
-			return err
-		}
-
-		if err = appinit.InstantiateMSPClient(orgName, userID); err != nil {
-			return err
-		}
-
-		for _, channelID := range serverInfo.Channels {
-			if err = appinit.InstantiateChannelClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
+		if global.BlockchainType == blockchain.Fabric {
+			// Create clients only for Fabric
+			if err = appinit.InstantiateResMgmtClient(orgName, userID); err != nil {
 				return err
 			}
 
-			if err = appinit.InstantiateEventClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
+			if err = appinit.InstantiateMSPClient(orgName, userID); err != nil {
 				return err
 			}
 
-			if err = appinit.InstantiateLedgerClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
-				return err
+			for _, channelID := range serverInfo.Channels {
+				if err = appinit.InstantiateChannelClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
+					return err
+				}
+
+				if err = appinit.InstantiateEventClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
+					return err
+				}
+
+				if err = appinit.InstantiateLedgerClient(global.FabricSDKInstance, channelID, orgName, userID); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -288,13 +290,18 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		case blockchain.Polkadot:
 			// TODO: Polkadot screw CC ctx cannot be created because the chaincode address and ABI are missing
 
+			callerAddress, err := global.PolkadotNetworkConfig.GetUserAddress(orgName, userID)
+			if err != nil {
+				return err
+			}
+
 			universalCcABI, err := global.PolkadotNetworkConfig.GetChaincodeABI("universalCc")
 			if err != nil {
 				return err
 			}
 
 			universalCcCtx = &chaincodectx.PolkadotChaincodeCtx{
-				CallerAddress:   global.PolkadotNetworkConfig.GetUserAddress(orgName, userID),
+				CallerAddress:   callerAddress,
 				APIPrefix:       global.PolkadotNetworkConfig.APIPrefix,
 				ContractAddress: global.PolkadotNetworkConfig.GetChaincodeAddress("universalCc"),
 				ContractABI:     universalCcABI,
@@ -357,12 +364,16 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		// Instantiate a document service
 		documentSvc := &service.DocumentService{
 			ServiceInfo:      universalCcServiceInfo,
+			DataBCAO:         dataBCAO,
+			KeySwitchBCAO:    keySwitchBCAO,
 			KeySwitchService: keySwitchSvc,
 		}
 
 		// Instantiate an entity asset service
 		entityAssetSvc := &service.EntityAssetService{
 			ServiceInfo:      universalCcServiceInfo,
+			DataBCAO:         dataBCAO,
+			KeySwitchBCAO:    keySwitchBCAO,
 			KeySwitchService: keySwitchSvc,
 		}
 

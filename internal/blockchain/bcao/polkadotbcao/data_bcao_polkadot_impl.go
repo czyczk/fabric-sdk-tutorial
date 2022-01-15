@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
@@ -35,6 +36,8 @@ func (o *DataBCAOPolkadotImpl) CreatePlainData(plainData *data.PlainData, eventI
 	funcArgs := []interface{}{plainData}
 	if len(eventID) != 0 {
 		funcArgs = append(funcArgs, eventID[0])
+	} else {
+		funcArgs = append(funcArgs, nil)
 	}
 
 	result, err := sendTx(o.ctx, o.client, funcName, funcArgs, true)
@@ -58,17 +61,15 @@ func (o *DataBCAOPolkadotImpl) CreateOffchainData(offchainData *data.OffchainDat
 func (o *DataBCAOPolkadotImpl) GetMetadata(resourceID string) (*data.ResMetadataStored, error) {
 	funcName := "getMetadata"
 	funcArgs := []interface{}{resourceID}
-	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs)
+	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(funcName, err)
+	}
+
+	metadataBytes, err := unwrapOk(result.Output)
 	if err != nil {
 		return nil, err
 	}
-
-	metadataStr, err := unwrapOk(result.Output)
-	if err != nil {
-		return nil, err
-	}
-
-	metadataBytes := []byte(metadataStr)
 
 	var resMetadataStored data.ResMetadataStored
 	if err = json.Unmarshal(metadataBytes, &resMetadataStored); err != nil {
@@ -80,17 +81,17 @@ func (o *DataBCAOPolkadotImpl) GetMetadata(resourceID string) (*data.ResMetadata
 func (o *DataBCAOPolkadotImpl) GetData(resourceID string) ([]byte, error) {
 	funcName := "getData"
 	funcArgs := []interface{}{resourceID}
-	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs)
+	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(funcName, err)
+	}
+
+	contentsAsBase64Bytes, err := unwrapOk(result.Output)
 	if err != nil {
 		return nil, err
 	}
 
-	contentsAsBase64, err := unwrapOk(result.Output)
-	if err != nil {
-		return nil, err
-	}
-
-	contents, err := base64.StdEncoding.DecodeString(contentsAsBase64)
+	contents, err := base64.StdEncoding.DecodeString(string(contentsAsBase64Bytes))
 	if err != nil {
 		return nil, fmt.Errorf("无法解析资源本体")
 	}

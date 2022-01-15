@@ -44,7 +44,7 @@ run-serve-u1o2:
 	@./fabric-sdk-tutorial serve -c "server-u1o2.yaml"
 
 run-polkadot-serve-alice:
-	@./fabric-sdk-tutorial serve -t "polkadot" -b "polkadot-config-network" -c "server-polkadot-alice.yaml"
+	@./fabric-sdk-tutorial serve -t "polkadot" -b "polkadot-config-network.yaml" -c "server-polkadot-alice.yaml"
 
 ##### CLEAN
 clean: env-down
