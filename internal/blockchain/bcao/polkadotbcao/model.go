@@ -56,8 +56,8 @@ type inBlockStatus struct {
 }
 
 type ExplainedModuleError struct {
-	Index   byte   `json:"index"`
-	Error   byte   `json:"error"`
+	Index   string `json:"index"`
+	Error   string `json:"error"`
 	Type    string `json:"type"`
 	Details string `json:"details"`
 }

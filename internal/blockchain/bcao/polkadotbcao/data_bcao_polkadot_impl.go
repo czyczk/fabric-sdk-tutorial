@@ -33,7 +33,12 @@ func NewDataBCAOPolkadotImpl(ctx *chaincodectx.PolkadotChaincodeCtx) *DataBCAOPo
 
 func (o *DataBCAOPolkadotImpl) CreatePlainData(plainData *data.PlainData, eventID ...string) (string, error) {
 	funcName := "createPlainData"
-	funcArgs := []interface{}{plainData}
+	plainDataJsonBytes, err := json.Marshal(plainData)
+	if err != nil {
+		return "", errors.Wrap(err, "无法序列化链码参数")
+	}
+
+	funcArgs := []interface{}{string(plainDataJsonBytes)}
 	if len(eventID) != 0 {
 		funcArgs = append(funcArgs, eventID[0])
 	} else {
