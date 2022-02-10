@@ -793,7 +793,7 @@ func deriveExtensionsMapFromDocumentProperties(publicProperties *common.Document
 		extensions["name"] = publicProperties.Name
 	}
 	if publicProperties.IsTypePublic {
-		extensions["documentType"] = publicProperties
+		extensions["documentType"] = publicProperties.Type
 	}
 	if publicProperties.IsPrecedingDocumentIDPublic {
 		extensions["precedingDocumentID"] = publicProperties.PrecedingDocumentID
