@@ -3,6 +3,7 @@ package data
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // ResourceType 用于标志一个资源的加密类别
@@ -17,12 +18,14 @@ const (
 	Offchain
 )
 
+// 序列化时大写首字母以兼容 SCALE codec
 var resourceTypeToStringMap = map[ResourceType]string{
-	Plain:     "plain",
-	Encrypted: "encrypted",
-	Offchain:  "offchain",
+	Plain:     "Plain",
+	Encrypted: "Encrypted",
+	Offchain:  "Offchain",
 }
 
+// 反序列化时大小写均接受
 var resourceTypeFromStringMap = map[string]ResourceType{
 	"plain":     Plain,
 	"encrypted": Encrypted,
@@ -40,9 +43,12 @@ func (t ResourceType) String() string {
 
 // NewResourceTypeFromString 从 enum 名称获得 ResourceType enum。
 func NewResourceTypeFromString(enumString string) (ret ResourceType, err error) {
-	ret, ok := resourceTypeFromStringMap[enumString]
+	// 不要区分大小写
+	enumStringCaseInsensitive := strings.ToLower(enumString)
+
+	ret, ok := resourceTypeFromStringMap[enumStringCaseInsensitive]
 	if !ok {
-		err = fmt.Errorf("不正确的 enum 字符串")
+		err = fmt.Errorf("不正确的 enum 字符串 '%v'", enumString)
 		return
 	}
 
@@ -74,7 +80,7 @@ func (t *ResourceType) UnmarshalJSON(b []byte) error {
 // ResMetadata 包含要传入链码的资源的元数据
 type ResMetadata struct {
 	ResourceType ResourceType           `json:"resourceType"` // 资源加密类别
-	ResourceID   string                 `json:"resourceID"`   // 资源 ID
+	ResourceID   string                 `json:"resourceId"`   // 资源 ID
 	Hash         string                 `json:"hash"`         // 资源的明文的哈希值（[32]byte 的 Base64 编码）
 	Size         uint64                 `json:"size"`         // 资源的明文的内容部分的大小
 	Extensions   map[string]interface{} `json:"extensions"`   // 扩展字段（包含可公开的属性）

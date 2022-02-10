@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // DocumentProperties 表示数字文档的属性部分
@@ -42,20 +43,22 @@ const (
 	RepairDocument
 )
 
+// 序列化时大写首字母以兼容 SCALE codec
 var documentTypeToStringMap = map[DocumentType]string{
-	DesignDocument:     "designDocument",
-	ProductionDocument: "productionDocument",
-	TransferDocument:   "transferDocument",
-	UsageDocument:      "usageDocument",
-	RepairDocument:     "repairDocument",
+	DesignDocument:     "DesignDocument",
+	ProductionDocument: "ProductionDocument",
+	TransferDocument:   "TransferDocument",
+	UsageDocument:      "UsageDocument",
+	RepairDocument:     "RepairDocument",
 }
 
+// 反序列化时大小写均接受
 var documentTypeFromStringMap = map[string]DocumentType{
-	"designDocument":     DesignDocument,
-	"productionDocument": ProductionDocument,
-	"transferDocument":   TransferDocument,
-	"usageDocument":      UsageDocument,
-	"repairDocument":     RepairDocument,
+	"designdocument":     DesignDocument,
+	"productiondocument": ProductionDocument,
+	"transferdocument":   TransferDocument,
+	"usagedocument":      UsageDocument,
+	"repairdocument":     RepairDocument,
 }
 
 func (t DocumentType) String() string {
@@ -69,9 +72,12 @@ func (t DocumentType) String() string {
 
 // NewDocumentTypeFromString 从 enum 名称获得 DocumentType enum。
 func NewDocumentTypeFromString(enumString string) (ret DocumentType, err error) {
-	ret, ok := documentTypeFromStringMap[enumString]
+	// 不要区分大小写
+	enumStringCaseInsensitive := strings.ToLower(enumString)
+
+	ret, ok := documentTypeFromStringMap[enumStringCaseInsensitive]
 	if !ok {
-		err = fmt.Errorf("不正确的 enum 字符串")
+		err = fmt.Errorf("不正确的 enum 字符串 '%v'", enumString)
 		return
 	}
 

@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -29,12 +30,14 @@ const (
 	Rejected
 )
 
+// 序列化时大写首字母以兼容 SCALE codec
 var authSessionStatusToStringMap = map[AuthSessionStatus]string{
-	Pending:  "pending",
-	Approved: "approved",
-	Rejected: "rejected",
+	Pending:  "Pending",
+	Approved: "Approved",
+	Rejected: "Rejected",
 }
 
+// 反序列化时大小写均接受
 var authSessionStatusFromStringMap = map[string]AuthSessionStatus{
 	"pending":  Pending,
 	"approved": Approved,
@@ -52,9 +55,12 @@ func (t AuthSessionStatus) String() string {
 
 // NewAuthSessionStatusFromString 从 enum 名称获得 AuthSessionStatus enum。
 func NewAuthSessionStatusFromString(enumString string) (ret AuthSessionStatus, err error) {
-	ret, ok := authSessionStatusFromStringMap[enumString]
+	// 不要区分大小写
+	enumStringCaseInsensitive := strings.ToLower(enumString)
+
+	ret, ok := authSessionStatusFromStringMap[enumStringCaseInsensitive]
 	if !ok {
-		err = fmt.Errorf("不正确的 enum 字符串")
+		err = fmt.Errorf("不正确的 enum 字符串 '%v'", enumString)
 		return
 	}
 
