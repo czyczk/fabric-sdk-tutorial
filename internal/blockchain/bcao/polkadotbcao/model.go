@@ -35,7 +35,7 @@ type ContractQueryErrorResult struct {
 // ContractTxSuccessResult contains all the info to be returned to the client about the result of a successful contract transaction.
 type ContractTxSuccessResult struct {
 	TxExecutionResult
-	ParsedContractEvents *string `json:"parsedContractEvents"`
+	ParsedContractEvents []map[string]interface{} `json:"parsedContractEvents"`
 }
 
 // ContractTxErrorResult contains all the info to be returned to the client about the result of a failed contract transaction.
