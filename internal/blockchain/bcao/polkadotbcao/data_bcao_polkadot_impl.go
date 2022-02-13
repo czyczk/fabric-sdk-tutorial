@@ -3,7 +3,6 @@ package polkadotbcao
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -91,10 +90,14 @@ func (o *DataBCAOPolkadotImpl) GetData(resourceID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The content of `Ok` is actually a JSON string. So there's one more step we should take:
+	// Getting rid of the leading and trailing quotes is fine enough.
+	contentsAsBase64Bytes = contentsAsBase64Bytes[1:]
+	contentsAsBase64Bytes = contentsAsBase64Bytes[:len(contentsAsBase64Bytes)-1]
 
 	contents, err := base64.StdEncoding.DecodeString(string(contentsAsBase64Bytes))
 	if err != nil {
-		return nil, fmt.Errorf("无法解析资源本体")
+		return nil, errors.Wrap(err, "无法解析资源本体")
 	}
 
 	return contents, nil
