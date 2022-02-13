@@ -5,6 +5,6 @@ organizations: # 这个网络中的参与组织
         address: "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
 chaincodes:
   universalCc:
-    address: "5GjKcsgwa2XfqorFqrkuUJLsLE1mBoY8ZktaZbqj1NDQKikN"
+    address: "5DNzQrdBNH4xt9JmPooWYzjeJra1kzxpiPdfR2aG94zqqLtU"
     abiPath: "blbc/metadata.json"
 apiPrefix: "http://localhost:8080"
