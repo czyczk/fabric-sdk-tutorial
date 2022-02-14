@@ -10,16 +10,17 @@ import (
 )
 
 type PolkadotNetworkConfig struct {
-	Organizations map[string]organization `yaml:"organizations"`
+	Organizations map[string]Organization `yaml:"organizations"`
 	APIPrefix     string                  `yaml:"apiPrefix"`
 	Chaincodes    map[string]chaincode    `yaml:"chaincodes"`
 }
 
-type organization struct {
-	Users map[string]user `yaml:"users"`
+type Organization struct {
+	Users map[string]User `yaml:"users"`
 }
 
-type user struct {
+type User struct {
+	Phrase  string `yaml:"phrase"`
 	Address string `yaml:"address"`
 }
 

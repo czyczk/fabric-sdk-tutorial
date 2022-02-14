@@ -217,6 +217,11 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 					return err
 				}
 			}
+		} else if global.BlockchainType == blockchain.Polkadot {
+			// Register the logged-in user in the HTTP API
+			if err := appinit.RegisterPolkadotUsers(global.PolkadotNetworkConfig.Organizations, global.PolkadotNetworkConfig.APIPrefix); err != nil {
+				return err
+			}
 		}
 
 		// Check and create a MySQL database connection

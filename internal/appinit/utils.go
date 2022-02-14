@@ -3,7 +3,11 @@ package appinit
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/polkadotnetwork"
@@ -216,6 +220,52 @@ func instantiateLedgerClients(sdk *fabsdk.FabricSDK, userInfo map[string]*OrgInf
 				if err := InstantiateLedgerClient(sdk, channelID, orgName, userID); err != nil {
 					return err
 				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// RegisterPolkadotUsers registers the polkadot users in the Polkadot network config in the HTTP API.
+func RegisterPolkadotUsers(orgMap map[string]polkadotnetwork.Organization, apiPrefix string) error {
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+	}
+	endpoint := apiPrefix + "/keyring/from-uri"
+
+	for orgName, orgInfo := range orgMap {
+		for userID, userInfo := range orgInfo.Users {
+			// Prepare a POST form
+			form := url.Values{}
+			form.Set("phrase", userInfo.Phrase)
+
+			formEncoded := form.Encode()
+			req, err := http.NewRequest("POST", endpoint, strings.NewReader(formEncoded))
+			if err != nil {
+				return errors.Wrapf(err, "无法注册 Polkadot 用户 '%v@%v'", userID, orgName)
+			}
+
+			req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Add("Content-Length", strconv.Itoa(len(formEncoded)))
+
+			// Perform a POST request
+			resp, err := client.Do(req)
+			if err != nil {
+				return errors.Wrap(err, "无法调用合约")
+			}
+			defer resp.Body.Close()
+
+			// Process the response.
+			// 200 -> The response body doesn't matter.
+			// !200 -> Error registering the user. Resp body as the error message.
+			if resp.StatusCode != 200 {
+				respBodyBytes, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					return errors.Wrapf(err, "无法注册 Polkadot 用户 '%v@%v': 无法获取注册结果", userID, orgName)
+				}
+
+				return fmt.Errorf("无法注册 Polkadot 用户 '%v@%v': %v", userID, orgName, string(respBodyBytes))
 			}
 		}
 	}
