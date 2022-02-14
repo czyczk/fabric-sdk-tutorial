@@ -30,7 +30,7 @@ type EntityAssetService struct {
 }
 
 // 用于放置在元数据的 extensions.dataType 中的值
-const entityAssetDataType = "entityAsset"
+const entityAssetDataType = "EntityAsset"
 
 // 创建实体资产。
 //
@@ -455,7 +455,7 @@ func deriveExtensionsMapFromAsset(asset *common.EntityAsset) map[string]interfac
 		extensions["name"] = asset.Name
 	}
 	if asset.IsDesignDocumentIDPublic {
-		extensions["designDocumentID"] = asset.DesignDocumentID
+		extensions["designDocumentId"] = asset.DesignDocumentID
 	}
 
 	return extensions

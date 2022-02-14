@@ -11,14 +11,14 @@ type DocumentProperties struct {
 	ID                          string       `json:"id"`                          // 数字文档 ID
 	Name                        string       `json:"name"`                        // 数字文档名称
 	Type                        DocumentType `json:"documentType"`                // 数字文档的文档类型
-	PrecedingDocumentID         string       `json:"precedingDocumentID"`         // 数字文档的前置文档 ID
-	HeadDocumentID              string       `json:"headDocumentID"`              // 数字文档的头文档 ID
-	EntityAssetID               string       `json:"entityAssetID"`               // 数字文档所关联的实体资产的 ID
+	PrecedingDocumentID         string       `json:"precedingDocumentId"`         // 数字文档的前置文档 ID
+	HeadDocumentID              string       `json:"headDocumentId"`              // 数字文档的头文档 ID
+	EntityAssetID               string       `json:"entityAssetId"`               // 数字文档所关联的实体资产的 ID
 	IsNamePublic                bool         `json:"isNamePublic"`                // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
 	IsTypePublic                bool         `json:"isTypePublic"`                // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
-	IsPrecedingDocumentIDPublic bool         `json:"isPrecedingDocumentIDPublic"` // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
-	IsHeadDocumentIDPublic      bool         `json:"isHeadDocumentIDPublic"`      // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
-	IsEntityAssetIDPublic       bool         `json:"isEntityAssetIDPublic"`       // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
+	IsPrecedingDocumentIDPublic bool         `json:"isPrecedingDocumentIdPublic"` // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
+	IsHeadDocumentIDPublic      bool         `json:"isHeadDocumentIdPublic"`      // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
+	IsEntityAssetIDPublic       bool         `json:"isEntityAssetIdPublic"`       // 是否公开标记。用于创建扩展字段。本地数据库中应保留该字段。
 }
 
 // Document 表示数字文档

@@ -33,7 +33,7 @@ type DocumentService struct {
 }
 
 // 用于放置在元数据的 extensions.dataType 中的值
-const documentDataType = "document"
+const documentDataType = "Document"
 
 // CreateDocument 创建数字文档。
 //
@@ -796,13 +796,13 @@ func deriveExtensionsMapFromDocumentProperties(publicProperties *common.Document
 		extensions["documentType"] = publicProperties.Type
 	}
 	if publicProperties.IsPrecedingDocumentIDPublic {
-		extensions["precedingDocumentID"] = publicProperties.PrecedingDocumentID
+		extensions["precedingDocumentId"] = publicProperties.PrecedingDocumentID
 	}
 	if publicProperties.IsHeadDocumentIDPublic {
-		extensions["headDocumentID"] = publicProperties.HeadDocumentID
+		extensions["headDocumentId"] = publicProperties.HeadDocumentID
 	}
 	if publicProperties.IsEntityAssetIDPublic {
-		extensions["entityAssetID"] = publicProperties.EntityAssetID
+		extensions["entityAssetId"] = publicProperties.EntityAssetID
 	}
 
 	if encryptedProperties != nil {
