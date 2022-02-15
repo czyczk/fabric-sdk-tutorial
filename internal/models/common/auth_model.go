@@ -9,8 +9,8 @@ import (
 
 // AuthSession 表示一个授权会话，包含会话 ID、理由、批复结果等信息。
 type AuthSession struct {
-	AuthSessionID     string            `json:"authSessionID"`               // 授权会话 ID
-	ResourceID        string            `json:"resourceID"`                  // 申请的资源 ID
+	AuthSessionID     string            `json:"authSessionId"`               // 授权会话 ID
+	ResourceID        string            `json:"resourceId"`                  // 申请的资源 ID
 	Reason            string            `json:"reason"`                      // 申请理由
 	Status            AuthSessionStatus `json:"status"`                      // 会话状态
 	Requestor         string            `json:"requestor"`                   // 申请者的公钥（Base64 编码）
