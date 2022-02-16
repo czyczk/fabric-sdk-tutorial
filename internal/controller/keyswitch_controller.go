@@ -30,7 +30,7 @@ func (kc *KeySwitchController) GetEndpointMap() EndpointMap {
 }
 
 func (kc *KeySwitchController) handleCreateKeySwitchTrigger(c *gin.Context) {
-	resourceID := c.PostForm("resourceID")
+	resourceID := c.PostForm("resourceId")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -38,7 +38,7 @@ func (kc *KeySwitchController) handleCreateKeySwitchTrigger(c *gin.Context) {
 	resourceID = pel.AppendIfEmptyOrBlankSpaces(resourceID, "资源 ID 不能为空。")
 
 	// Extract and check common parameters
-	authSessionID := c.PostForm("authSessionID")
+	authSessionID := c.PostForm("authSessionId")
 
 	txID, err := kc.KeySwitchSvc.CreateKeySwitchTrigger(resourceID, authSessionID)
 

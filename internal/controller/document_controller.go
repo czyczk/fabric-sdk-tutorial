@@ -73,9 +73,9 @@ func (c *DocumentController) handleCreateDocument(ctx *gin.Context) {
 		}
 	}
 
-	precedingDocumentID := ctx.PostForm("precedingDocumentID")
-	headDocumentID := ctx.PostForm("headDocumentID")
-	entityAssetID := ctx.PostForm("entityAssetID")
+	precedingDocumentID := ctx.PostForm("precedingDocumentId")
+	headDocumentID := ctx.PostForm("headDocumentId")
+	entityAssetID := ctx.PostForm("entityAssetId")
 
 	// Whether the properties are public should be specified if it's not a plain resource
 	isNamePublic := true
@@ -92,19 +92,19 @@ func (c *DocumentController) handleCreateDocument(ctx *gin.Context) {
 
 	isPrecedingDocumentIDPublic := true
 	if resourceType != data.Plain {
-		isPrecedingDocumentIDPublicStr := ctx.PostForm("isPrecedingDocumentIDPublic")
+		isPrecedingDocumentIDPublicStr := ctx.PostForm("isPrecedingDocumentIdPublic")
 		isPrecedingDocumentIDPublic = pel.AppendIfNotBool(isPrecedingDocumentIDPublicStr, "必须指定前序文档 ID 公开性。")
 	}
 
 	isHeadDocumentIDPublic := true
 	if resourceType != data.Plain {
-		isHeadDocumentIDPublicStr := ctx.PostForm("isHeadDocumentIDPublic")
+		isHeadDocumentIDPublicStr := ctx.PostForm("isHeadDocumentIdPublic")
 		isHeadDocumentIDPublic = pel.AppendIfNotBool(isHeadDocumentIDPublicStr, "必须指定头文档 ID 公开性。")
 	}
 
 	isEntityAssetIDPublic := true
 	if resourceType != data.Plain {
-		isEntityAssetIDPublicStr := ctx.PostForm("isEntityAssetIDPublic")
+		isEntityAssetIDPublicStr := ctx.PostForm("isEntityAssetIdPublic")
 		isEntityAssetIDPublic = pel.AppendIfNotBool(isEntityAssetIDPublicStr, "必须指定相关实体资产 ID 公开性。")
 	}
 
@@ -283,7 +283,7 @@ func (c *DocumentController) handleGetDocumentProperties(ctx *gin.Context) {
 	if errors.Cause(err) == errorcode.ErrorNotFound || reflect.TypeOf(err) == reflect.TypeOf(&service.ErrorCorruptedDatabaseResult{}) {
 		// Perform the full process if the document is not available in the database (not found or corrupted)
 		// First try to get additional parameters
-		keySwitchSessionID = ctx.Query("keySwitchSessionID")
+		keySwitchSessionID = ctx.Query("keySwitchSessionId")
 		keySwitchSessionID = pel.AppendIfEmptyOrBlankSpaces(keySwitchSessionID, "该数字文档解密记录不可用，密钥置换会话 ID 不能为空。")
 
 		numSharesExpectedString := ctx.Query("numSharesExpected")
@@ -371,7 +371,7 @@ func (c *DocumentController) handleGetDocument(ctx *gin.Context) {
 		if errors.Cause(err) == errorcode.ErrorNotFound || reflect.TypeOf(err) == reflect.TypeOf(&service.ErrorCorruptedDatabaseResult{}) {
 			// Perform the full process if the document is not available in the database (not found or corrupted)
 			// First try to get additional parameters
-			keySwitchSessionID = ctx.Query("keySwitchSessionID")
+			keySwitchSessionID = ctx.Query("keySwitchSessionId")
 			keySwitchSessionID = pel.AppendIfEmptyOrBlankSpaces(keySwitchSessionID, "该数字文档解密记录不可用，密钥置换会话 ID 不能为空。")
 
 			numSharesExpectedString := ctx.Query("numSharesExpected")
@@ -433,7 +433,7 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 
 	// Optional fields
 	var resourceID *string
-	if temp := strings.TrimSpace(ctx.Query("resourceID")); temp != "" {
+	if temp := strings.TrimSpace(ctx.Query("resourceId")); temp != "" {
 		resourceID = &temp
 	}
 
@@ -479,17 +479,17 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 	}
 
 	var precedingDocumentID *string
-	if temp := strings.TrimSpace(ctx.Query("precedingDocumentID")); temp != "" {
+	if temp := strings.TrimSpace(ctx.Query("precedingDocumentId")); temp != "" {
 		precedingDocumentID = &temp
 	}
 
 	var headDocumentID *string
-	if temp := strings.TrimSpace(ctx.Query("headDocumentID")); temp != "" {
+	if temp := strings.TrimSpace(ctx.Query("headDocumentId")); temp != "" {
 		headDocumentID = &temp
 	}
 
 	var entityAssetID *string
-	if temp := strings.TrimSpace(ctx.Query("entityAssetID")); temp != "" {
+	if temp := strings.TrimSpace(ctx.Query("entityAssetId")); temp != "" {
 		entityAssetID = &temp
 	}
 

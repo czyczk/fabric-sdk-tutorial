@@ -33,7 +33,7 @@ func (c *AuthController) handleCreateAuthRequest(ctx *gin.Context) {
 	// Validity check
 	pel := &ParameterErrorList{}
 
-	resourceID := ctx.PostForm("resourceID")
+	resourceID := ctx.PostForm("resourceId")
 	resourceID = pel.AppendIfEmptyOrBlankSpaces(resourceID, "资源 ID 不能为空。")
 
 	reason := ctx.PostForm("reason")
@@ -64,7 +64,7 @@ func (c *AuthController) handleCreateAuthResponse(ctx *gin.Context) {
 	// Validity check
 	pel := &ParameterErrorList{}
 
-	authSessionID := ctx.PostForm("authSessionID")
+	authSessionID := ctx.PostForm("authSessionId")
 	authSessionID = pel.AppendIfEmptyOrBlankSpaces(authSessionID, "授权会话 ID 不能为空。")
 
 	result := ctx.PostForm("result")
