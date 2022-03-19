@@ -49,13 +49,39 @@ func (o *DataBCAOPolkadotImpl) CreatePlainData(plainData *data.PlainData, eventI
 }
 
 func (o *DataBCAOPolkadotImpl) CreateEncryptedData(encryptedData *data.EncryptedData, eventID ...string) (string, error) {
-	// TODO
-	return "", errorcode.ErrorNotImplemented
+	funcName := "createEncryptedData"
+
+	funcArgs := []interface{}{encryptedData}
+	if len(eventID) != 0 {
+		funcArgs = append(funcArgs, eventID[0])
+	} else {
+		funcArgs = append(funcArgs, nil)
+	}
+
+	result, err := sendTxWithTimer(o.ctx, o.client, funcName, funcArgs, true, "链上存储文档")
+	if err != nil {
+		return "", err
+	}
+
+	return result.TxHash, nil
 }
 
 func (o *DataBCAOPolkadotImpl) CreateOffchainData(offchainData *data.OffchainData, eventID ...string) (string, error) {
-	// TODO
-	return "", errorcode.ErrorNotImplemented
+	funcName := "createOffchainData"
+
+	funcArgs := []interface{}{offchainData}
+	if len(eventID) != 0 {
+		funcArgs = append(funcArgs, eventID[0])
+	} else {
+		funcArgs = append(funcArgs, nil)
+	}
+
+	result, err := sendTxWithTimer(o.ctx, o.client, funcName, funcArgs, true, "链上存储文档元数据与属性")
+	if err != nil {
+		return "", err
+	}
+
+	return result.TxHash, nil
 }
 
 func (o *DataBCAOPolkadotImpl) GetMetadata(resourceID string) (*data.ResMetadataStored, error) {

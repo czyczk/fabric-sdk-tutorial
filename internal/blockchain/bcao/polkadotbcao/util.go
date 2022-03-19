@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"
 	"github.com/pkg/errors"
 )
 
@@ -104,6 +105,13 @@ func sendTx(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcNam
 	} else {
 		return nil, fmt.Errorf("合约执行错误: %v", string(respBodyBytes))
 	}
+}
+
+func sendTxWithTimer(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcName string, funcArgs []interface{}, queryIfNoEvent bool, timerMsg string) (resp *ContractTxSuccessResult, err error) {
+	defer timingutils.GetDeferrableTimingLogger(timerMsg)()
+
+	resp, err = sendTx(ctx, client, funcName, funcArgs, true)
+	return
 }
 
 func sendQuery(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcName string, funcArgs []interface{}, interpretError200AsOk bool) (*ContractQuerySuccessResult, error) {
