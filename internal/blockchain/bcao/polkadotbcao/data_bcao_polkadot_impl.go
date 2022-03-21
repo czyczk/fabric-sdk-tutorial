@@ -8,7 +8,6 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/pkg/errors"
@@ -130,21 +129,98 @@ func (o *DataBCAOPolkadotImpl) GetData(resourceID string) ([]byte, error) {
 }
 
 func (o *DataBCAOPolkadotImpl) GetKey(resourceID string) ([]byte, error) {
-	// TODO
-	return nil, errorcode.ErrorNotImplemented
+	funcName := "getKey"
+	funcArgs := []interface{}{resourceID}
+	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(funcName, err)
+	}
+
+	encryptedKeyAsBase64Bytes, err := unwrapOk(result.Output)
+	if err != nil {
+		return nil, err
+	}
+
+	encryptedKeyAsBase64Bytes = encryptedKeyAsBase64Bytes[1:]
+	encryptedKeyAsBase64Bytes = encryptedKeyAsBase64Bytes[:len(encryptedKeyAsBase64Bytes)-1]
+
+	encryptedKeyBytes, err := base64.StdEncoding.DecodeString(string(encryptedKeyAsBase64Bytes))
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析资源加密后的密钥")
+	}
+
+	return encryptedKeyBytes, nil
 }
 
 func (o *DataBCAOPolkadotImpl) GetPolicy(resourceID string) ([]byte, error) {
-	// TODO
-	return nil, errorcode.ErrorNotImplemented
+	funcName := "getPolicy"
+	funcArgs := []interface{}{resourceID}
+	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(funcName, err)
+	}
+
+	policyAsBase64Bytes, err := unwrapOk(result.Output)
+	if err != nil {
+		return nil, err
+	}
+
+	policyAsBase64Bytes = policyAsBase64Bytes[1:]
+	policyAsBase64Bytes = policyAsBase64Bytes[:len(policyAsBase64Bytes)-1]
+
+	policyBytes, err := base64.StdEncoding.DecodeString(string(policyAsBase64Bytes))
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析策略")
+	}
+
+	return policyBytes, nil
 }
 
 func (o *DataBCAOPolkadotImpl) ListResourceIDsByCreator(dataType string, isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
-	// TODO
-	return nil, errorcode.ErrorNotImplemented
+	funcName := "listResourceIDsByCreator"
+	funcArgs := []interface{}{dataType, isDesc, pageSize, bookmark}
+	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(funcName, err)
+	}
+
+	resourceIDsBytes, err := unwrapOk(result.Output)
+	if err != nil {
+		return nil, err
+	}
+
+	var resourceIDs query.IDsWithPagination
+	err = json.Unmarshal(resourceIDsBytes, &resourceIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析结果列表")
+	}
+
+	return &resourceIDs, nil
 }
 
 func (o *DataBCAOPolkadotImpl) ListResourceIDsByConditions(queryConditions map[string]interface{}, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
-	// TODO
-	return nil, errorcode.ErrorNotImplemented
+	conditionsBytes, err := json.Marshal(queryConditions)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法序列化查询条件")
+	}
+
+	funcName := "listResourceIDsByConditions"
+	funcArgs := []interface{}{conditionsBytes, pageSize, bookmark}
+	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(funcName, err)
+	}
+
+	chaincodeResourceIDsBytes, err := unwrapOk(result.Output)
+	if err != nil {
+		return nil, err
+	}
+
+	var chaincodeResourceIDs query.IDsWithPagination
+	err = json.Unmarshal(chaincodeResourceIDsBytes, &chaincodeResourceIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析结果列表")
+	}
+
+	return &chaincodeResourceIDs, nil
 }
