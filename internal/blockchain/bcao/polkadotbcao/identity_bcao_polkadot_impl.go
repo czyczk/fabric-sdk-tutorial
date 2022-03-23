@@ -1,12 +1,14 @@
 package polkadotbcao
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/identity"
+	"github.com/pkg/errors"
 )
 
 type IdentityBCAOPolkadotImpl struct {
@@ -26,6 +28,23 @@ func NewIdentityBCAOPolkadotImpl(ctx *chaincodectx.PolkadotChaincodeCtx) *Identi
 }
 
 func (o *IdentityBCAOPolkadotImpl) GetDepartmentIdentity() (*identity.DepartmentIdentityStored, error) {
-	// TODO
-	return nil, errorcode.ErrorNotImplemented
+	funcName := "getDepartmentIdentity"
+	funcArgs := []interface{}{}
+	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(funcName, err)
+	}
+
+	deptIdentityBytes, err := unwrapOk(result.Output)
+	if err != nil {
+		return nil, err
+	}
+
+	var deptIdentity identity.DepartmentIdentityStored
+	err = json.Unmarshal(deptIdentityBytes, &deptIdentity)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法解析部门身份信息")
+	}
+
+	return &deptIdentity, nil
 }
