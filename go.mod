@@ -4,19 +4,19 @@ go 1.17
 
 replace github.com/XiaoYao-austin/ppks => ./ppks/
 
-require github.com/stretchr/testify v1.7.0
+require github.com/stretchr/testify v1.7.1
 
 require github.com/hyperledger/fabric-sdk-go v1.0.0
 
 require github.com/sirupsen/logrus v1.8.1
 
-require github.com/gin-gonic/gin v1.7.4
+require github.com/gin-gonic/gin v1.7.7
 
 require gopkg.in/yaml.v2 v2.4.0
 
 require github.com/pkg/errors v0.9.1
 
-require github.com/urfave/cli/v2 v2.3.0
+require github.com/urfave/cli/v2 v2.4.0
 
 require github.com/bwmarrin/snowflake v0.3.0
 
@@ -24,20 +24,20 @@ require github.com/tjfoc/gmsm v1.4.1
 
 require github.com/XiaoYao-austin/ppks v1.0.0
 
-require gorm.io/gorm v1.21.16
+require gorm.io/gorm v1.23.3
 
-require gorm.io/driver/mysql v1.1.2
+require gorm.io/driver/mysql v1.3.2
 
-require github.com/ipfs/go-ipfs-api v0.2.0
+require github.com/ipfs/go-ipfs-api v0.3.0
 
-require github.com/mitchellh/mapstructure v1.4.2
+require github.com/mitchellh/mapstructure v1.4.3
 
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/cloudflare/cfssl v1.4.1 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
@@ -57,9 +57,9 @@ require (
 	github.com/hyperledger/fabric-lib-go v1.0.0 // indirect
 	github.com/hyperledger/fabric-protos-go v0.0.0-20200707132912-fee30f3ccd23 // indirect
 	github.com/ipfs/go-cid v0.0.7 // indirect
-	github.com/ipfs/go-ipfs-files v0.0.8 // indirect
+	github.com/ipfs/go-ipfs-files v0.0.9 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
-	github.com/jinzhu/now v1.1.2 // indirect
+	github.com/jinzhu/now v1.1.4 // indirect
 	github.com/json-iterator/go v1.1.9 // indirect
 	github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
@@ -79,7 +79,6 @@ require (
 	github.com/multiformats/go-base32 v0.0.3 // indirect
 	github.com/multiformats/go-base36 v0.1.0 // indirect
 	github.com/multiformats/go-multiaddr v0.3.0 // indirect
-	github.com/multiformats/go-multiaddr-net v0.2.0 // indirect
 	github.com/multiformats/go-multibase v0.0.3 // indirect
 	github.com/multiformats/go-multihash v0.0.14 // indirect
 	github.com/multiformats/go-varint v0.0.6 // indirect
@@ -89,8 +88,7 @@ require (
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
 	github.com/prometheus/common v0.6.0 // indirect
 	github.com/prometheus/procfs v0.0.3 // indirect
-	github.com/russross/blackfriday/v2 v2.0.1 // indirect
-	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/afero v1.3.1 // indirect
