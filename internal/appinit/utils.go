@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain"
-	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/polkadotnetwork"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/networkinfo"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	errors "github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
 )
 
 func ParseBlockchainType(blockchainTypeStr string) error {
@@ -46,63 +46,80 @@ func SetupSDK(configFilePath string) error {
 	return nil
 }
 
-// LoadPolkadotNetworkConfig creates a `polkadotnetwork.PolkadotNetworkConfig` object from the specified config file. The config object will be available as `global.PolkadotNetworkConfig`.
-//
-// Parameters:
-//   the path to the config file
-func LoadPolkadotNetworkConfig(configFilePath string) error {
-	yamlStr, err := ioutil.ReadFile(configFilePath)
-	if err != nil {
-		return errors.Wrap(err, "读取 Polkadot 网络配置文件失败")
-	}
-
-	var config *polkadotnetwork.PolkadotNetworkConfig
-	err = yaml.Unmarshal(yamlStr, &config)
-	if err != nil {
-		return errors.Wrap(err, "解析 YAML 文件时出现错误")
-	}
-
-	global.PolkadotNetworkConfig = config
-	return nil
-}
-
 // InitApp instantiates clients, configure channels and chaincodes according to the init info
-func InitApp(initInfo *InitInfo) error {
-	// Make sure the SDK instance is instantiated
-	sdk := global.FabricSDKInstance
-	if sdk == nil {
-		return fmt.Errorf("Fabric SDK 未实例化")
-	}
+func InitApp(initInfo InitInfo) error {
+	if global.BlockchainType == blockchain.Fabric {
+		var initInfo = initInfo.(*FabricInitInfo)
 
-	// Res mgmt clients and MSP clients
-	if err := instantiateResMgmtClientsAndMSPClients(initInfo.Users); err != nil {
-		return err
-	}
+		// Make sure the SDK instance is instantiated
+		sdk := global.FabricSDKInstance
+		if sdk == nil {
+			return fmt.Errorf("无法初始化应用: Fabric SDK 未实例化")
+		}
 
-	// Configure channels if the channels section is specified
-	if initInfo.Channels != nil {
-		if err := configureChannels(initInfo.Channels); err != nil {
+		// Res mgmt clients and MSP clients
+		if err := instantiateResMgmtClientsAndMSPClients(initInfo.Users); err != nil {
 			return err
 		}
-	}
 
-	// Channel & ledger clients
-	channelIDs := make([]string, 0, len(initInfo.Channels))
-	for channelID := range initInfo.Channels {
-		channelIDs = append(channelIDs, channelID)
-	}
-	if err := instantiateChannelClients(sdk, initInfo.Users, channelIDs); err != nil {
-		return err
-	}
-	if err := instantiateLedgerClients(sdk, initInfo.Users, channelIDs); err != nil {
-		return err
+		// Configure channels if the channels section is specified
+		if initInfo.Channels != nil {
+			if err := configureChannels(initInfo.Channels); err != nil {
+				return err
+			}
+		}
+
+		// Channel & ledger clients
+		channelIDs := make([]string, 0, len(initInfo.Channels))
+		for channelID := range initInfo.Channels {
+			channelIDs = append(channelIDs, channelID)
+		}
+		if err := instantiateChannelClients(sdk, initInfo.Users, channelIDs); err != nil {
+			return err
+		}
+		if err := instantiateLedgerClients(sdk, initInfo.Users, channelIDs); err != nil {
+			return err
+		}
+	} else if global.BlockchainType == blockchain.Polkadot {
+		// Register the logged-in user in the HTTP API
+		if err := RegisterPolkadotUsers(global.PolkadotNetworkConfig.Organizations, global.PolkadotNetworkConfig.APIPrefix); err != nil {
+			return err
+		}
 	}
 
 	// Configure chaincodes if the chaincodes section is specified
-	if initInfo.Chaincodes != nil {
-		if err := configureChaincodes(initInfo.Chaincodes); err != nil {
-			return err
+	if global.BlockchainType == blockchain.Fabric {
+		var initInfo = initInfo.(*FabricInitInfo)
+
+		if initInfo.Chaincodes != nil {
+			// The target function receives an argument of type `map[string]ChaincodeInfo`
+			// Thus a manual type conversion is needed
+			chaincodes := make(map[string]ChaincodeInfo)
+			for k, v := range initInfo.Chaincodes {
+				chaincodes[k] = v
+			}
+
+			if err := configureChaincodes(chaincodes); err != nil {
+				return err
+			}
 		}
+	} else if global.BlockchainType == blockchain.Polkadot {
+		var initInfo = initInfo.(*PolkadotInitInfo)
+
+		if initInfo.Chaincodes != nil {
+			// The target function receives an argument of type `map[string]ChaincodeInfo`
+			// Thus a manual type conversion is needed
+			chaincodes := make(map[string]ChaincodeInfo)
+			for k, v := range initInfo.Chaincodes {
+				chaincodes[k] = v
+			}
+
+			if err := configureChaincodes(chaincodes); err != nil {
+				return err
+			}
+		}
+	} else {
+		return fmt.Errorf("无法初始化应用: 未实现的区块链类型")
 	}
 
 	return nil
@@ -160,21 +177,39 @@ func configureChannels(channels map[string]*ChannelInfo) error {
 }
 
 // This function installs and instantiates chaincodes according to the init info.
-func configureChaincodes(chaincodes map[string]*ChaincodeInfo) error {
+func configureChaincodes(chaincodes map[string]ChaincodeInfo) error {
 	// Install and instantiate each chaincode in the list
 	for ccID, chaincodeInfo := range chaincodes {
-		// Perform installations for the chaincode
-		for orgName, operatingIdentity := range chaincodeInfo.Installations {
-			if err := InstallCC(ccID, chaincodeInfo.Version, chaincodeInfo.Path, chaincodeInfo.GoPath, orgName, operatingIdentity); err != nil {
-				return err
-			}
-		}
+		if global.BlockchainType == blockchain.Fabric {
+			var chaincodeInfo = chaincodeInfo.(*FabricChaincodeInfo)
 
-		// Perform instantiations for the chaincode
-		for channelID, instantiationInfo := range chaincodeInfo.Instantiations {
-			if err := InstantiateCC(ccID, chaincodeInfo.Path, chaincodeInfo.Version, channelID, instantiationInfo); err != nil {
-				return err
+			// Perform installations for the chaincode
+			for orgName, operatingIdentity := range chaincodeInfo.Installations {
+				// For each organization ($orgName), install the chaincode using the operating identity ($operatingIdentity)
+				if err := InstallCC(ccID, chaincodeInfo.Version, chaincodeInfo.Path, chaincodeInfo.GoPath, orgName, operatingIdentity); err != nil {
+					return err
+				}
 			}
+
+			// Perform instantiations for the chaincode
+			for channelID, instantiationInfo := range chaincodeInfo.Instantiations {
+				if err := InstantiateCC(ccID, chaincodeInfo.Path, chaincodeInfo.Version, channelID, instantiationInfo); err != nil {
+					return err
+				}
+			}
+		} else if global.BlockchainType == blockchain.Polkadot {
+			var chaincodeInfo = chaincodeInfo.(*PolkadotChaincodeInfo)
+
+			// Perform installations for the chaincode
+			for orgName, operatingIdentity := range chaincodeInfo.Installations {
+				// For each organization ($orgName), install the chaincode using the operating identity ($operatingIdentity)
+				// TODO: remove the following lines before implementing
+				fmt.Print(orgName, operatingIdentity)
+				return errorcode.ErrorNotImplemented
+			}
+
+			// Perform instantiation for the chaincode
+			// TODO
 		}
 	}
 
@@ -228,7 +263,7 @@ func instantiateLedgerClients(sdk *fabsdk.FabricSDK, userInfo map[string]*OrgInf
 }
 
 // RegisterPolkadotUsers registers the polkadot users in the Polkadot network config in the HTTP API.
-func RegisterPolkadotUsers(orgMap map[string]polkadotnetwork.Organization, apiPrefix string) error {
+func RegisterPolkadotUsers(orgMap map[string]networkinfo.PolkadotOrganization, apiPrefix string) error {
 	client := &http.Client{
 		Timeout: 15 * time.Second,
 	}

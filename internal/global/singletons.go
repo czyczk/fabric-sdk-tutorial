@@ -3,7 +3,7 @@ package global
 import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
-	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/polkadotnetwork"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/networkinfo"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/event"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
@@ -33,6 +33,7 @@ var MSPClientInstances map[string]map[string]*msp.Client                    // A
 var ChannelClientInstances map[string]map[string]map[string]*channel.Client // A lookup takes `channelID` followed by `orgName` and `username`.
 var EventClientInstances map[string]map[string]map[string]*event.Client     // A lookup takes `channelID` followed by `orgName` and `username`.
 var LedgerClientInstances map[string]map[string]map[string]*ledger.Client   // A lookup takes `channelID` followed by `orgName` and `username`.
+var FabricNetworkConfig *networkinfo.FabricNetworkConfig                    // Contains info about the Fabric network
 
 // The instances below are for Polkadot only
-var PolkadotNetworkConfig *polkadotnetwork.PolkadotNetworkConfig
+var PolkadotNetworkConfig *networkinfo.PolkadotNetworkConfig // Contains info about the Polkadot network

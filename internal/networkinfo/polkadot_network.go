@@ -1,4 +1,4 @@
-package polkadotnetwork
+package networkinfo
 
 import (
 	"bytes"
@@ -7,24 +7,25 @@ import (
 	"io/ioutil"
 
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 )
 
 type PolkadotNetworkConfig struct {
-	Organizations map[string]Organization `yaml:"organizations"`
-	APIPrefix     string                  `yaml:"apiPrefix"`
-	Chaincodes    map[string]chaincode    `yaml:"chaincodes"`
+	Organizations map[string]PolkadotOrganization `yaml:"organizations"`
+	APIPrefix     string                          `yaml:"apiPrefix"`
+	Chaincodes    map[string]polkaodtChaincode    `yaml:"chaincodes"`
 }
 
-type Organization struct {
-	Users map[string]User `yaml:"users"`
+type PolkadotOrganization struct {
+	Users map[string]PolkadotUser `yaml:"users"`
 }
 
-type User struct {
+type PolkadotUser struct {
 	Phrase  string `yaml:"phrase"`
 	Address string `yaml:"address"`
 }
 
-type chaincode struct {
+type polkaodtChaincode struct {
 	Address string `yaml:"address"`
 	ABIPath string `yaml:"abiPath"`
 }
@@ -65,4 +66,26 @@ func (c *PolkadotNetworkConfig) GetChaincodeABI(chaincodeID string) (string, err
 	}
 
 	return compactAbiBytes.String(), nil
+}
+
+// ParsePolkadotNetworkConfig creates a `PolkadotNetworkConfig` object from the specified config file.
+//
+// Parameters:
+//   the path to the config file
+//
+// Returns:
+//   an object containing the network config info
+func ParsePolkadotNetworkConfig(configFilePath string) (*PolkadotNetworkConfig, error) {
+	yamlStr, err := ioutil.ReadFile(configFilePath)
+	if err != nil {
+		return nil, errors.Wrap(err, "读取 Polkadot 网络配置文件失败")
+	}
+
+	var config *PolkadotNetworkConfig
+	err = yaml.Unmarshal(yamlStr, &config)
+	if err != nil {
+		return nil, errors.Wrap(err, "解析 YAML 文件时出现错误")
+	}
+
+	return config, nil
 }

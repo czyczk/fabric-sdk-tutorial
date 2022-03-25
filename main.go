@@ -114,35 +114,57 @@ func main() {
 func getInitFunc(blockchainTypeStr *string, configPath *string, blockchainConfigPath *string) func(c *cli.Context) error {
 	// The func for subcommand "init"
 	initFunc := func(c *cli.Context) error {
-		// Create a Fabric SDK instance
-		err := appinit.SetupSDK(*blockchainConfigPath)
-		if err != nil {
+		// Parse blockchain type
+		if blockchainTypeStr == nil {
+			return fmt.Errorf("未指定区块链类型")
+		}
+
+		if err := appinit.ParseBlockchainType(*blockchainTypeStr); err != nil {
 			return err
 		}
 
-		defer global.FabricSDKInstance.Close()
+		if global.BlockchainType == blockchain.Fabric {
+			// Create a Fabric SDK instance only if the blockchain type is Fabric
+			err := appinit.SetupSDK(*blockchainConfigPath)
+			if err != nil {
+				return err
+			}
 
-		// Load init info from `init.yaml`
+			defer global.FabricSDKInstance.Close()
+
+			// Fetch the network config info
+			sdkConfig, err := global.FabricSDKInstance.Config()
+			if err != nil {
+				return err
+			}
+			networkConfig, err := networkinfo.ParseFabricNetworkConfig(sdkConfig)
+			if err != nil {
+				return err
+			}
+
+			global.FabricNetworkConfig = &networkConfig
+		} else if global.BlockchainType == blockchain.Polkadot {
+			// Load a Polkadot network config
+			networkConfig, err := networkinfo.ParsePolkadotNetworkConfig(*blockchainConfigPath)
+			if err != nil {
+				return err
+			}
+
+			global.PolkadotNetworkConfig = networkConfig
+		} else {
+			return fmt.Errorf("未实现的区块链类型")
+		}
+
+		// Load init info from the init config file
 		initInfo, err := appinit.LoadInitInfo(*configPath)
 		if err != nil {
 			return err
 		}
 
 		// Init the app
-		if err := appinit.InitApp(&initInfo); err != nil {
+		if err := appinit.InitApp(initInfo); err != nil {
 			return err
 		}
-
-		// Fetch the network config info
-		sdkConfig, err := global.FabricSDKInstance.Config()
-		if err != nil {
-			return err
-		}
-		networkConfig, err := networkinfo.ParseConfig(sdkConfig)
-		if err != nil {
-			return err
-		}
-		fmt.Println(networkConfig)
 
 		return nil
 	}
@@ -173,10 +195,14 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 			defer global.FabricSDKInstance.Close()
 		} else if global.BlockchainType == blockchain.Polkadot {
 			// Load a Polkadot network config
-			err := appinit.LoadPolkadotNetworkConfig(*blockchainConfigPath)
+			networkConfig, err := networkinfo.ParsePolkadotNetworkConfig(*blockchainConfigPath)
 			if err != nil {
 				return err
 			}
+
+			global.PolkadotNetworkConfig = networkConfig
+		} else {
+			return fmt.Errorf("未实现的区块链类型")
 		}
 
 		// Load server info from `server.yaml`

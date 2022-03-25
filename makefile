@@ -35,6 +35,9 @@ run-init:
 	@cd chaincode/src/universal_cc && go mod vendor
 	@./fabric-sdk-tutorial init
 
+run-polkadot-init:
+	@./fabric-sdk-tutorial init -t "polkadot" -b "polkadot-config-network.yaml" -c "init-polkadot.yaml"
+
 run-serve:
 	@./fabric-sdk-tutorial serve
 
