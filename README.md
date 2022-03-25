@@ -365,3 +365,14 @@ keySwitchKeys:
 |Admin@org1.lab805.com|✖|✔|
 |User1@org2.lab805.com|✔|✖|
 
+## FAQ
+
+- 运行 `run-init` 时发生关于无法构建/编译链码的错误。
+
+出现像这样的错误  
+```
+failed to generate platform-specific docker build
+```
+
+或其他更明显的信息意味着链码与 Docker 镜像中的 Go 编译器存在不兼容问题。这通常是因为 `vendor` 文件夹中陈旧的内容所致。  
+如果发生这种错误，尝试删除所有链码文件夹中的 `vendor` 文件夹。运行 `make clean` 后再从头来一次。
