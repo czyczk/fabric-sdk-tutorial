@@ -41,13 +41,15 @@ func (m *FabricEventManager) RegisterEvent(eventID string) (eventmgr.IEventRegis
 	quitChan := make(chan struct{})
 	// Background task: wrap received Fabric events to `eventmgr.IEvent` objects.
 	go func() {
-		select {
-		case event := <-rawNotifier:
-			fabricEvent := (*FabricEvent)(event)
-			notifier <- fabricEvent
-		case <-quitChan:
-			close(notifier)
-			return
+		for {
+			select {
+			case event := <-rawNotifier:
+				fabricEvent := (*FabricEvent)(event)
+				notifier <- fabricEvent
+			case <-quitChan:
+				close(notifier)
+				return
+			}
 		}
 	}()
 

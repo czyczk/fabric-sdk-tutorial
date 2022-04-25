@@ -23,6 +23,4 @@ type IEventRegistration interface {
 type IEvent interface {
 	GetEventName() string
 	GetPayload() []byte
-	GetBlockNumber() uint64
-	GetTxID() string
 }
