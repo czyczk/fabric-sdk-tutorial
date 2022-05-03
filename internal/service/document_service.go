@@ -117,8 +117,6 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 		return "", errors.Wrap(err, "无法序列化文档属性")
 	}
 
-	document = nil
-
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
 	encryptedDocumentBytes, err := encryptDataWithTimer(documentBytes, key, "无法加密文档", "加密文档")
@@ -151,8 +149,6 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 	hashBase64 := base64.StdEncoding.EncodeToString(hash[:])
 	size := len(documentBytes)
 	extensions := deriveExtensionsMapFromDocumentProperties(&document.DocumentProperties, encryptedDocumentPropertiesBytes)
-
-	documentBytes = nil
 
 	metadata := data.ResMetadata{
 		ResourceType: data.Encrypted,
