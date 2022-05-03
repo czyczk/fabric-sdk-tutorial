@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
 	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/appinit"
@@ -420,7 +419,7 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		}
 
 		// Prepare a key switch server. It will be of use if the app is enabled as a key switch server.
-		ksServer := background.NewKeySwitchServer(universalCcServiceInfo, universalCcEventManager, dataBCAO, keySwitchSvc, runtime.NumCPU())
+		ksServer := background.NewKeySwitchServer(universalCcServiceInfo, universalCcEventManager, dataBCAO, keySwitchSvc)
 		if isKeySwitchServer {
 			// Start the server to listen key switch triggers
 			err := ksServer.Start()
