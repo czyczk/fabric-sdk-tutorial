@@ -25,8 +25,8 @@ func NewFabricEventManager(ctx *chaincodectx.FabricChaincodeCtx) *FabricEventMan
 }
 
 func (m *FabricEventManager) RegisterEvent(eventID string) (eventmgr.IEventRegistration, <-chan eventmgr.IEvent, error) {
-	// Use Fabric's native channel client to register a chaincode event. The chaincode is specified in the context.
-	rawReg, rawNotifier, err := m.ctx.ChannelClient.RegisterChaincodeEvent(m.ctx.ChaincodeID, eventID)
+	// Use Fabric's native event client to register a chaincode event. The chaincode is specified in the context.
+	rawReg, rawNotifier, err := m.ctx.EventClient.RegisterChaincodeEvent(m.ctx.ChaincodeID, eventID)
 	if err != nil {
 		return nil, nil, err
 	}
