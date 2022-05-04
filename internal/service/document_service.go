@@ -29,14 +29,15 @@ import (
 
 // DocumentService 用于管理数字文档。
 type DocumentService struct {
-	ServiceInfo                  *Info
-	DataBCAO                     bcao.IDataBCAO
-	KeySwitchBCAO                bcao.IKeySwitchBCAO
-	KeySwitchService             KeySwitchServiceInterface
-	FileLoggerPreProcess         *timingutils.StartEndFileLogger
-	FileLoggerOffchainBcUpload   *timingutils.StartEndFileLogger
-	FileLoggerOffchainIpfsUpload *timingutils.StartEndFileLogger
-	ChanLoggerErr                chan<- error
+	ServiceInfo                   *Info
+	DataBCAO                      bcao.IDataBCAO
+	KeySwitchBCAO                 bcao.IKeySwitchBCAO
+	KeySwitchService              KeySwitchServiceInterface
+	FileLoggerPreProcess          *timingutils.StartEndFileLogger
+	FileLoggerOffchainBcUpload    *timingutils.StartEndFileLogger
+	FileLoggerOffchainIpfsUpload  *timingutils.StartEndFileLogger
+	FileLoggerOffchainBcRetrieval *timingutils.StartEndFileLogger
+	ChanLoggerErr                 chan<- error
 }
 
 // 用于放置在元数据的 extensions.dataType 中的值
@@ -236,14 +237,23 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		taskID = sfNode.Generate().Base64()
 	}
 
+	// FILELOGGER: 从链上获取链下文档用时
+	{
+		timeBeforeBcRetrieval := time.Now()
+		s.FileLoggerOffchainBcRetrieval.LogStartWithTimestampAsync(taskID, timeBeforeBcRetrieval, s.ChanLoggerErr)
+	}
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
+	timeAfterBcRetrieval := time.Now()
 	if err != nil {
+		s.FileLoggerOffchainBcRetrieval.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法序列化文档属性")
 	}
 	documentBytes, err := json.Marshal(document)
 	if err != nil {
+		s.FileLoggerOffchainBcRetrieval.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
+	s.FileLoggerOffchainBcRetrieval.LogSuccessWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
 
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block

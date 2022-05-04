@@ -435,15 +435,22 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		}
 		defer fileLoggerDocumentServiceOffchainIpfsUpload.Close()
 
+		fileLoggerDocumentServiceOffchainBcRetrieval, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-bcretrieval.out", "logs/ta-ds-bcretrieval.out")
+		if err != nil {
+			return errors.Wrap(err, "无法为属性获取任务创建文件日志器")
+		}
+		defer fileLoggerDocumentServiceOffchainBcRetrieval.Close()
+
 		documentSvc := &service.DocumentService{
-			ServiceInfo:                  universalCcServiceInfo,
-			DataBCAO:                     dataBCAO,
-			KeySwitchBCAO:                keySwitchBCAO,
-			KeySwitchService:             keySwitchSvc,
-			FileLoggerPreProcess:         fileLoggerDocumentServicePreProcess,
-			FileLoggerOffchainBcUpload:   fileLoggerDocumentServiceOffchainBcUpload,
-			FileLoggerOffchainIpfsUpload: fileLoggerDocumentServiceOffchainIpfsUpload,
-			ChanLoggerErr:                chanLoggerErr,
+			ServiceInfo:                   universalCcServiceInfo,
+			DataBCAO:                      dataBCAO,
+			KeySwitchBCAO:                 keySwitchBCAO,
+			KeySwitchService:              keySwitchSvc,
+			FileLoggerPreProcess:          fileLoggerDocumentServicePreProcess,
+			FileLoggerOffchainBcUpload:    fileLoggerDocumentServiceOffchainBcUpload,
+			FileLoggerOffchainIpfsUpload:  fileLoggerDocumentServiceOffchainIpfsUpload,
+			FileLoggerOffchainBcRetrieval: fileLoggerDocumentServiceOffchainBcRetrieval,
+			ChanLoggerErr:                 chanLoggerErr,
 		}
 
 		// Instantiate an entity asset service
