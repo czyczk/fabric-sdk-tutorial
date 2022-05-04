@@ -12,8 +12,10 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
+	"github.com/bwmarrin/snowflake"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -80,12 +82,58 @@ func (s *KeySwitchServer) Start() error {
 func (s *KeySwitchServer) createKeySwitchServerWorker(chanKeySwitchSessionIDNotifier <-chan eventmgr.IEvent, wg *sync.WaitGroup) {
 	log.Debug("密钥置换工作单元已创建。")
 
+	// Generate an ID for logger
+	var loggerID string
+	{
+		sfNode, err := snowflake.NewNode(1)
+		if err != nil {
+			log.Errorln(errors.Wrapf(err, "无法为日志器生成 ID"))
+			return
+		}
+
+		loggerID = sfNode.Generate().Base64()
+	}
+
+	// Create file loggers
+	chanLoggerErr := make(chan error)
+	go func() {
+		for {
+			err := <-chanLoggerErr
+			if err != nil {
+				log.Errorln(errors.Wrapf(err, "日志器 %v 在写入日志时出现错误", loggerID))
+			}
+		}
+	}()
+	defer close(chanLoggerErr)
+
+	fileLoggerShare, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-share.out", "time-after-share.out")
+	if err != nil {
+		log.Errorln(errors.Wrap(err, "无法为份额任务创建文件日志器"))
+		return
+	}
+	// The logger contains opened file descriptors that should be closed before the function exits
+	defer fileLoggerShare.Close()
+
+	fileLoggerProof, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-proof.out", "time-after-proof.out")
+	if err != nil {
+		log.Errorln(errors.Wrap(err, "无法为 ZKP 任务创建文件日志器"))
+		return
+	}
+	defer fileLoggerProof.Close()
+
+	fileLoggerUpload, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-upload.out", "time-after-upload.out")
+	if err != nil {
+		log.Errorln(errors.Wrap(err, "无法为上链任务创建文件日志器"))
+		return
+	}
+	defer fileLoggerUpload.Close()
+
 workerLoop:
 	for {
 		select {
 		case event := <-chanKeySwitchSessionIDNotifier:
 			s.wg.Add(1)
-			go processEvent(event, s)
+			go processEvent(event, s, fileLoggerShare, fileLoggerProof, fileLoggerUpload, chanLoggerErr)
 		case <-s.chanQuit:
 			// Break the for loop when receiving a quit signal
 			log.Debug("密钥置换工作单元收到退出信号。")
@@ -97,8 +145,20 @@ workerLoop:
 }
 
 // Process an event
-func processEvent(event eventmgr.IEvent, s *KeySwitchServer) {
+func processEvent(event eventmgr.IEvent, s *KeySwitchServer, fileLoggerShare, fileLoggerProof, fileLoggerUpload *timingutils.StartEndFileLogger, chanLoggerErr chan<- error) {
 	defer s.wg.Done()
+
+	// Generate an ID for this task
+	var taskID string
+	{
+		sfNode, err := snowflake.NewNode(1)
+		if err != nil {
+			log.Errorln(errors.Wrapf(err, "无法为事件处理任务生成 ID"))
+			return
+		}
+
+		taskID = sfNode.Generate().Base64()
+	}
 
 	// On receiving a key switch session ID, calculate the share and invoke the service function to save the result onto the chain
 	// First parse the event payload
@@ -144,36 +204,45 @@ func processEvent(event eventmgr.IEvent, s *KeySwitchServer) {
 
 	// Do share calculation
 	timeBeforeShareCalc := time.Now()
+	fileLoggerShare.LogStartWithTimestamp(taskID, timeBeforeShareCalc)
 	share, zkpRi, err := ppks.ShareCal(targetPubKey, &curvePoints.K, global.KeySwitchKeys.PrivateKey) // `zkpRi` for calculating zkp
+	timeAfterShareCalc := time.Now()
 	if err != nil {
+		fileLoggerShare.LogFailureWithTimestampAsync(taskID, timeAfterShareCalc, chanLoggerErr)
 		log.Errorln(errors.Wrapf(err, "密钥置换工作单元无法获取用户的密钥置换密钥。会话 ID: %v", keySwitchTriggerStored.KeySwitchSessionID))
 		return
 	}
-	timeAfterShareCalc := time.Now()
 	timeDiffShareCalc := timeAfterShareCalc.Sub(timeBeforeShareCalc)
+	fileLoggerShare.LogSuccessWithTimestampAsync(taskID, timeAfterShareCalc, chanLoggerErr)
 	log.Debugf("密钥置换工作单元完成份额计算，耗时 %v。会话 ID: %v。", timeDiffShareCalc, keySwitchTriggerStored.KeySwitchSessionID)
 
 	// Generate a ZKP for the share
 	timeBeforeProofGen := time.Now()
+	fileLoggerProof.LogStartWithTimestampAsync(taskID, timeBeforeProofGen, chanLoggerErr)
 	proof := &cipherutils.ZKProof{}
 	proof.C, proof.R1, proof.R2, err = ppks.ShareProofGenNoB(zkpRi, global.KeySwitchKeys.PrivateKey, share, targetPubKey, &curvePoints.K)
 	timeAfterProofGen := time.Now()
 	if err != nil {
+		fileLoggerProof.LogFailureWithTimestampAsync(taskID, timeAfterProofGen, chanLoggerErr)
 		log.Errorln(errors.Wrapf(err, "密钥置换工作单元无法为份额生成零知识证明。会话 ID: %v", keySwitchTriggerStored.KeySwitchSessionID))
 		return
 	}
 	timeDiffProofGen := timeAfterProofGen.Sub(timeBeforeProofGen)
+	fileLoggerProof.LogSuccessWithTimestampAsync(taskID, timeAfterProofGen, chanLoggerErr)
 	log.Debugf("密钥置换工作单元完成为份额生成零知识证明，耗时 %v。会话 ID: %v", timeDiffProofGen, keySwitchTriggerStored.KeySwitchSessionID)
 
 	// Invoke the service function to save the result onto the chain
 	timeBeforeUploading := time.Now()
+	fileLoggerUpload.LogStartWithTimestampAsync(taskID, timeBeforeUploading, chanLoggerErr)
 	txID, err := s.KeySwitchService.CreateKeySwitchResult(keySwitchTriggerStored.KeySwitchSessionID, share, proof)
+	timeAfterUploading := time.Now()
 	if err != nil {
+		fileLoggerUpload.LogFailureWithTimestampAsync(taskID, timeAfterUploading, chanLoggerErr)
 		log.Errorln(errors.Wrapf(err, "密钥置换工作单元无法将份额结果上链。会话 ID: %v", keySwitchTriggerStored.KeySwitchSessionID))
 		return
 	}
-	timeAfterUploading := time.Now()
 	timeDiffUploading := timeAfterUploading.Sub(timeBeforeUploading)
+	fileLoggerUpload.LogSuccessWithTimestampAsync(taskID, timeAfterUploading, chanLoggerErr)
 	log.Debugf("密钥置换工作单元完成份额结果上链，耗时 %v。会话 ID: %v。交易 ID: %v。", timeDiffUploading, keySwitchTriggerStored.KeySwitchSessionID, txID)
 }
 
