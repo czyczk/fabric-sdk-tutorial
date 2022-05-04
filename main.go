@@ -429,14 +429,21 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		}
 		defer fileLoggerDocumentServiceOffchainBcUpload.Close()
 
+		fileLoggerDocumentServiceOffchainIpfsUpload, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-ipfsupload.out", "logs/ta-ds-ipfsupload.out")
+		if err != nil {
+			return errors.Wrap(err, "无法为 IPFS 上传任务创建文件日志器")
+		}
+		defer fileLoggerDocumentServiceOffchainIpfsUpload.Close()
+
 		documentSvc := &service.DocumentService{
-			ServiceInfo:                universalCcServiceInfo,
-			DataBCAO:                   dataBCAO,
-			KeySwitchBCAO:              keySwitchBCAO,
-			KeySwitchService:           keySwitchSvc,
-			FileLoggerPreProcess:       fileLoggerDocumentServicePreProcess,
-			FileLoggerOffchainBcUpload: fileLoggerDocumentServiceOffchainBcUpload,
-			ChanLoggerErr:              chanLoggerErr,
+			ServiceInfo:                  universalCcServiceInfo,
+			DataBCAO:                     dataBCAO,
+			KeySwitchBCAO:                keySwitchBCAO,
+			KeySwitchService:             keySwitchSvc,
+			FileLoggerPreProcess:         fileLoggerDocumentServicePreProcess,
+			FileLoggerOffchainBcUpload:   fileLoggerDocumentServiceOffchainBcUpload,
+			FileLoggerOffchainIpfsUpload: fileLoggerDocumentServiceOffchainIpfsUpload,
+			ChanLoggerErr:                chanLoggerErr,
 		}
 
 		// Instantiate an entity asset service

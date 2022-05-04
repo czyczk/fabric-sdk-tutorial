@@ -29,13 +29,14 @@ import (
 
 // DocumentService 用于管理数字文档。
 type DocumentService struct {
-	ServiceInfo                *Info
-	DataBCAO                   bcao.IDataBCAO
-	KeySwitchBCAO              bcao.IKeySwitchBCAO
-	KeySwitchService           KeySwitchServiceInterface
-	FileLoggerPreProcess       *timingutils.StartEndFileLogger
-	FileLoggerOffchainBcUpload *timingutils.StartEndFileLogger
-	ChanLoggerErr              chan<- error
+	ServiceInfo                  *Info
+	DataBCAO                     bcao.IDataBCAO
+	KeySwitchBCAO                bcao.IKeySwitchBCAO
+	KeySwitchService             KeySwitchServiceInterface
+	FileLoggerPreProcess         *timingutils.StartEndFileLogger
+	FileLoggerOffchainBcUpload   *timingutils.StartEndFileLogger
+	FileLoggerOffchainIpfsUpload *timingutils.StartEndFileLogger
+	ChanLoggerErr                chan<- error
 }
 
 // 用于放置在元数据的 extensions.dataType 中的值
@@ -293,11 +294,20 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		Extensions:   extensions,
 	}
 
+	// FILELOGGER: 链下文档 IPFS 上传用时
+	{
+		timeBeforeIpfsUpload := time.Now()
+		s.FileLoggerOffchainIpfsUpload.LogStartWithTimestampAsync(taskID, timeBeforeIpfsUpload, s.ChanLoggerErr)
+	}
+
 	// 将加密后的文档上传至 IPFS 网络
 	cid, err := uploadBytesToIPFSWithTimer(s.ServiceInfo.IPFSSh, encryptedDocumentBytes, "无法将加密后的文档上传至 IPFS 网络", "上传至 IPFS 网络")
+	timeAfterIpfsUpload := time.Now()
 	if err != nil {
+		s.FileLoggerOffchainIpfsUpload.LogFailureWithTimestampAsync(taskID, timeAfterIpfsUpload, s.ChanLoggerErr)
 		return "", err
 	}
+	s.FileLoggerOffchainIpfsUpload.LogSuccessWithTimestampAsync(taskID, timeAfterIpfsUpload, s.ChanLoggerErr)
 
 	encryptedDocumentBytes = nil
 	runtime.GC()
@@ -316,10 +326,11 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		s.FileLoggerOffchainBcUpload.LogStartWithTimestampAsync(taskID, timeBeforeBcUpload, s.ChanLoggerErr)
 	}
 	txID, err := s.DataBCAO.CreateOffchainData(&offchainData, encryptedResourceCreationEventName)
-	{
-		timeAfterBcUpload := time.Now()
+	timeAfterBcUpload := time.Now()
+	if err != nil {
 		s.FileLoggerOffchainBcUpload.LogFailureWithTimestampAsync(taskID, timeAfterBcUpload, s.ChanLoggerErr)
 	}
+	s.FileLoggerOffchainBcUpload.LogSuccessWithTimestampAsync(taskID, timeAfterBcUpload, s.ChanLoggerErr)
 	return txID, err
 }
 
