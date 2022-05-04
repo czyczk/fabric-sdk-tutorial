@@ -29,15 +29,16 @@ import (
 
 // DocumentService 用于管理数字文档。
 type DocumentService struct {
-	ServiceInfo                   *Info
-	DataBCAO                      bcao.IDataBCAO
-	KeySwitchBCAO                 bcao.IKeySwitchBCAO
-	KeySwitchService              KeySwitchServiceInterface
-	FileLoggerPreProcess          *timingutils.StartEndFileLogger
-	FileLoggerOffchainBcUpload    *timingutils.StartEndFileLogger
-	FileLoggerOffchainIpfsUpload  *timingutils.StartEndFileLogger
-	FileLoggerOffchainBcRetrieval *timingutils.StartEndFileLogger
-	ChanLoggerErr                 chan<- error
+	ServiceInfo                     *Info
+	DataBCAO                        bcao.IDataBCAO
+	KeySwitchBCAO                   bcao.IKeySwitchBCAO
+	KeySwitchService                KeySwitchServiceInterface
+	FileLoggerPreProcess            *timingutils.StartEndFileLogger
+	FileLoggerOffchainBcUpload      *timingutils.StartEndFileLogger
+	FileLoggerOffchainIpfsUpload    *timingutils.StartEndFileLogger
+	FileLoggerOffchainBcRetrieval   *timingutils.StartEndFileLogger
+	FileLoggerOffchainIpfsRetrieval *timingutils.StartEndFileLogger
+	ChanLoggerErr                   chan<- error
 }
 
 // 用于放置在元数据的 extensions.dataType 中的值
@@ -231,29 +232,20 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	{
 		sfNode, err := snowflake.NewNode(1)
 		if err != nil {
-			return "", errors.Wrapf(err, "无法为事件处理任务生成 ID")
+			return "", errors.Wrapf(err, "无法为创建链下文档任务生成 ID")
 		}
 
 		taskID = sfNode.Generate().Base64()
 	}
 
-	// FILELOGGER: 从链上获取链下文档用时
-	{
-		timeBeforeBcRetrieval := time.Now()
-		s.FileLoggerOffchainBcRetrieval.LogStartWithTimestampAsync(taskID, timeBeforeBcRetrieval, s.ChanLoggerErr)
-	}
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
-	timeAfterBcRetrieval := time.Now()
 	if err != nil {
-		s.FileLoggerOffchainBcRetrieval.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法序列化文档属性")
 	}
 	documentBytes, err := json.Marshal(document)
 	if err != nil {
-		s.FileLoggerOffchainBcRetrieval.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
-	s.FileLoggerOffchainBcRetrieval.LogSuccessWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
 
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
@@ -501,11 +493,30 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 		}
 	}
 
+	// Generate an ID for this task
+	var taskID string
+	{
+		sfNode, err := snowflake.NewNode(1)
+		if err != nil {
+			return nil, errors.Wrapf(err, "无法为获取链下文档任务生成 ID")
+		}
+
+		taskID = sfNode.Generate().Base64()
+	}
+
 	// 调用链码 getData 获取该资源在 IPFS 网络上的 CID
+	// FILELOGGER: 从链上获取链下文档用时
+	{
+		timeBeforeBcRetrieval := time.Now()
+		s.FileLoggerOffchainBcRetrieval.LogStartWithTimestampAsync(taskID, timeBeforeBcRetrieval, s.ChanLoggerErr)
+	}
 	cidBytes, err := s.DataBCAO.GetData(id)
+	timeAfterBcRetrieval := time.Now()
 	if err != nil {
+		s.FileLoggerOffchainBcRetrieval.LogFailureWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
 		return nil, err
 	}
+	s.FileLoggerOffchainBcRetrieval.LogSuccessWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
 	cid := string(cidBytes)
 
 	// 检查链上记录的内容（CID）的大小和哈希是否匹配
@@ -515,14 +526,23 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 从 IPFS 网络中获取文档的密文
+	// FILELOGGER: IPFS 获取用时
+	{
+		timeBeforeIpfsRetrieval := time.Now()
+		s.FileLoggerOffchainIpfsRetrieval.LogStartWithTimestampAsync(taskID, timeBeforeIpfsRetrieval, s.ChanLoggerErr)
+	}
 	reader, err := s.ServiceInfo.IPFSSh.Cat(cid)
 	if err != nil {
+		s.FileLoggerOffchainIpfsRetrieval.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, errors.Wrap(err, "无法从 IPFS 网络获取数字文档")
 	}
 	encryptedDocumentBytes, err := ioutil.ReadAll(reader)
+	timeAfterIpfsRetrieval := time.Now()
 	if err != nil {
+		s.FileLoggerOffchainIpfsRetrieval.LogFailureWithTimestampAsync(taskID, timeAfterIpfsRetrieval, s.ChanLoggerErr)
 		return nil, errors.Wrap(err, "无法从 IPFS 网络获取数字文档")
 	}
+	s.FileLoggerOffchainIpfsRetrieval.LogSuccessWithTimestampAsync(taskID, timeAfterIpfsRetrieval, s.ChanLoggerErr)
 
 	// 调用链码 getKey 获取该资源的加密后的密钥
 	encryptedKeyBytes, err := s.DataBCAO.GetKey(id)
