@@ -22,9 +22,11 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/sqlmodel"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/networkinfo"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
+	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	ipfs "github.com/ipfs/go-ipfs-api"
 	"github.com/pkg/errors"
@@ -392,11 +394,49 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		}
 
 		// Instantiate a document service
+		// Create file loggers for document service
+		chanLoggerErr := make(chan error)
+		go func() {
+			for {
+				err := <-chanLoggerErr
+				if err != nil {
+					log.Error(err)
+				}
+			}
+		}()
+		defer close(chanLoggerErr)
+
+		// Generate an ID for logger
+		var loggerID string
+		{
+			sfNode, err := snowflake.NewNode(1)
+			if err != nil {
+				return errors.Wrapf(err, "无法为日志器生成 ID")
+			}
+
+			loggerID = sfNode.Generate().Base64()
+		}
+
+		fileLoggerDocumentServicePreProcess, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-preprocess.out", "logs/ta-ds-preprocess.out")
+		if err != nil {
+			return errors.Wrap(err, "无法为前处理任务创建文件日志器")
+		}
+		defer fileLoggerDocumentServicePreProcess.Close()
+
+		fileLoggerDocumentServiceOffchainBcUpload, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-bcupload.out", "logs/ta-ds-bcupload.out")
+		if err != nil {
+			return errors.Wrap(err, "无法为属性上链创建文件日志器")
+		}
+		defer fileLoggerDocumentServiceOffchainBcUpload.Close()
+
 		documentSvc := &service.DocumentService{
-			ServiceInfo:      universalCcServiceInfo,
-			DataBCAO:         dataBCAO,
-			KeySwitchBCAO:    keySwitchBCAO,
-			KeySwitchService: keySwitchSvc,
+			ServiceInfo:                universalCcServiceInfo,
+			DataBCAO:                   dataBCAO,
+			KeySwitchBCAO:              keySwitchBCAO,
+			KeySwitchService:           keySwitchSvc,
+			FileLoggerPreProcess:       fileLoggerDocumentServicePreProcess,
+			FileLoggerOffchainBcUpload: fileLoggerDocumentServiceOffchainBcUpload,
+			ChanLoggerErr:              chanLoggerErr,
 		}
 
 		// Instantiate an entity asset service

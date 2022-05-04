@@ -106,7 +106,7 @@ func (s *KeySwitchServer) createKeySwitchServerWorker(chanKeySwitchSessionIDNoti
 	}()
 	defer close(chanLoggerErr)
 
-	fileLoggerShare, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-share.out", "time-after-share.out")
+	fileLoggerShare, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ksshare.out", "logs/ta-ksshare.out")
 	if err != nil {
 		log.Errorln(errors.Wrap(err, "无法为份额任务创建文件日志器"))
 		return
@@ -114,14 +114,15 @@ func (s *KeySwitchServer) createKeySwitchServerWorker(chanKeySwitchSessionIDNoti
 	// The logger contains opened file descriptors that should be closed before the function exits
 	defer fileLoggerShare.Close()
 
-	fileLoggerProof, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-proof.out", "time-after-proof.out")
+	fileLoggerProof, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ksproof.out", "logs/ta-ksproof.out")
 	if err != nil {
 		log.Errorln(errors.Wrap(err, "无法为 ZKP 任务创建文件日志器"))
 		return
 	}
 	defer fileLoggerProof.Close()
 
-	fileLoggerUpload, err := timingutils.NewStartEndFileLogger(loggerID, "time-before-upload.out", "time-after-upload.out")
+	fileLoggerUpload, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ksupload.out", "logs/ta-ksupload.out")
+
 	if err != nil {
 		log.Errorln(errors.Wrap(err, "无法为上链任务创建文件日志器"))
 		return

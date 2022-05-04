@@ -8,16 +8,19 @@ import (
 	"io/ioutil"
 	"runtime"
 	"strings"
+	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/db"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
+	"github.com/bwmarrin/snowflake"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -26,10 +29,13 @@ import (
 
 // DocumentService 用于管理数字文档。
 type DocumentService struct {
-	ServiceInfo      *Info
-	DataBCAO         bcao.IDataBCAO
-	KeySwitchBCAO    bcao.IKeySwitchBCAO
-	KeySwitchService KeySwitchServiceInterface
+	ServiceInfo                *Info
+	DataBCAO                   bcao.IDataBCAO
+	KeySwitchBCAO              bcao.IKeySwitchBCAO
+	KeySwitchService           KeySwitchServiceInterface
+	FileLoggerPreProcess       *timingutils.StartEndFileLogger
+	FileLoggerOffchainBcUpload *timingutils.StartEndFileLogger
+	ChanLoggerErr              chan<- error
 }
 
 // 用于放置在元数据的 extensions.dataType 中的值
@@ -52,17 +58,36 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 		return "", fmt.Errorf("文档 ID 不能为空")
 	}
 
+	// Generate an ID for this task
+	var taskID string
+	{
+		sfNode, err := snowflake.NewNode(1)
+		if err != nil {
+			return "", errors.Wrapf(err, "无法为事件处理任务生成 ID")
+		}
+
+		taskID = sfNode.Generate().Base64()
+	}
+
+	// FILELOGGER: 前处理用时
+	{
+		timeBeforePreProcess := time.Now()
+		s.FileLoggerPreProcess.LogStartWithTimestampAsync(taskID, timeBeforePreProcess, s.ChanLoggerErr)
+	}
+
 	// 将 struct 转成 map 后再序列化，以使得键按字典序排序。
 	// 因为在 CouchDB 中存储 JSON 序列化后的对象时，不会保存键的顺序，取出时键将以字典序排序。
 	// 若此时直接按 struct 序列化，保持原始键顺序的话，此时计算的哈希将与取出后的哈希不同。
 	documentAsMap := make(map[string]interface{})
 	err := mapstructure.Decode(document, &documentAsMap)
 	if err != nil {
+		s.FileLoggerPreProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
 
 	documentBytes, err := json.Marshal(documentAsMap)
 	if err != nil {
+		s.FileLoggerPreProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
 
@@ -84,6 +109,12 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 	plainData := data.PlainData{
 		Metadata: metadata,
 		Data:     base64.StdEncoding.EncodeToString(documentBytes),
+	}
+
+	// FILELOGGER: 前处理用时
+	{
+		timeAfterPreProcess := time.Now()
+		s.FileLoggerPreProcess.LogSuccessWithTimestampAsync(taskID, timeAfterPreProcess, s.ChanLoggerErr)
 	}
 
 	txID, err := s.DataBCAO.CreatePlainData(&plainData)
@@ -193,6 +224,17 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		return "", fmt.Errorf("文档 ID 不能为空")
 	}
 
+	// Generate an ID for this task
+	var taskID string
+	{
+		sfNode, err := snowflake.NewNode(1)
+		if err != nil {
+			return "", errors.Wrapf(err, "无法为事件处理任务生成 ID")
+		}
+
+		taskID = sfNode.Generate().Base64()
+	}
+
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
 	if err != nil {
 		return "", errors.Wrap(err, "无法序列化文档属性")
@@ -268,7 +310,16 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		Policy:   policy,
 	}
 
+	// FILELOGGER: 链下文档属性上链用时
+	{
+		timeBeforeBcUpload := time.Now()
+		s.FileLoggerOffchainBcUpload.LogStartWithTimestampAsync(taskID, timeBeforeBcUpload, s.ChanLoggerErr)
+	}
 	txID, err := s.DataBCAO.CreateOffchainData(&offchainData, encryptedResourceCreationEventName)
+	{
+		timeAfterBcUpload := time.Now()
+		s.FileLoggerOffchainBcUpload.LogFailureWithTimestampAsync(taskID, timeAfterBcUpload, s.ChanLoggerErr)
+	}
 	return txID, err
 }
 
