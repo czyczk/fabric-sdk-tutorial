@@ -417,6 +417,7 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 			loggerID = sfNode.Generate().Base64()
 		}
 
+		os.Mkdir("logs", 0755)
 		fileLoggerDocumentServicePreProcess, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-preprocess.out", "logs/ta-ds-preprocess.out")
 		if err != nil {
 			return errors.Wrap(err, "无法为前处理任务创建文件日志器")
