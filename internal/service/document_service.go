@@ -598,10 +598,11 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 将解密的文档属性与内容存入数据库（若已存在则覆盖）
-	err = db.SaveDecryptedDocumentAndDocumentPropertiesToLocalDB(&document, metadata.Timestamp, s.ServiceInfo.DB)
-	if err != nil {
-		return nil, err
-	}
+	// FORTEST: 测试时屏蔽该功能
+	// err = db.SaveDecryptedDocumentAndDocumentPropertiesToLocalDB(&document, metadata.Timestamp, s.ServiceInfo.DB)
+	// if err != nil {
+	// return nil, err
+	// }
 
 	return &document, nil
 }
