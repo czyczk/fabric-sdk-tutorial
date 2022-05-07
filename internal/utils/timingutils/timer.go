@@ -131,11 +131,11 @@ func (l *StartEndFileLogger) LogStart(taskID string) error {
 // LogStartAsync is the async version of LogStart.
 func (l *StartEndFileLogger) LogStartAsync(taskID string, chanErr chan<- error) {
 	l.wg.Add(1)
-	go func() {
-		err := l.LogStart(taskID)
+	go func(timestamp time.Time) {
+		err := l.LogStartWithTimestamp(taskID, timestamp)
 		chanErr <- err
 		l.wg.Done()
-	}()
+	}(time.Now())
 }
 
 // LogStartWithTimestamp logs a formatted line of the specified timestamp to the start log file. The start timestamp should be collected right before the action is started and this function can be called anytime.
@@ -166,11 +166,11 @@ func (l *StartEndFileLogger) LogSuccess(taskID string) error {
 // LogSuccessAsync is the async version of LogSuccess.
 func (l *StartEndFileLogger) LogSuccessAsync(taskID string, chanErr chan<- error) {
 	l.wg.Add(1)
-	go func() {
-		err := l.LogSuccess(taskID)
+	go func(timestamp time.Time) {
+		err := l.LogSuccessWithTimestamp(taskID, timestamp)
 		chanErr <- err
 		l.wg.Done()
-	}()
+	}(time.Now())
 }
 
 // LogSuccessWithTimestamp logs a formatted line of the specified timestamp with an action success status of `true` to the end log file. The end timestamp should be collected right after the action is successful and this function can be called anytime.
@@ -201,11 +201,11 @@ func (l *StartEndFileLogger) LogFailure(taskID string) error {
 // LogFailureAsync is the async version of LogFailure
 func (l *StartEndFileLogger) LogFailureAsync(taskID string, chanErr chan<- error) {
 	l.wg.Add(1)
-	go func() {
-		err := l.LogFailure(taskID)
+	go func(timestamp time.Time) {
+		err := l.LogFailureWithTimestamp(taskID, timestamp)
 		chanErr <- err
 		l.wg.Done()
-	}()
+	}(time.Now())
 }
 
 // LogFailurewithTimestamp logs a formatted line of the specified timestamp with an action success status of `false` to the end log file. The end timestamp shoukld be collected right after the action fails and this functino can be called anytime.

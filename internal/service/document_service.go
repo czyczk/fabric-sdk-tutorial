@@ -533,7 +533,7 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 	reader, err := s.ServiceInfo.IPFSSh.Cat(cid)
 	if err != nil {
-		s.FileLoggerOffchainIpfsRetrieval.LogFailureAsync(taskID, s.ChanLoggerErr)
+		s.FileLoggerOffchainIpfsRetrieval.LogFailureWithTimestampAsync(taskID, time.Now(), s.ChanLoggerErr)
 		return nil, errors.Wrap(err, "无法从 IPFS 网络获取数字文档")
 	}
 	encryptedDocumentBytes, err := ioutil.ReadAll(reader)
