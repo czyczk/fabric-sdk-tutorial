@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
@@ -20,12 +22,15 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/bwmarrin/snowflake"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/tjfoc/gmsm/sm2"
 )
+
+// 确保随机数不重复
+var usedRandsMap = make(map[int64]int)
+var usedRandsMapLock sync.Mutex
 
 // DocumentService 用于管理数字文档。
 type DocumentService struct {
@@ -64,12 +69,20 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 	// Generate an ID for this task
 	var taskID string
 	{
-		sfNode, err := snowflake.NewNode(1)
-		if err != nil {
-			return "", errors.Wrapf(err, "无法为事件处理任务生成 ID")
+		usedRandsMapLock.Lock()
+		for {
+			ran := rand.Int63()
+			times, ok := usedRandsMap[ran]
+			if !ok {
+				usedRandsMap[ran] = 1
+				taskID = fmt.Sprintf("%v", ran)
+				usedRandsMapLock.Unlock()
+				break
+			} else {
+				log.Warnf("Duplicated random number generated: %v. Duplicated %v time(s).", ran, times)
+				usedRandsMap[ran] = times + 1
+			}
 		}
-
-		taskID = sfNode.Generate().Base64()
 	}
 
 	// FILELOGGER: 前处理用时
@@ -230,12 +243,20 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	// Generate an ID for this task
 	var taskID string
 	{
-		sfNode, err := snowflake.NewNode(1)
-		if err != nil {
-			return "", errors.Wrapf(err, "无法为创建链下文档任务生成 ID")
+		usedRandsMapLock.Lock()
+		for {
+			ran := rand.Int63()
+			times, ok := usedRandsMap[ran]
+			if !ok {
+				usedRandsMap[ran] = 1
+				taskID = fmt.Sprintf("%v", ran)
+				usedRandsMapLock.Unlock()
+				break
+			} else {
+				log.Warnf("Duplicated random number generated: %v. Duplicated % time(s).", ran, times)
+				usedRandsMap[ran] = times + 1
+			}
 		}
-
-		taskID = sfNode.Generate().Base64()
 	}
 
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
@@ -496,12 +517,20 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	// Generate an ID for this task
 	var taskID string
 	{
-		sfNode, err := snowflake.NewNode(1)
-		if err != nil {
-			return nil, errors.Wrapf(err, "无法为获取链下文档任务生成 ID")
+		usedRandsMapLock.Lock()
+		for {
+			ran := rand.Int63()
+			times, ok := usedRandsMap[ran]
+			if !ok {
+				usedRandsMap[ran] = 1
+				taskID = fmt.Sprintf("%v", ran)
+				usedRandsMapLock.Unlock()
+				break
+			} else {
+				log.Warnf("Duplicated random number generated: %v. Duplicated %v time(s).", ran, times)
+				usedRandsMap[ran] = times + 1
+			}
 		}
-
-		taskID = sfNode.Generate().Base64()
 	}
 
 	// 调用链码 getData 获取该资源在 IPFS 网络上的 CID

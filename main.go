@@ -2,11 +2,16 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
+
+	cryptorand "crypto/rand"
+	mathrand "math/rand"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/appinit"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/background"
@@ -26,7 +31,6 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
-	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	ipfs "github.com/ipfs/go-ipfs-api"
 	"github.com/pkg/errors"
@@ -409,12 +413,8 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		// Generate an ID for logger
 		var loggerID string
 		{
-			sfNode, err := snowflake.NewNode(1)
-			if err != nil {
-				return errors.Wrapf(err, "无法为日志器生成 ID")
-			}
-
-			loggerID = sfNode.Generate().Base64()
+			ran := rand.Int63()
+			loggerID = fmt.Sprintf("%v", ran)
 		}
 
 		os.Mkdir("logs", 0755)
@@ -618,4 +618,15 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 	}
 
 	return serveFunc
+}
+
+// Seed the rand generators appropriately
+// Solution from https://stackoverflow.com/a/54491783/7616443
+func init() {
+	var b [8]byte
+	_, err := cryptorand.Read(b[:])
+	if err != nil {
+		panic("cannot seed math/rand package with cryptographically secure random number generator")
+	}
+	mathrand.Seed(int64(binary.LittleEndian.Uint64(b[:])))
 }

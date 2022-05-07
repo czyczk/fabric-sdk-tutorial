@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/timingutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/bwmarrin/snowflake"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -85,13 +85,8 @@ func (s *KeySwitchServer) createKeySwitchServerWorker(chanKeySwitchSessionIDNoti
 	// Generate an ID for logger
 	var loggerID string
 	{
-		sfNode, err := snowflake.NewNode(1)
-		if err != nil {
-			log.Errorln(errors.Wrapf(err, "无法为日志器生成 ID"))
-			return
-		}
-
-		loggerID = sfNode.Generate().Base64()
+		ran := rand.Int63()
+		loggerID = fmt.Sprintf("%v", ran)
 	}
 
 	// Create file loggers
@@ -152,13 +147,8 @@ func processEvent(event eventmgr.IEvent, s *KeySwitchServer, fileLoggerShare, fi
 	// Generate an ID for this task
 	var taskID string
 	{
-		sfNode, err := snowflake.NewNode(1)
-		if err != nil {
-			log.Errorln(errors.Wrapf(err, "无法为事件处理任务生成 ID"))
-			return
-		}
-
-		taskID = sfNode.Generate().Base64()
+		ran := rand.Int63()
+		taskID = fmt.Sprintf("%v", ran)
 	}
 
 	// On receiving a key switch session ID, calculate the share and invoke the service function to save the result onto the chain
