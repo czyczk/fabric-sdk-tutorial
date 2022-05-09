@@ -365,3 +365,14 @@ There are certificate files for the 4 default users of the Fabric network. 3 of 
 |Admin@org1.lab805.com|✖|✔|
 |User1@org2.lab805.com|✔|✖|
 
+## FAQ
+
+- Errors of chaincodes unable to be built when running `run-init`.
+
+Errors like  
+```
+failed to generate platform-specific docker build
+```
+
+or other more explicit messages indicate some incompatibility between the chaincode and the Go compiler inside the docker image. This is usually due to stale contents in the `vendor` folders.  
+In this ever happens, try to delete the `vendor` folders in all the chaincode directories. Run `make clean` and try again from the very beginning.

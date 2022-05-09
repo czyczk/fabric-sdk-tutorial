@@ -3,7 +3,7 @@ version: '3.4'
 services:
   ipfs0:
     container_name: ipfs0
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:${IPFS_VERSION}
     ports:
       - "4001:4001" # ipfs swarm
       - "5001:5001" # ipfs api
@@ -15,7 +15,7 @@ services:
 
   ipfs1:
     container_name: ipfs1
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:${IPFS_VERSION}
     ports:
       - "4002:4001" # ipfs swarm
       - "5002:5001" # ipfs api
@@ -28,7 +28,7 @@ services:
 
   ipfs2:
     container_name: ipfs2
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:${IPFS_VERSION}
     ports:
       - "4003:4001" # ipfs swarm
       - "5003:5001" # ipfs api
@@ -41,7 +41,7 @@ services:
 
   ipfs3:
     container_name: ipfs3
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:${IPFS_VERSION}
     ports:
       - "4004:4001" # ipfs swarm
       - "5004:5001" # ipfs api
@@ -54,7 +54,7 @@ services:
 
   ipfs16:
     container_name: ipfs16
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:${IPFS_VERSION}
     ports:
       - "4017:4001" # ipfs swarm
       - "5017:5001" # ipfs api
@@ -67,7 +67,7 @@ services:
 
   ipfs17:
     container_name: ipfs17
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:${IPFS_VERSION}
     ports:
       - "4018:4001" # ipfs swarm
       - "5018:5001" # ipfs api
@@ -80,7 +80,7 @@ services:
 
   ipfs18:
     container_name: ipfs18
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:${IPFS_VERSION}
     ports:
       - "4019:4001" # ipfs swarm
       - "5019:5001" # ipfs api
@@ -93,7 +93,7 @@ services:
 
   ipfs19:
     container_name: ipfs19
-    image: ipfs/go-ipfs:release
+    image: ipfs/go-ipfs:${IPFS_VERSION}
     ports:
       - "4020:4001" # ipfs swarm
       - "5020:5001" # ipfs api

@@ -1,11 +1,11 @@
 package controller
 
 import (
-	"encoding/base64"
 	"net/http"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 )
@@ -30,7 +30,7 @@ func (kc *KeySwitchController) GetEndpointMap() EndpointMap {
 }
 
 func (kc *KeySwitchController) handleCreateKeySwitchTrigger(c *gin.Context) {
-	resourceID := c.PostForm("resourceID")
+	resourceID := c.PostForm("resourceId")
 
 	// Validity check
 	pel := &ParameterErrorList{}
@@ -38,7 +38,7 @@ func (kc *KeySwitchController) handleCreateKeySwitchTrigger(c *gin.Context) {
 	resourceID = pel.AppendIfEmptyOrBlankSpaces(resourceID, "资源 ID 不能为空。")
 
 	// Extract and check common parameters
-	authSessionID := c.PostForm("authSessionID")
+	authSessionID := c.PostForm("authSessionId")
 
 	txID, err := kc.KeySwitchSvc.CreateKeySwitchTrigger(resourceID, authSessionID)
 
@@ -81,20 +81,19 @@ func (kc *KeySwitchController) handleAwaitListKeySwitchResults(c *gin.Context) {
 		return
 	}
 
-	var shares [][]byte
+	var ksResults []*keyswitch.KeySwitchResultStored
 	var err error
 	if timeout == "" {
-		shares, err = kc.KeySwitchSvc.AwaitKeySwitchResults(keySwitchSessionID, numExpectedInt)
+		ksResults, err = kc.KeySwitchSvc.AwaitKeySwitchResults(keySwitchSessionID, numExpectedInt)
 	} else {
-		shares, err = kc.KeySwitchSvc.AwaitKeySwitchResults(keySwitchSessionID, numExpectedInt, timeoutInt)
+		ksResults, err = kc.KeySwitchSvc.AwaitKeySwitchResults(keySwitchSessionID, numExpectedInt, timeoutInt)
 	}
 
 	// Check error type and generate the corresponding response
 	if err == nil {
 		var ret []string
-		for _, shareBytes := range shares {
-			shareAsBase64 := base64.StdEncoding.EncodeToString(shareBytes)
-			ret = append(ret, shareAsBase64)
+		for _, ksResult := range ksResults {
+			ret = append(ret, ksResult.Share)
 		}
 
 		c.JSON(http.StatusOK, ret)

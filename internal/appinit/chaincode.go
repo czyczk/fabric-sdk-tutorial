@@ -62,7 +62,7 @@ func InstallCC(chaincodeID, version, path, goPath, orgName string, operatingIden
 //   chaincode version
 //   channel ID
 //   chaincode instantiation info
-func InstantiateCC(chaincodeID, path, version, channelID string, info *ChaincodeInstantiationInfo) error {
+func InstantiateCC(chaincodeID, path, version, channelID string, info *FabricChaincodeInstantiationInfo) error {
 	resMgmtClient := global.ResMgmtClientInstances[info.OrgName][info.UserID]
 	if resMgmtClient == nil {
 		return fmt.Errorf("'%v.%v' 的资源管理客户端未初始化", info.UserID, info.OrgName)

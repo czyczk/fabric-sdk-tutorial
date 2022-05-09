@@ -1,6 +1,9 @@
 package global
 
 import (
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/networkinfo"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/event"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/ledger"
@@ -18,11 +21,19 @@ type keySwitchKeys struct {
 	PublicKey            *sm2.PublicKey  // The public key to be used in the key switch process
 }
 
-var SDKInstance *fabsdk.FabricSDK
+var BlockchainType blockchain.BCType             // Indicates the current Blockchain type
+var BlockchainContext chaincodectx.IChaincodeCtx // The chaincode context to be used when the app is started as a server. Not useful when the app is started as the network initializer.
+var KeySwitchKeys keySwitchKeys                  // The keys to be used in the key switch process
+var ShowTimingLogs bool                          // Whether timers in several modules should be enabled and time consumption logged
+
+// The SDK instnace and client instances below are for Fabric only
+var FabricSDKInstance *fabsdk.FabricSDK                                     // Will be instantiated if the "BlockchainType" is "Fabric"
 var ResMgmtClientInstances map[string]map[string]*resmgmt.Client            // A lookup takes `orgName` followed by `username`.
 var MSPClientInstances map[string]map[string]*msp.Client                    // A lookup takes `orgName` followed by `username`.
 var ChannelClientInstances map[string]map[string]map[string]*channel.Client // A lookup takes `channelID` followed by `orgName` and `username`.
 var EventClientInstances map[string]map[string]map[string]*event.Client     // A lookup takes `channelID` followed by `orgName` and `username`.
 var LedgerClientInstances map[string]map[string]map[string]*ledger.Client   // A lookup takes `channelID` followed by `orgName` and `username`.
-var KeySwitchKeys keySwitchKeys                                             // The keys to be used in the key switch process
-var ShowTimingLogs bool                                                     // Whehter timers in several modules should be enabled and time consumption logged
+var FabricNetworkConfig *networkinfo.FabricNetworkConfig                    // Contains info about the Fabric network
+
+// The instances below are for Polkadot only
+var PolkadotNetworkConfig *networkinfo.PolkadotNetworkConfig // Contains info about the Polkadot network

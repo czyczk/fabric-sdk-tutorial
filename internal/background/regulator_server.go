@@ -7,33 +7,35 @@ import (
 	"sync"
 	"time"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/eventmgr"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/db"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
-	"github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 type RegulatorServer struct {
 	ServiceInfo        *service.Info
-	DocumentService    service.DocumentServiceInterface
+	EventManager       eventmgr.IEventManager
+	DataBCAO           bcao.IDataBCAO
 	EntityAssetService service.EntityAssetServiceInterface
 	wg                 sync.WaitGroup
 	chanQuit           chan int
 	chanResourceID     chan string
-	reg                *fab.Registration
+	reg                eventmgr.IEventRegistration
 	serverStatus       *backgroundServerStatus
 }
 
-func NewRegulatorServer(serviceInfo *service.Info, documentService service.DocumentServiceInterface, entityAssetService service.EntityAssetServiceInterface) *RegulatorServer {
+func NewRegulatorServer(serviceInfo *service.Info, eventManager eventmgr.IEventManager, dataBCAO bcao.IDataBCAO, entityAssetService service.EntityAssetServiceInterface) *RegulatorServer {
 	return &RegulatorServer{
 		ServiceInfo:        serviceInfo,
-		DocumentService:    documentService,
+		EventManager:       eventManager,
+		DataBCAO:           dataBCAO,
 		EntityAssetService: entityAssetService,
 		wg:                 sync.WaitGroup{},
 		chanQuit:           make(chan int),
@@ -59,13 +61,13 @@ func (s *RegulatorServer) Start() error {
 	// Register the event chaincode and pass the chan object to the workers to be created.
 	eventID := "enc_res_creation"
 	log.Debugf("正在尝试监听事件 '%v'...", eventID)
-	reg, notifier, err := service.RegisterEvent(s.ServiceInfo.EventClient, s.ServiceInfo.ChaincodeID, eventID)
+	reg, notifier, err := s.EventManager.RegisterEvent(eventID)
 	if err != nil {
-		s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
+		s.EventManager.UnregisterEvent(reg)
 		return errors.Wrap(err, "无法监听加密资源创建事件")
 	}
 
-	s.reg = &reg
+	s.reg = reg
 
 	// Start #NumWorkers Go routines with each running a worker.
 	log.Debugf("正在创建监管者服务工作单元...")
@@ -79,7 +81,7 @@ func (s *RegulatorServer) Start() error {
 	return nil
 }
 
-func (s *RegulatorServer) createRegulatorServerWorker(chanResourceIDNotifier <-chan *fab.CCEvent) {
+func (s *RegulatorServer) createRegulatorServerWorker(chanResourceIDNotifier <-chan eventmgr.IEvent) {
 	log.Debugf("监管者服务工作单元已创建。")
 
 workerLoop:
@@ -89,7 +91,7 @@ workerLoop:
 			timeDiffBefore := time.Now()
 			// On receiving a resource ID, fetch the resource metadata and act according to the data type
 			// First parse the event payload
-			resourceID := string(event.Payload)
+			resourceID := string(event.GetPayload())
 			if resourceID == "" {
 				log.Errorln("监管者服务工作单元无法解析事件内容")
 				continue
@@ -98,28 +100,18 @@ workerLoop:
 			log.Debugf("监管者服务工作单元收到加密资源创建事件，资源 ID: %v。", resourceID)
 
 			// Fetch the resource metadata with the service function
-			resourceMetadata, err := s.DocumentService.GetDocumentMetadata(resourceID)
+			resourceMetadata, err := s.DataBCAO.GetMetadata(resourceID)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "监管者服务工作单元无法获取资源元数据，资源 ID: %v", resourceID))
 				continue
 			}
 
 			// Fetch the encrypted key of the resource
-			chaincodeFcn := "getKey"
-			channelReq := channel.Request{
-				ChaincodeID: s.ServiceInfo.ChaincodeID,
-				Fcn:         chaincodeFcn,
-				Args:        [][]byte{[]byte(resourceID)},
-			}
-
-			resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-			err = service.GetClassifiedError(chaincodeFcn, err)
+			encryptedKey, err := s.DataBCAO.GetKey(resourceID)
 			if err != nil {
 				log.Errorln(errors.Wrapf(err, "监管者服务工作单元无法获取资源的加密密钥，资源 ID: %v", resourceID))
 				continue
 			}
-
-			encryptedKey := resp.Payload
 
 			// Decrypt the encrypted resource key
 			symmetricKeyBytes, err := s.decryptResourceKey(encryptedKey)
@@ -157,21 +149,11 @@ workerLoop:
 				}
 			case "entityAsset":
 				// Fetch the encrypted entity asset from the chaincode function
-				chaincodeFcn := "getData"
-				channelReq := channel.Request{
-					ChaincodeID: s.ServiceInfo.ChaincodeID,
-					Fcn:         chaincodeFcn,
-					Args:        [][]byte{[]byte(resourceID)},
-				}
-
-				resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-				err = service.GetClassifiedError(chaincodeFcn, err)
+				encryptedEntityAssetBytes, err := s.DataBCAO.GetData(resourceID)
 				if err != nil {
 					log.Errorln(errors.Wrapf(err, "监管者服务工作单元无法获取资源，资源 ID: %v", resourceID))
 					continue
 				}
-
-				encryptedEntityAssetBytes := resp.Payload
 
 				// Decrypt the entity asset
 				entityAsset, err := s.decryptEntityAsset(encryptedEntityAssetBytes, symmetricKeyBytes)
