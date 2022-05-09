@@ -1,14 +1,14 @@
 package service
 
 import (
-	"strconv"
-
-	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/eventmgr"
 )
 
 // ScrewService contains functions that accept parameters valid in type and invoke the corresponding chaincode functions.
 type ScrewService struct {
-	ServiceInfo *Info
+	ScrewBCAO    bcao.IScrewBCAO
+	EventManager eventmgr.IEventManager
 }
 
 // TransferAndShowEvent invokes the chaincode with "transfer" command with the arguments specified.
@@ -23,21 +23,15 @@ type ScrewService struct {
 func (s *ScrewService) TransferAndShowEvent(source, target string, amount uint) (string, error) {
 	// Try to register the event with ID "eventTransfer". Unregister it on failure.
 	eventID := "eventTransfer"
-	reg, notifier, err := RegisterEvent(s.ServiceInfo.EventClient, s.ServiceInfo.ChaincodeID, eventID)
+	reg, notifier, err := s.EventManager.RegisterEvent(eventID)
 	if err != nil {
 		return "", err
 	}
 
-	defer s.ServiceInfo.ChannelClient.UnregisterChaincodeEvent(reg)
+	defer s.EventManager.UnregisterEvent(reg)
 
 	// Make a channel request to invoke the "transfer" command.
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         "transfer",
-		Args:        [][]byte{[]byte(source), []byte(target), []byte(strconv.Itoa(int(amount))), []byte(eventID)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Execute(channelReq)
+	txID, err := s.ScrewBCAO.Transfer(source, target, amount, eventID)
 	if err != nil {
 		return "", err
 	}
@@ -47,7 +41,7 @@ func (s *ScrewService) TransferAndShowEvent(source, target string, amount uint) 
 		return "", err
 	}
 
-	return string(resp.TransactionID), nil
+	return txID, nil
 }
 
 // Query invokes the chaincode with "query" command with the arguments specified.
@@ -56,18 +50,7 @@ func (s *ScrewService) TransferAndShowEvent(source, target string, amount uint) 
 //   the name of the corporation to query
 //
 // Returns:
-//   the response payload. Empty payloads indicate invalid query keys.
+//   the response payload. Empty payloads imply invalid query keys.
 func (s *ScrewService) Query(corporationName string) (string, error) {
-	channelReq := channel.Request{
-		ChaincodeID: s.ServiceInfo.ChaincodeID,
-		Fcn:         "query",
-		Args:        [][]byte{[]byte(corporationName)},
-	}
-
-	resp, err := s.ServiceInfo.ChannelClient.Query(channelReq)
-	if err != nil {
-		return "", err
-	}
-
-	return string(resp.Payload), nil
+	return s.ScrewBCAO.Query(corporationName)
 }

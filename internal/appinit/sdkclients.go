@@ -34,7 +34,7 @@ func InstantiateResMgmtClient(orgName, userID string) error {
 	}
 
 	// Create a client context using the SDK instance and the init info
-	clientContext := global.SDKInstance.Context(fabsdk.WithUser(userID), fabsdk.WithOrg(orgName))
+	clientContext := global.FabricSDKInstance.Context(fabsdk.WithUser(userID), fabsdk.WithOrg(orgName))
 	if clientContext == nil {
 		return fmt.Errorf("无法为 %v@%v 创建客户端环境", userID, orgName)
 	}
@@ -68,7 +68,7 @@ func InstantiateMSPClient(orgName, userID string) error {
 	}
 
 	// Create a client context using the SDK instance and the init info
-	clientCtx := global.SDKInstance.Context(fabsdk.WithUser(userID), fabsdk.WithOrg(orgName))
+	clientCtx := global.FabricSDKInstance.Context(fabsdk.WithUser(userID), fabsdk.WithOrg(orgName))
 	if clientCtx == nil {
 		return fmt.Errorf("无法为 %v@%v 创建客户端环境", userID, orgName)
 	}

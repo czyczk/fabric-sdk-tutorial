@@ -1,5 +1,6 @@
 export COMPOSE_PROJECT_NAME=lab805
 export DOCKER_FILES_PARAM=-f docker-compose.yaml -f docker-compose-couch.yaml -f docker-compose-ipfs.yaml
+export IPFS_VERSION=v0.4.23
 
 .PHONY: all dev clean build env-up env-down run run-init run-serve
 
@@ -30,7 +31,12 @@ run:
 	$(MAKE) run-init && $(MAKE) run-serve
 
 run-init:
-	@cd chaincode/src/universal_cc && go mod vendor && cd ../../.. && ./fabric-sdk-tutorial init
+	@cd chaincode/src/screw_example && go mod vendor
+	@cd chaincode/src/universal_cc && go mod vendor
+	@./fabric-sdk-tutorial init
+
+run-polkadot-init:
+	@./fabric-sdk-tutorial init -t "polkadot" -b "polkadot-config-network.yaml" -c "init-polkadot.yaml"
 
 run-serve:
 	@./fabric-sdk-tutorial serve
@@ -66,6 +72,9 @@ run-serve-o2-bg:
 	@nohup ./fabric-sdk-tutorial serve -c "server-u7o2.yaml" > nohup-u7o2.out &
 	@sleep 0.3
 	@nohup ./fabric-sdk-tutorial serve -c "server-ado2.yaml" > nohup-ado2.out &
+
+run-polkadot-serve-alice:
+	@./fabric-sdk-tutorial serve -t "polkadot" -b "polkadot-config-network.yaml" -c "server-polkadot-alice.yaml"
 
 ##### CLEAN
 clean: env-down

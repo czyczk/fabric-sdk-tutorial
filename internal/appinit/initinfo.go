@@ -1,17 +1,28 @@
 package appinit
 
 import (
+	"fmt"
 	"io/ioutil"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	errors "github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
 
-// InitInfo is the Go struct for contents in init.yaml.
-type InitInfo struct {
-	Users      map[string]*OrgInfo       `yaml:"users"`
-	Channels   map[string]*ChannelInfo   `yaml:"channels"`
-	Chaincodes map[string]*ChaincodeInfo `yaml:"chaincodes"`
+type InitInfo interface{}
+
+// FabricInitInfo is the Go struct for contents in init.yaml. Only to be used when blockchain type is Fabric.
+type FabricInitInfo struct {
+	Users      map[string]*OrgInfo             `yaml:"users"`
+	Channels   map[string]*ChannelInfo         `yaml:"channels"`
+	Chaincodes map[string]*FabricChaincodeInfo `yaml:"chaincodes"`
+}
+
+// PolkadotInitInfo is the Go struct for contents in init.yaml. Only to be used when blockchain type is Polkadot.
+type PolkadotInitInfo struct {
+	Users      map[string]*OrgInfo               `yaml:"users"`
+	Chaincodes map[string]*PolkadotChaincodeInfo `yaml:"chaincodes"`
 }
 
 // OperatingIdentity represents the client / user that performs the operation.
@@ -40,19 +51,36 @@ type ChannelConfigInfo struct {
 	UserID  string `yaml:"userID"`  // The ID of the operating user
 }
 
-// ChaincodeInfo contains info about a chaincode as well as the installation and instantiation schemes.
-type ChaincodeInfo struct {
-	ID             string                                 `yaml:"id"`             // The ID of the chaincode
-	Version        string                                 `yaml:"version"`        // The version of the chaincode
-	Path           string                                 `yaml:"path"`           // The path to the chaincode. Chaincode files should be in ${GoPath}/src/${Path}.
-	GoPath         string                                 `yaml:"goPath"`         // The GoPath of the chaincode. Chaincode files dshould be in ${GoPath}/src/${Path}.
-	Installations  map[string]*OperatingIdentity          `yaml:"installations"`  // The organization that is to be installed with the chaincode -> the operating user
-	Instantiations map[string]*ChaincodeInstantiationInfo `yaml:"instantiations"` // The instantiation info of the chaincode
+type ChaincodeInfo interface{}
+
+// FabricChaincodeInfo contains info about a chaincode as well as the installation and instantiation schemes. Only to be used when blockchain type is Fabric.
+type FabricChaincodeInfo struct {
+	ID             string                                       `yaml:"id"`             // The ID of the chaincode
+	Version        string                                       `yaml:"version"`        // The version of the chaincode
+	Path           string                                       `yaml:"path"`           // The path to the chaincode. Chaincode files should be in ${GoPath}/src/${Path}.
+	GoPath         string                                       `yaml:"goPath"`         // The GoPath of the chaincode. Chaincode files dshould be in ${GoPath}/src/${Path}.
+	Installations  map[string]*OperatingIdentity                `yaml:"installations"`  // The organization that is to be installed with the chaincode -> the operating user
+	Instantiations map[string]*FabricChaincodeInstantiationInfo `yaml:"instantiations"` // The instantiation info of the chaincode
 }
 
-// ChaincodeInstantiationInfo needed to instantiate a chaincode.
-type ChaincodeInstantiationInfo struct {
+// PolkadotChaincodeInfo contains info about a chaincode as well as the installation and instantiation schemes. Only to be used when blockchain type is Polkadot.
+type PolkadotChaincodeInfo struct {
+	ID            string                              `yaml:"id"`            // The ID of the chaincode
+	Path          string                              `yaml:"path"`          // The path to the chaincode. Chaincode files should be in ${GoPath}/src/${Path}.
+	Installations map[string]*OperatingIdentity       `yaml:"installations"` // The organization that is to be installed with the chaincode -> the operating user
+	Instantiation *PolkadotChaincodeInstantiationInfo `yaml:"instantiation"` // The instantiation info of the chaincode
+}
+
+// FabricChaincodeInstantiationInfo needed to instantiate a chaincode. Only to be used when the blockchain type is Fabric.
+type FabricChaincodeInstantiationInfo struct {
 	Policy   string   `yaml:"policy"`   // The instantiation policy
+	InitArgs []string `yaml:"initArgs"` // The instantiation arguments
+	OrgName  string   `yaml:"orgName"`  // The name of the organization of the operating user
+	UserID   string   `yaml:"userID"`   // The ID of the operating user
+}
+
+// PolkadotChaincodeInstantiationInfo needed to instantiate a chaincode. Only to be used when the blockchain type is Polkadot.
+type PolkadotChaincodeInstantiationInfo struct {
 	InitArgs []string `yaml:"initArgs"` // The instantiation arguments
 	OrgName  string   `yaml:"orgName"`  // The name of the organization of the operating user
 	UserID   string   `yaml:"userID"`   // The ID of the operating user
@@ -72,7 +100,18 @@ func LoadInitInfo(configFilePath string) (ret InitInfo, err error) {
 		return
 	}
 
-	err = yaml.Unmarshal(yamlStr, &ret)
+	if global.BlockchainType == blockchain.Fabric {
+		var initInfo *FabricInitInfo
+		err = yaml.Unmarshal(yamlStr, &initInfo)
+		ret = initInfo
+	} else if global.BlockchainType == blockchain.Polkadot {
+		var initInfo *PolkadotInitInfo
+		err = yaml.Unmarshal(yamlStr, &initInfo)
+		ret = initInfo
+	} else {
+		err = fmt.Errorf("未实现的区块链类型")
+	}
+
 	if err != nil {
 		err = errors.Wrap(err, "解析 YAML 文件时出现错误")
 		return

@@ -52,19 +52,19 @@ func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]int
 
 	conditions["sort"] = []interface{}{
 		map[string]string{
-			"resourceID": resourceIDSort,
+			"resourceId": resourceIDSort,
 		},
 	}
 
 	if c.ResourceID != nil {
-		conditions["selector"].(map[string]interface{})["resourceID"] = *c.ResourceID
+		conditions["selector"].(map[string]interface{})["resourceId"] = *c.ResourceID
 	} else if c.LastResourceID != nil {
 		if !c.IsDesc {
-			conditions["selector"].(map[string]interface{})["resourceID"] = map[string]interface{}{
+			conditions["selector"].(map[string]interface{})["resourceId"] = map[string]interface{}{
 				"$gt": *c.LastResourceID,
 			}
 		} else {
-			conditions["selector"].(map[string]interface{})["resourceID"] = map[string]interface{}{
+			conditions["selector"].(map[string]interface{})["resourceId"] = map[string]interface{}{
 				"$lt": *c.LastResourceID,
 			}
 		}
@@ -184,15 +184,15 @@ func (c *DocumentQueryConditions) ToCouchDBConditions() (conditions map[string]i
 	}
 
 	if c.PrecedingDocumentID != nil {
-		conditions["selector"].(map[string]interface{})["extensions.precedingDocumentID"] = *c.PrecedingDocumentID
+		conditions["selector"].(map[string]interface{})["extensions.precedingDocumentId"] = *c.PrecedingDocumentID
 	}
 
 	if c.HeadDocumentID != nil {
-		conditions["selector"].(map[string]interface{})["extensions.headDocumentID"] = *c.HeadDocumentID
+		conditions["selector"].(map[string]interface{})["extensions.headDocumentId"] = *c.HeadDocumentID
 	}
 
 	if c.EntityAssetID != nil {
-		conditions["selector"].(map[string]interface{})["extensions.entityAssetID"] = *c.EntityAssetID
+		conditions["selector"].(map[string]interface{})["extensions.entityAssetId"] = *c.EntityAssetID
 	}
 
 	return
@@ -232,7 +232,7 @@ func (c *EntityAssetQueryConditions) ToCouchDBConditions() (conditions map[strin
 	conditions["selector"].(map[string]interface{})["extensions.dataType"] = entityAssetDataType
 
 	if c.DesignDocumentID != nil {
-		conditions["selector"].(map[string]interface{})["extensions.designDocumentID"] = *c.DesignDocumentID
+		conditions["selector"].(map[string]interface{})["extensions.designDocumentId"] = *c.DesignDocumentID
 	}
 
 	return

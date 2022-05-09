@@ -3,13 +3,14 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
 // AuthSession 表示一个授权会话，包含会话 ID、理由、批复结果等信息。
 type AuthSession struct {
-	AuthSessionID     string            `json:"authSessionID"`               // 授权会话 ID
-	ResourceID        string            `json:"resourceID"`                  // 申请的资源 ID
+	AuthSessionID     string            `json:"authSessionId"`               // 授权会话 ID
+	ResourceID        string            `json:"resourceId"`                  // 申请的资源 ID
 	Reason            string            `json:"reason"`                      // 申请理由
 	Status            AuthSessionStatus `json:"status"`                      // 会话状态
 	Requestor         string            `json:"requestor"`                   // 申请者的公钥（Base64 编码）
@@ -29,12 +30,14 @@ const (
 	Rejected
 )
 
+// 序列化时大写首字母以兼容 SCALE codec
 var authSessionStatusToStringMap = map[AuthSessionStatus]string{
-	Pending:  "pending",
-	Approved: "approved",
-	Rejected: "rejected",
+	Pending:  "Pending",
+	Approved: "Approved",
+	Rejected: "Rejected",
 }
 
+// 反序列化时大小写均接受
 var authSessionStatusFromStringMap = map[string]AuthSessionStatus{
 	"pending":  Pending,
 	"approved": Approved,
@@ -52,9 +55,12 @@ func (t AuthSessionStatus) String() string {
 
 // NewAuthSessionStatusFromString 从 enum 名称获得 AuthSessionStatus enum。
 func NewAuthSessionStatusFromString(enumString string) (ret AuthSessionStatus, err error) {
-	ret, ok := authSessionStatusFromStringMap[enumString]
+	// 不要区分大小写
+	enumStringCaseInsensitive := strings.ToLower(enumString)
+
+	ret, ok := authSessionStatusFromStringMap[enumStringCaseInsensitive]
 	if !ok {
-		err = fmt.Errorf("不正确的 enum 字符串")
+		err = fmt.Errorf("不正确的 enum 字符串 '%v'", enumString)
 		return
 	}
 

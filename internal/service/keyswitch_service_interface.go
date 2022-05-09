@@ -4,6 +4,7 @@ import (
 	"crypto"
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
+	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
 	"github.com/tjfoc/gmsm/sm2"
 )
@@ -64,7 +65,7 @@ type KeySwitchServiceInterface interface {
 	//
 	// 返回：
 	//   预期个数的份额列表
-	AwaitKeySwitchResults(keySwitchSessionID string, numExpected int, timeout ...int) ([][]byte, error)
+	AwaitKeySwitchResults(keySwitchSessionID string, numExpected int, timeout ...int) ([]*keyswitch.KeySwitchResultStored, error)
 
 	// 获取集合权威公钥。
 	//

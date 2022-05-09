@@ -1,3 +1,7 @@
 [submodule "ppks"]
 	path = ppks
 	url = https://gitee.com/czyczk/ppks
+[submodule "blbc"]
+	path = blbc
+	url = https://gitee.com/czyczk/blbc
+	branch = build

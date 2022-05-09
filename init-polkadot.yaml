@@ -1,0 +1,24 @@
+users:
+  Org1:
+    adminIDs:
+      - BuiltInAlice
+    userIDs:
+  # Org2:
+  #   adminIDs:
+  #     - BuiltInBob
+  #   userIDs:
+chaincodes:
+  universalCc:
+    path: blbc
+    installations:
+      Org1:
+        orgName: Org1
+        userID: BuiltInAlice
+      # Org2:
+      #   orgName: Org2
+      #   userID: BuiltInBob
+    instantiation:
+      # policy: OR('Org1MSP.member', 'Org2MSP.member')
+      initArgs:
+      orgName: Org1
+      userID: BuiltInAlice

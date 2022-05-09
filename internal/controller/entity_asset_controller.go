@@ -66,11 +66,11 @@ func (c *EntityAssetController) handleCreateAsset(ctx *gin.Context) {
 	name := ctx.PostForm("name")
 	name = pel.AppendIfEmptyOrBlankSpaces(name, "实体资产名称不能为空。")
 
-	designDocumentID := ctx.PostForm("designDocumentID")
+	designDocumentID := ctx.PostForm("designDocumentId")
 	designDocumentID = pel.AppendIfEmptyOrBlankSpaces(designDocumentID, "设计文档 ID 不能为空。")
 
 	// Check componentsIDs
-	componentIDsBytes := []byte(ctx.PostForm("componentIDs"))
+	componentIDsBytes := []byte(ctx.PostForm("componentIds"))
 	var componentIDs []string
 	if len(componentIDsBytes) == 0 {
 		*pel = append(*pel, "组件的序列号不能为空。")
@@ -98,7 +98,7 @@ func (c *EntityAssetController) handleCreateAsset(ctx *gin.Context) {
 
 	isDesignDocumentIDPublic := true
 	if resourceType != data.Plain {
-		isDesignDocumentIDPublicStr := ctx.PostForm("isDesignDocumentIDPublic")
+		isDesignDocumentIDPublicStr := ctx.PostForm("isDesignDocumentIdPublic")
 		isDesignDocumentIDPublic = pel.AppendIfNotBool(isDesignDocumentIDPublicStr, "必须指定设计文档 ID 公开性。")
 	}
 
@@ -253,7 +253,7 @@ func (c *EntityAssetController) handleGetAsset(ctx *gin.Context) {
 		if errors.Cause(err) == errorcode.ErrorNotFound || reflect.TypeOf(err) == reflect.TypeOf(&service.ErrorCorruptedDatabaseResult{}) {
 			// Perform the full process if the document is not available in the database (not found or corrupted)
 			// First try to get additional parameters
-			keySwitchSessionID = ctx.Query("keySwitchSessionID")
+			keySwitchSessionID = ctx.Query("keySwitchSessionId")
 			keySwitchSessionID = pel.AppendIfEmptyOrBlankSpaces(keySwitchSessionID, "该实体资产解密记录不可用，密钥置换会话 ID 不能为空。")
 
 			numSharesExpectedString := ctx.Query("numSharesExpected")
@@ -311,7 +311,7 @@ func (c *EntityAssetController) handleListAssetIDs(ctx *gin.Context) {
 
 	// Optional fields
 	var resourceID *string
-	if temp := strings.TrimSpace(ctx.Query("resourceID")); temp != "" {
+	if temp := strings.TrimSpace(ctx.Query("resourceId")); temp != "" {
 		resourceID = &temp
 	}
 
@@ -347,7 +347,7 @@ func (c *EntityAssetController) handleListAssetIDs(ctx *gin.Context) {
 	}
 
 	var designDocumentID *string
-	if temp := strings.TrimSpace(ctx.Query("designDocumentID")); temp != "" {
+	if temp := strings.TrimSpace(ctx.Query("designDocumentId")); temp != "" {
 		designDocumentID = &temp
 	}
 
