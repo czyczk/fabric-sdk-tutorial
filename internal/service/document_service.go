@@ -136,7 +136,7 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 	// FILELOGGER: 明文上链用时
 	{
 		timeBeforeBcUplaod := time.Now()
-		s.FileLoggerBcUpload.LogSuccessWithTimestampAsync(taskID, timeBeforeBcUplaod, s.ChanLoggerErr)
+		s.FileLoggerBcUpload.LogStartWithTimestampAsync(taskID, timeBeforeBcUplaod, s.ChanLoggerErr)
 	}
 	txID, err := s.DataBCAO.CreatePlainData(&plainData)
 	// FILELOGGER: 明文上链用时
