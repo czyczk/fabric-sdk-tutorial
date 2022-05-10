@@ -396,11 +396,38 @@ func (s *DocumentService) GetDocument(id string, metadata *data.ResMetadataStore
 		}
 	}
 
+	// Generate an ID for this task
+	var taskID string
+	{
+		usedRandsMapLock.Lock()
+		for {
+			ran := rand.Int63()
+			times, ok := usedRandsMap[ran]
+			if !ok {
+				usedRandsMap[ran] = 1
+				taskID = fmt.Sprintf("%v", ran)
+				usedRandsMapLock.Unlock()
+				break
+			} else {
+				log.Warnf("Duplicated random number generated: %v. Duplicated %v time(s).", ran, times)
+				usedRandsMap[ran] = times + 1
+			}
+		}
+	}
+
 	// 调用链码 getData 获取该资源的本体
+	// FILELOGGER: 链上获取用时
+	{
+		timeBeforeBcRetrieval := time.Now()
+		s.FileLoggerBcRetrieval.LogStartWithTimestampAsync(taskID, timeBeforeBcRetrieval, s.ChanLoggerErr)
+	}
 	documentBytes, err := s.DataBCAO.GetData(id)
+	timeAfterBcRetrieval := time.Now()
 	if err != nil {
+		s.FileLoggerBcRetrieval.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, err
 	}
+	s.FileLoggerBcRetrieval.LogSuccessWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
 
 	// 检查所获数据的大小与哈希是否匹配
 	err = checkSizeAndHashForDecryptedData(documentBytes, metadata).toError(metadata.ResourceType)
