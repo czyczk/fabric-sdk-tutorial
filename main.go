@@ -424,11 +424,11 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		}
 		defer fileLoggerDocumentServicePreProcess.Close()
 
-		fileLoggerDocumentServiceOffchainBcUpload, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-bcupload.out", "logs/ta-ds-bcupload.out")
+		fileLoggerDocumentServiceBcUpload, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-bcupload.out", "logs/ta-ds-bcupload.out")
 		if err != nil {
 			return errors.Wrap(err, "无法为属性上链创建文件日志器")
 		}
-		defer fileLoggerDocumentServiceOffchainBcUpload.Close()
+		defer fileLoggerDocumentServiceBcUpload.Close()
 
 		fileLoggerDocumentServiceOffchainIpfsUpload, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-ipfsupload.out", "logs/ta-ds-ipfsupload.out")
 		if err != nil {
@@ -436,11 +436,11 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		}
 		defer fileLoggerDocumentServiceOffchainIpfsUpload.Close()
 
-		fileLoggerDocumentServiceOffchainBcRetrieval, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-bcretrieval.out", "logs/ta-ds-bcretrieval.out")
+		fileLoggerDocumentServiceBcRetrieval, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-bcretrieval.out", "logs/ta-ds-bcretrieval.out")
 		if err != nil {
 			return errors.Wrap(err, "无法为属性获取任务创建文件日志器")
 		}
-		defer fileLoggerDocumentServiceOffchainBcRetrieval.Close()
+		defer fileLoggerDocumentServiceBcRetrieval.Close()
 
 		fileLoggerDocumentServiceOffchainIpfsRetrieval, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-ipfsretrieval.out", "logs/ta-ds-ipfsretrieval.out")
 		if err != nil {
@@ -454,9 +454,9 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 			KeySwitchBCAO:                   keySwitchBCAO,
 			KeySwitchService:                keySwitchSvc,
 			FileLoggerPreProcess:            fileLoggerDocumentServicePreProcess,
-			FileLoggerOffchainBcUpload:      fileLoggerDocumentServiceOffchainBcUpload,
+			FileLoggerBcUpload:              fileLoggerDocumentServiceBcUpload,
 			FileLoggerOffchainIpfsUpload:    fileLoggerDocumentServiceOffchainIpfsUpload,
-			FileLoggerOffchainBcRetrieval:   fileLoggerDocumentServiceOffchainBcRetrieval,
+			FileLoggerBcRetrieval:           fileLoggerDocumentServiceBcRetrieval,
 			FileLoggerOffchainIpfsRetrieval: fileLoggerDocumentServiceOffchainIpfsRetrieval,
 			ChanLoggerErr:                   chanLoggerErr,
 		}
