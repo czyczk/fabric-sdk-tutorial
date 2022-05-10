@@ -39,9 +39,9 @@ type DocumentService struct {
 	KeySwitchBCAO                   bcao.IKeySwitchBCAO
 	KeySwitchService                KeySwitchServiceInterface
 	FileLoggerPreProcess            *timingutils.StartEndFileLogger
-	FileLoggerOffchainBcUpload      *timingutils.StartEndFileLogger
+	FileLoggerBcUpload              *timingutils.StartEndFileLogger
 	FileLoggerOffchainIpfsUpload    *timingutils.StartEndFileLogger
-	FileLoggerOffchainBcRetrieval   *timingutils.StartEndFileLogger
+	FileLoggerBcRetrieval           *timingutils.StartEndFileLogger
 	FileLoggerOffchainIpfsRetrieval *timingutils.StartEndFileLogger
 	ChanLoggerErr                   chan<- error
 }
@@ -133,7 +133,19 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 		s.FileLoggerPreProcess.LogSuccessWithTimestampAsync(taskID, timeAfterPreProcess, s.ChanLoggerErr)
 	}
 
+	// FILELOGGER: 明文上链用时
+	{
+		timeBeforeBcUplaod := time.Now()
+		s.FileLoggerBcUpload.LogSuccessWithTimestampAsync(taskID, timeBeforeBcUplaod, s.ChanLoggerErr)
+	}
 	txID, err := s.DataBCAO.CreatePlainData(&plainData)
+	// FILELOGGER: 明文上链用时
+	if err != nil {
+		s.FileLoggerBcUpload.LogFailureAsync(taskID, s.ChanLoggerErr)
+	} else {
+		timeAfterBcUpload := time.Now()
+		s.FileLoggerBcUpload.LogSuccessWithTimestampAsync(taskID, timeAfterBcUpload, s.ChanLoggerErr)
+	}
 	return txID, err
 }
 
@@ -346,14 +358,14 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	// FILELOGGER: 链下文档属性上链用时
 	{
 		timeBeforeBcUpload := time.Now()
-		s.FileLoggerOffchainBcUpload.LogStartWithTimestampAsync(taskID, timeBeforeBcUpload, s.ChanLoggerErr)
+		s.FileLoggerBcUpload.LogStartWithTimestampAsync(taskID, timeBeforeBcUpload, s.ChanLoggerErr)
 	}
 	txID, err := s.DataBCAO.CreateOffchainData(&offchainData, encryptedResourceCreationEventName)
 	timeAfterBcUpload := time.Now()
 	if err != nil {
-		s.FileLoggerOffchainBcUpload.LogFailureWithTimestampAsync(taskID, timeAfterBcUpload, s.ChanLoggerErr)
+		s.FileLoggerBcUpload.LogFailureWithTimestampAsync(taskID, timeAfterBcUpload, s.ChanLoggerErr)
 	}
-	s.FileLoggerOffchainBcUpload.LogSuccessWithTimestampAsync(taskID, timeAfterBcUpload, s.ChanLoggerErr)
+	s.FileLoggerBcUpload.LogSuccessWithTimestampAsync(taskID, timeAfterBcUpload, s.ChanLoggerErr)
 	return txID, err
 }
 
@@ -537,15 +549,15 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	// FILELOGGER: 从链上获取链下文档用时
 	{
 		timeBeforeBcRetrieval := time.Now()
-		s.FileLoggerOffchainBcRetrieval.LogStartWithTimestampAsync(taskID, timeBeforeBcRetrieval, s.ChanLoggerErr)
+		s.FileLoggerBcRetrieval.LogStartWithTimestampAsync(taskID, timeBeforeBcRetrieval, s.ChanLoggerErr)
 	}
 	cidBytes, err := s.DataBCAO.GetData(id)
 	timeAfterBcRetrieval := time.Now()
 	if err != nil {
-		s.FileLoggerOffchainBcRetrieval.LogFailureWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
+		s.FileLoggerBcRetrieval.LogFailureWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
 		return nil, err
 	}
-	s.FileLoggerOffchainBcRetrieval.LogSuccessWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
+	s.FileLoggerBcRetrieval.LogSuccessWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
 	cid := string(cidBytes)
 
 	// 检查链上记录的内容（CID）的大小和哈希是否匹配
