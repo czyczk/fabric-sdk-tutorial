@@ -39,6 +39,7 @@ type DocumentService struct {
 	KeySwitchBCAO                   bcao.IKeySwitchBCAO
 	KeySwitchService                KeySwitchServiceInterface
 	FileLoggerPreProcess            *timingutils.StartEndFileLogger
+	FileLoggerPostProcess           *timingutils.StartEndFileLogger
 	FileLoggerBcUpload              *timingutils.StartEndFileLogger
 	FileLoggerOffchainIpfsUpload    *timingutils.StartEndFileLogger
 	FileLoggerBcRetrieval           *timingutils.StartEndFileLogger
@@ -271,12 +272,20 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		}
 	}
 
+	// FILELOGGER: 前处理用时
+	{
+		timeBeforePreProcess := time.Now()
+		s.FileLoggerPreProcess.LogStartWithTimestampAsync(taskID, timeBeforePreProcess, s.ChanLoggerErr)
+	}
+
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
 	if err != nil {
+		s.FileLoggerPreProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法序列化文档属性")
 	}
 	documentBytes, err := json.Marshal(document)
 	if err != nil {
+		s.FileLoggerPreProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法序列化文档")
 	}
 
@@ -284,6 +293,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
 	encryptedDocumentPropertiesBytes, err := encryptDataWithTimer(documentPropertiesBytes, key, "无法加密文档属性", "加密文档属性")
 	if err != nil {
+		s.FileLoggerPreProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", err
 	}
 
@@ -300,6 +310,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 
 	encryptedDocumentBytes, err := encryptDataWithTimer(documentBytes, key, "无法加密文档", "加密文档")
 	if err != nil {
+		s.FileLoggerPreProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", err
 	}
 
@@ -309,6 +320,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()
 	if err != nil {
+		s.FileLoggerPreProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", err
 	}
 	collPubKeyInSM2 := collPubKey.(*sm2.PublicKey)
@@ -316,6 +328,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
 	if err != nil {
+		s.FileLoggerPreProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return "", errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
@@ -327,6 +340,12 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		Hash:         hashBase64,
 		Size:         uint64(size),
 		Extensions:   extensions,
+	}
+
+	// FILELOGGER: 前处理用时
+	{
+		timeAfterPreProcess := time.Now()
+		s.FileLoggerPreProcess.LogSuccessWithTimestampAsync(taskID, timeAfterPreProcess, s.ChanLoggerErr)
 	}
 
 	// FILELOGGER: 链下文档 IPFS 上传用时
@@ -430,16 +449,25 @@ func (s *DocumentService) GetDocument(id string, metadata *data.ResMetadataStore
 	s.FileLoggerBcRetrieval.LogSuccessWithTimestampAsync(taskID, timeAfterBcRetrieval, s.ChanLoggerErr)
 
 	// 检查所获数据的大小与哈希是否匹配
+	// FILELOGGER: 链下后处理用时
+	{
+		timeBeforePostProcess := time.Now()
+		s.FileLoggerPostProcess.LogStartWithTimestampAsync(taskID, timeBeforePostProcess, s.ChanLoggerErr)
+	}
 	err = checkSizeAndHashForDecryptedData(documentBytes, metadata).toError(metadata.ResourceType)
 	if err != nil {
+		s.FileLoggerPostProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, err
 	}
 
 	// 解析所获数据，得到 common.Document 作为结果
 	var document common.Document
 	if err = json.Unmarshal(documentBytes, &document); err != nil {
+		s.FileLoggerPostProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, fmt.Errorf("获取的数据不是合法的数字文档")
 	}
+	timeAfterPostProcess := time.Now()
+	s.FileLoggerPostProcess.LogSuccessWithTimestampAsync(taskID, timeAfterPostProcess, s.ChanLoggerErr)
 	return &document, nil
 }
 
@@ -635,26 +663,35 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	}
 
 	// 解析并验证份额
+	// FILELOGGER: 链下后处理
+	{
+		timeBeforePostProcess := time.Now()
+		s.FileLoggerPostProcess.LogStartWithTimestampAsync(taskID, timeBeforePostProcess, s.ChanLoggerErr)
+	}
 	shares, err := parseAndVerifySharesFromKeySwitchResults(ksResults, global.KeySwitchKeys.PublicKey, encryptedKeyAsCipherText, s.KeySwitchService)
 	if err != nil {
+		s.FileLoggerPostProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, err
 	}
 
 	// 调用 KeySwitchService 中的 GetDecryptedKey 得到解密的对称密钥材料
 	decryptedKey, err := s.KeySwitchService.GetDecryptedKey(shares, encryptedKeyAsCipherText, global.KeySwitchKeys.PrivateKey)
 	if err != nil {
+		s.FileLoggerPostProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, errors.Wrap(err, "无法解密对称密钥")
 	}
 
 	// 用对称密钥解密 encryptedDocumentBytes
 	documentBytes, err := cipherutils.DecryptBytesUsingAESKey(encryptedDocumentBytes, cipherutils.DeriveSymmetricKeyBytesFromCurvePoint(decryptedKey))
 	if err != nil {
+		s.FileLoggerPostProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, errors.Wrap(err, "无法解密文档")
 	}
 
 	// 检查解密出的内容的大小和哈希是否匹配
 	err = checkSizeAndHashForDecryptedData(documentBytes, metadata).toError(metadata.ResourceType)
 	if err != nil {
+		s.FileLoggerPostProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, err
 	}
 
@@ -662,8 +699,11 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	var document common.Document
 	err = json.Unmarshal(documentBytes, &document)
 	if err != nil {
+		s.FileLoggerPostProcess.LogFailureAsync(taskID, s.ChanLoggerErr)
 		return nil, fmt.Errorf("获取的数据不是合法的数字文档")
 	}
+	timeAfterPostProcess := time.Now()
+	s.FileLoggerPostProcess.LogSuccessWithTimestampAsync(taskID, timeAfterPostProcess, s.ChanLoggerErr)
 
 	// 将解密的文档属性与内容存入数据库（若已存在则覆盖）
 	// FORTEST: 测试时屏蔽该功能
