@@ -76,6 +76,9 @@ run-serve-o2-bg:
 run-polkadot-serve-alice:
 	@./fabric-sdk-tutorial serve -t "polkadot" -b "polkadot-config-network.yaml" -c "server-polkadot-alice.yaml"
 
+run-polkadot-serve-alice:
+	@./fabric-sdk-tutorial serve -t "polkadot" -b "polkadot-config-network.yaml" -c "server-polkadot-alice.yaml"
+
 ##### CLEAN
 clean: env-down
 	@echo "Cleaning up..."
