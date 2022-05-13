@@ -42,7 +42,7 @@ chaincodes:
         userID: Admin
     instantiations:
       mychannel:
-        policy: OR('Org1MSP.member', 'Org2MSP.member')
+        policy: AND('Org1MSP.member', 'Org2MSP.member')
         initArgs:
           - init
           - Org1
@@ -64,7 +64,7 @@ chaincodes:
         userID: Admin
     instantiations:
       mychannel:
-        policy: OR('Org1MSP.member', 'Org2MSP.member')
+        policy: AND('Org1MSP.member', 'Org2MSP.member')
         initArgs:
         orgName: Org1
         userID: Admin
