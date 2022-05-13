@@ -424,6 +424,11 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		}
 		defer fileLoggerDocumentServicePreProcess.Close()
 
+		fileLoggerDocumentServicePostProcess, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-postprocess.out", "logs/ta-ds-postprocess.out")
+		if err != nil {
+			return errors.Wrap(err, "无法为后处理任务创建文件日志器")
+		}
+
 		fileLoggerDocumentServiceBcUpload, err := timingutils.NewStartEndFileLogger(loggerID, "logs/tb-ds-bcupload.out", "logs/ta-ds-bcupload.out")
 		if err != nil {
 			return errors.Wrap(err, "无法为属性上链创建文件日志器")
@@ -454,6 +459,7 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 			KeySwitchBCAO:                   keySwitchBCAO,
 			KeySwitchService:                keySwitchSvc,
 			FileLoggerPreProcess:            fileLoggerDocumentServicePreProcess,
+			FileLoggerPostProcess:           fileLoggerDocumentServicePostProcess,
 			FileLoggerBcUpload:              fileLoggerDocumentServiceBcUpload,
 			FileLoggerOffchainIpfsUpload:    fileLoggerDocumentServiceOffchainIpfsUpload,
 			FileLoggerBcRetrieval:           fileLoggerDocumentServiceBcRetrieval,
