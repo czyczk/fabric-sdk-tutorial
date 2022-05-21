@@ -89,5 +89,5 @@ type EntityAssetServiceInterface interface {
 	//
 	// 返回：
 	//   带分页的资源 ID 列表
-	ListEntityAssetIDsByConditions(conditions EntityAssetQueryConditions, pageSize int) (*query.IDsWithPagination, error)
+	ListEntityAssetIDsByConditions(conditions *common.EntityAssetQueryConditions, pageSize int) (*query.IDsWithPagination, error)
 }

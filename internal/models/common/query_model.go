@@ -1,16 +1,15 @@
-package service
+package common
 
 import (
 	"fmt"
 	"time"
 
-	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gorm.io/gorm"
 )
 
 type QueryConditions interface {
 	ToCouchDBConditions() (conditions map[string]interface{}, err error)
-	ToGormConditionedDB(db *gorm.DB) (tx *gorm.DB)
+	ToGormConditionedDB(db *gorm.DB) (tx *gorm.DB, err error)
 }
 
 // CommonQueryConditions 表示适用所有通用模型的查询条件。不单独使用，用于组合于其他查询条件。
@@ -29,7 +28,7 @@ type CommonQueryConditions struct {
 // DocumentQueryConditions 表示适用数字文档的查询条件。
 type DocumentQueryConditions struct {
 	CommonQueryConditions
-	DocumentType        *common.DocumentType
+	DocumentType        *DocumentType
 	PrecedingDocumentID *string
 	HeadDocumentID      *string
 	EntityAssetID       *string
@@ -177,7 +176,7 @@ func (c *DocumentQueryConditions) ToCouchDBConditions() (conditions map[string]i
 		return
 	}
 
-	conditions["selector"].(map[string]interface{})["extensions.dataType"] = documentDataType
+	conditions["selector"].(map[string]interface{})["extensions.dataType"] = DocumentDataType
 
 	if c.DocumentType != nil {
 		conditions["selector"].(map[string]interface{})["extensions.documentType"] = c.DocumentType
@@ -229,7 +228,7 @@ func (c *EntityAssetQueryConditions) ToCouchDBConditions() (conditions map[strin
 		return
 	}
 
-	conditions["selector"].(map[string]interface{})["extensions.dataType"] = entityAssetDataType
+	conditions["selector"].(map[string]interface{})["extensions.dataType"] = EntityAssetDataType
 
 	if c.DesignDocumentID != nil {
 		conditions["selector"].(map[string]interface{})["extensions.designDocumentId"] = *c.DesignDocumentID

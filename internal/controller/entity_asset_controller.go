@@ -358,8 +358,8 @@ func (c *EntityAssetController) handleListAssetIDs(ctx *gin.Context) {
 	}
 
 	// Encapsulate the query conditions into a struct
-	queryConditions := service.EntityAssetQueryConditions{
-		CommonQueryConditions: service.CommonQueryConditions{
+	queryConditions := common.EntityAssetQueryConditions{
+		CommonQueryConditions: common.CommonQueryConditions{
 			IsDesc:              isLatestFirst,
 			ResourceID:          resourceID,
 			IsNameExact:         isNameExact,
@@ -374,7 +374,7 @@ func (c *EntityAssetController) handleListAssetIDs(ctx *gin.Context) {
 	}
 
 	// Perform the query using the service function
-	resourceIDs, err := c.EntityAssetSvc.ListEntityAssetIDsByConditions(queryConditions, pageSize)
+	resourceIDs, err := c.EntityAssetSvc.ListEntityAssetIDsByConditions(&queryConditions, pageSize)
 
 	// Check error type and generate the corresponding response
 	if err == nil {

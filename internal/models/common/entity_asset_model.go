@@ -1,5 +1,8 @@
 package common
 
+// 用于放置在元数据的 extensions.dataType 中的值
+const EntityAssetDataType = "EntityAsset"
+
 // EntityAsset 表示实体资产
 type EntityAsset struct {
 	ID                       string   `json:"id"`                       // 实体资产 ID

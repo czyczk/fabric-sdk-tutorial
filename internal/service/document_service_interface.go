@@ -134,5 +134,5 @@ type DocumentServiceInterface interface {
 	//
 	// 返回：
 	//   带分页的资源 ID 列表
-	ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int) (*query.IDsWithPagination, error)
+	ListDocumentIDsByConditions(conditions *common.DocumentQueryConditions, pageSize int) (*query.IDsWithPagination, error)
 }

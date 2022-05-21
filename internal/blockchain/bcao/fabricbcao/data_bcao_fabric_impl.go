@@ -7,6 +7,7 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
@@ -183,8 +184,14 @@ func (o *DataBCAOFabricImpl) ListResourceIDsByCreator(dataType string, isDesc bo
 	return &resourceIDs, nil
 }
 
-func (o *DataBCAOFabricImpl) ListResourceIDsByConditions(queryConditions map[string]interface{}, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
-	conditionsBytes, err := json.Marshal(queryConditions)
+func (o *DataBCAOFabricImpl) ListResourceIDsByConditions(conditions common.QueryConditions, pageSize int) (*query.IDsWithPagination, error) {
+	// 为链码层所用的 CouchDB 生成查询条件
+	couchDBConditions, err := conditions.ToCouchDBConditions()
+	if err != nil {
+		return nil, err
+	}
+
+	conditionsBytes, err := json.Marshal(couchDBConditions)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法序列化查询条件")
 	}
@@ -192,11 +199,12 @@ func (o *DataBCAOFabricImpl) ListResourceIDsByConditions(queryConditions map[str
 	// TODO: Debug 用
 	log.Debug(string(conditionsBytes))
 
+	// 为满足 3 个参数，最后的 bookmark 参数为空列表
 	chaincodeFcn := "listResourceIDsByConditions"
 	channelReq := channel.Request{
 		ChaincodeID: o.ctx.ChaincodeID,
 		Fcn:         chaincodeFcn,
-		Args:        [][]byte{conditionsBytes, []byte(strconv.Itoa(pageSize)), []byte(bookmark)},
+		Args:        [][]byte{conditionsBytes, []byte(strconv.Itoa(pageSize)), {}},
 	}
 
 	resp, err := o.ctx.ChannelClient.Query(channelReq)

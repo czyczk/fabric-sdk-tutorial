@@ -32,9 +32,6 @@ type DocumentService struct {
 	KeySwitchService KeySwitchServiceInterface
 }
 
-// 用于放置在元数据的 extensions.dataType 中的值
-const documentDataType = "Document"
-
 // CreateDocument 创建数字文档。
 //
 // 参数：
@@ -690,7 +687,7 @@ func (s *DocumentService) GetDecryptedDocumentPropertiesFromDB(id string, metada
 //   带分页的资源 ID 列表
 func (s *DocumentService) ListDocumentIDsByCreator(isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// 调用 listResourceIDsByCreator 拿到一个 ID 列表
-	return s.DataBCAO.ListResourceIDsByCreator(documentDataType, isDesc, pageSize, bookmark)
+	return s.DataBCAO.ListResourceIDsByCreator(common.DocumentDataType, isDesc, pageSize, bookmark)
 }
 
 // ListDocumentIDsByConditions 获取满足所提供的搜索条件的数字文档的资源 ID。
@@ -701,7 +698,7 @@ func (s *DocumentService) ListDocumentIDsByCreator(isDesc bool, pageSize int, bo
 //
 // 返回：
 //   带分页的资源 ID 列表
-func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryConditions, pageSize int) (*query.IDsWithPagination, error) {
+func (s *DocumentService) ListDocumentIDsByConditions(conditions *common.DocumentQueryConditions, pageSize int) (*query.IDsWithPagination, error) {
 	// 从两处获取资源 ID。
 	// 第一是调用链码从链上获取，这部分的结果包括 明文资源以及所查寻属性为公开的那部分资源 中符合条件的条目；
 	// 第二是从本地数据库中获取，这部分内容为 用户已解密过的资源 中符合条件的条目。
@@ -730,14 +727,6 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	//      2.1: 结果列表不满 10 条：两个数据源均用完，则采用该列表以及最后的 ID 信息返回。
 	//      2.2: 结果列表满 10 条：直接返回以及最后的 ID 信息。
 
-	// 为链码层所用的 CouchDB 生成查询条件。遇到错误视为参数错误。
-	couchDBConditions, err := conditions.ToCouchDBConditions()
-	if err != nil {
-		return nil, &ErrorBadRequest{
-			errMsg: err.Error(),
-		}
-	}
-
 	// 生成 GORM 可用的带查询条件的 DB 对象
 	gormConditionedDB, err := conditions.ToGormConditionedDB(s.ServiceInfo.DB)
 	if err != nil {
@@ -747,9 +736,9 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 	}
 
 	// 从链码获取资源 ID
-	// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）。为满足 3 个参数，最后的 bookmark 参数为空列表。
+	// 单独从链码获取是支持书签的，但这里不用（已经在查询条件中限定了）
 	// 这里虽然包含查询后的新书签信息，但该书签信息无用
-	chaincodeResourceIDs, err := s.DataBCAO.ListResourceIDsByConditions(couchDBConditions, pageSize, "")
+	chaincodeResourceIDs, err := s.DataBCAO.ListResourceIDsByConditions(conditions, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -784,7 +773,7 @@ func (s *DocumentService) ListDocumentIDsByConditions(conditions DocumentQueryCo
 
 func deriveExtensionsMapFromDocumentProperties(publicProperties *common.DocumentProperties, encryptedProperties []byte) map[string]interface{} {
 	extensions := make(map[string]interface{})
-	extensions["dataType"] = documentDataType
+	extensions["dataType"] = common.DocumentDataType
 	if publicProperties.IsNamePublic {
 		extensions["name"] = publicProperties.Name
 	}
