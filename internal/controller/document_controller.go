@@ -500,8 +500,8 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 	}
 
 	// Encapsulate the query conditions into a struct
-	queryConditions := service.DocumentQueryConditions{
-		CommonQueryConditions: service.CommonQueryConditions{
+	queryConditions := common.DocumentQueryConditions{
+		CommonQueryConditions: common.CommonQueryConditions{
 			IsDesc:              isLatestFirst,
 			ResourceID:          resourceID,
 			IsNameExact:         isNameExact,
@@ -519,7 +519,7 @@ func (c *DocumentController) handleListDocumentIDs(ctx *gin.Context) {
 	}
 
 	// Perform the query using the service function
-	resourceIDs, err := c.DocumentSvc.ListDocumentIDsByConditions(queryConditions, pageSize)
+	resourceIDs, err := c.DocumentSvc.ListDocumentIDsByConditions(&queryConditions, pageSize)
 
 	// Check error type and generate the corresponding response
 	if err == nil {

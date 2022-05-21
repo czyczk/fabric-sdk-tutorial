@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+// 用于放置在元数据的 extensions.dataType 中的值
+const DocumentDataType = "Document"
+
 // DocumentProperties 表示数字文档的属性部分
 type DocumentProperties struct {
 	ID                          string       `json:"id"`                          // 数字文档 ID

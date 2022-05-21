@@ -8,6 +8,7 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/pkg/errors"
@@ -198,14 +199,14 @@ func (o *DataBCAOPolkadotImpl) ListResourceIDsByCreator(dataType string, isDesc 
 	return &resourceIDs, nil
 }
 
-func (o *DataBCAOPolkadotImpl) ListResourceIDsByConditions(queryConditions map[string]interface{}, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
-	conditionsBytes, err := json.Marshal(queryConditions)
+func (o *DataBCAOPolkadotImpl) ListResourceIDsByConditions(conditions common.QueryConditions, pageSize int) (*query.IDsWithPagination, error) {
+	conditionsBytes, err := json.Marshal(conditions)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法序列化查询条件")
 	}
 
 	funcName := "listResourceIDsByConditions"
-	funcArgs := []interface{}{conditionsBytes, pageSize, bookmark}
+	funcArgs := []interface{}{conditionsBytes, pageSize}
 	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
 	if err != nil {
 		return nil, bcao.GetClassifiedError(funcName, err)
