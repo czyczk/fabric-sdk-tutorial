@@ -1,0 +1,7 @@
+{
+	"index": {
+		"fields": ["resourceId"]
+	},
+	"name": "indexSortResourceId",
+	"type": "json"
+}

@@ -1,6 +1,6 @@
 {
 	"index": {
-		"fields": ["resourceID", "extensions.dataType"]
+		"fields": ["resourceId", "extensions.dataType"]
 	},
 	"name": "indexPrimaryKeys",
 	"type": "json"
