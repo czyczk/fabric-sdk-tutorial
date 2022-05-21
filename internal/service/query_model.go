@@ -102,10 +102,10 @@ func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]int
 			conditions["selector"].(map[string]interface{})["timestamp"] = make(map[string]interface{})
 
 			if c.TimeAfterInclusive != nil {
-				conditions["selector"].(map[string]interface{})["timestamp"].(map[string]interface{})["$gt"] = *c.TimeAfterInclusive
+				conditions["selector"].(map[string]interface{})["timestamp"].(map[string]interface{})["$ge"] = *c.TimeAfterInclusive
 			}
 			if c.TimeBeforeExclusive != nil {
-				conditions["selector"].(map[string]interface{})["timestamp"].(map[string]interface{})["$le"] = *c.TimeBeforeExclusive
+				conditions["selector"].(map[string]interface{})["timestamp"].(map[string]interface{})["$lt"] = *c.TimeBeforeExclusive
 			}
 		}
 	}
