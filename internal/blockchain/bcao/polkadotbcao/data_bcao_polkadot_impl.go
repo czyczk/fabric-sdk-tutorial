@@ -178,7 +178,7 @@ func (o *DataBCAOPolkadotImpl) GetPolicy(resourceID string) ([]byte, error) {
 }
 
 func (o *DataBCAOPolkadotImpl) ListResourceIDsByCreator(dataType string, isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
-	funcName := "listResourceIDsByCreator"
+	funcName := "listResourceIdsByCreator"
 	funcArgs := []interface{}{dataType, isDesc, pageSize, bookmark}
 	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
 	if err != nil {
@@ -205,7 +205,7 @@ func (o *DataBCAOPolkadotImpl) ListResourceIDsByConditions(conditions common.Que
 		return nil, errors.Wrap(err, "无法序列化查询条件")
 	}
 
-	funcName := "listResourceIDsByConditions"
+	funcName := "listResourceIdsByConditions"
 	funcArgs := []interface{}{conditionsBytes, pageSize}
 	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
 	if err != nil {
