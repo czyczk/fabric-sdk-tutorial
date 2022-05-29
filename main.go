@@ -18,6 +18,7 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/eventmgr"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/eventmgr/fabriceventmgr"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/eventmgr/polkadoteventmgr"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/controller"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/sqlmodel"
@@ -319,7 +320,7 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 				LedgerClient:  global.LedgerClientInstances["mychannel"][orgName][userID],
 			}
 		case blockchain.Polkadot:
-			// TODO: Polkadot screw CC ctx cannot be created because the chaincode address and ABI are missing
+			// Impl only when necessary: Polkadot screw CC ctx cannot be created because the chaincode address and ABI are missing
 
 			callerAddress, err := global.PolkadotNetworkConfig.GetUserAddress(orgName, userID)
 			if err != nil {
@@ -356,7 +357,7 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 			keySwitchBCAO = fabricbcao.NewKeySwitchBCAOFabricImpl(universalCcCtx.(*chaincodectx.FabricChaincodeCtx))
 			identityBCAO = fabricbcao.NewIdentityBCAOFabricImpl(universalCcCtx.(*chaincodectx.FabricChaincodeCtx))
 		case blockchain.Polkadot:
-			// TODO: Polkadot screw BCAO cannot be created because the CC ctx is missing
+			// Impl only when necessary: Polkadot screw BCAO cannot be created because the CC ctx is missing
 			dataBCAO = polkadotbcao.NewDataBCAOPolkadotImpl(universalCcCtx.(*chaincodectx.PolkadotChaincodeCtx))
 			authBCAO = polkadotbcao.NewAuthBCAOPolkadotImpl(universalCcCtx.(*chaincodectx.PolkadotChaincodeCtx))
 			keySwitchBCAO = polkadotbcao.NewKeySwitchBCAOPolkadotImpl(universalCcCtx.(*chaincodectx.PolkadotChaincodeCtx))
@@ -366,20 +367,20 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		}
 
 		// Instantiate event managers
-		// TODO: screw cc event manager
+		// Impl only when necessary: screw cc event manager
 		var universalCcEventManager eventmgr.IEventManager
 
 		switch global.BlockchainType {
 		case blockchain.Fabric:
 			universalCcEventManager = fabriceventmgr.NewFabricEventManager(universalCcCtx.(*chaincodectx.FabricChaincodeCtx))
 		case blockchain.Polkadot:
-			// TODO: Not implemented yet
+			universalCcEventManager = polkadoteventmgr.NewPolkadotEventManager(universalCcCtx.(*chaincodectx.PolkadotChaincodeCtx))
 		default:
 			return fmt.Errorf("未知的区块链类型")
 		}
 
 		// Instantiate services
-		screwSvc := &service.ScrewService{ScrewBCAO: screwBCAO} // TODO: EventManager
+		screwSvc := &service.ScrewService{ScrewBCAO: screwBCAO} // Impl only when necessary: EventManager
 
 		// Instantiate a key switch service
 		universalCcServiceInfo := &service.Info{

@@ -1,6 +1,7 @@
 package polkadoteventmgr
 
 import (
+	"net/http"
 	"sync"
 	"time"
 
@@ -12,16 +13,22 @@ import (
 type PolkadotEventManager struct {
 	eventmgr.EventManagerBase
 	ctx            *chaincodectx.PolkadotChaincodeCtx
+	client         *http.Client
 	mapLock        sync.RWMutex
 	updateInterval time.Duration
 }
 
 func NewPolkadotEventManager(ctx *chaincodectx.PolkadotChaincodeCtx) *PolkadotEventManager {
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+	}
+
 	return &PolkadotEventManager{
 		EventManagerBase: eventmgr.EventManagerBase{
 			QuitChanMap: make(map[eventmgr.IEventRegistration]chan struct{}),
 		},
 		ctx:            ctx,
+		client:         client,
 		mapLock:        sync.RWMutex{},
 		updateInterval: 1000 * time.Millisecond,
 	}
@@ -34,7 +41,7 @@ func (m *PolkadotEventManager) RegisterEvent(eventID string) (eventmgr.IEventReg
 		eventID:         eventID,
 	}
 
-	err := registerPolkadotEvent(m.ctx, polkadotReg.contractAddress, polkadotReg.eventID)
+	err := registerPolkadotEvent(m.ctx, m.client, polkadotReg.contractAddress, polkadotReg.eventID)
 	if err != nil {
 		log.Error(err)
 	}
@@ -49,7 +56,7 @@ func (m *PolkadotEventManager) RegisterEvent(eventID string) (eventmgr.IEventReg
 				close(notifier)
 				return
 			default:
-				polkadotEvents, err := registerPolkadotEvents(m.ctx, polkadotReg)
+				polkadotEvents, err := releasePolkadotEvents(m.ctx, m.client, polkadotReg)
 				if err != nil {
 					log.Error(err)
 				}

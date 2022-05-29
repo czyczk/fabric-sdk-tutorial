@@ -70,13 +70,15 @@ func (m *FabricEventManager) UnregisterEvent(reg eventmgr.IEventRegistration) er
 	m.ctx.ChannelClient.UnregisterChaincodeEvent(fabricReg.reg)
 
 	// Use the quit chan to stop the corresponding background process for event conversion
-	m.mapLock.Lock()
-	defer m.mapLock.Unlock()
+	m.mapLock.RLock()
 	quitChan := m.QuitChanMap[fabricReg]
 	quitChan <- struct{}{}
+	m.mapLock.RUnlock()
 
 	// Now the quit chan entry is not useful. Close the quit chan and remove it from the map.
 	close(quitChan)
+	m.mapLock.Lock()
+	defer m.mapLock.Unlock()
 	delete(m.QuitChanMap, fabricReg)
 
 	return nil

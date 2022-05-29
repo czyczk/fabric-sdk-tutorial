@@ -13,10 +13,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func registerPolkadotEvent(ctx *chaincodectx.PolkadotChaincodeCtx, contractAddress string, eventID string) (err error) {
+func registerPolkadotEvent(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, contractAddress string, eventID string) (err error) {
 	// Prepare a POST form
-	var client *http.Client
-	var resp *http.Response
 	endpoint := ctx.APIPrefix + "/event/subscription"
 	form := url.Values{}
 	form.Set("contractAddress", ctx.ContractAddress)
@@ -32,7 +30,7 @@ func registerPolkadotEvent(ctx *chaincodectx.PolkadotChaincodeCtx, contractAddre
 	req.Header.Add("Content-Length", strconv.Itoa(len(formEncoded)))
 
 	// Perform a POST request
-	resp, err = client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "无法订阅 Polkadot 事件")
 	}
@@ -57,10 +55,8 @@ func registerPolkadotEvent(ctx *chaincodectx.PolkadotChaincodeCtx, contractAddre
 	}
 }
 
-func registerPolkadotEvents(ctx *chaincodectx.PolkadotChaincodeCtx, reg *PolkadotEventRegistration) (polkadotEvents []PolkadotEvent, err error) {
+func releasePolkadotEvents(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, reg *PolkadotEventRegistration) (polkadotEvents []PolkadotEvent, err error) {
 	// Prepare a GET query string
-	var client *http.Client
-	var resp *http.Response
 	endpoint := ctx.APIPrefix + "/event/subscription/" + reg.contractAddress + "/" + reg.eventID
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
@@ -68,24 +64,24 @@ func registerPolkadotEvents(ctx *chaincodectx.PolkadotChaincodeCtx, reg *Polkado
 	}
 
 	// Perform a GET request
-	resp, err = client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法订阅 Polkadot 事件")
 	}
 	defer resp.Body.Close()
 
 	// Process the response
-	// 200 -> parseReg200
+	// 200 | 303 -> parseReg200
 	// Other -> response body as error message
 	respBodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrapf(err, "无法获取事件订阅结果")
 	}
 
-	if resp.StatusCode == 200 {
+	if resp.StatusCode == 200 || resp.StatusCode == 303 {
 		polkadotEvents, err := parseReg200(respBodyBytes)
 		if err != nil {
-			return nil, errors.Wrapf(err, "无法获取事件订阅结果 (200 OK)")
+			return nil, errors.Wrapf(err, "无法获取事件订阅结果 (200 OK | 303 See Other)")
 		}
 
 		return polkadotEvents, nil
