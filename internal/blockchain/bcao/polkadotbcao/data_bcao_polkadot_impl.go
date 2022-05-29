@@ -200,13 +200,10 @@ func (o *DataBCAOPolkadotImpl) ListResourceIDsByCreator(dataType string, isDesc 
 }
 
 func (o *DataBCAOPolkadotImpl) ListResourceIDsByConditions(conditions common.QueryConditions, pageSize int) (*query.IDsWithPagination, error) {
-	conditionsBytes, err := json.Marshal(conditions)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法序列化查询条件")
-	}
+	conditionsScaleReady := conditions.ToScaleReadyStructure()
 
 	funcName := "listResourceIdsByConditions"
-	funcArgs := []interface{}{conditionsBytes, pageSize}
+	funcArgs := []interface{}{conditionsScaleReady, pageSize}
 	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
 	if err != nil {
 		return nil, bcao.GetClassifiedError(funcName, err)

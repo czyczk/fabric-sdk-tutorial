@@ -10,34 +10,35 @@ import (
 type QueryConditions interface {
 	ToCouchDBConditions() (conditions map[string]interface{}, err error)
 	ToGormConditionedDB(db *gorm.DB) (tx *gorm.DB, err error)
+	ToScaleReadyStructure() interface{}
 }
 
 // CommonQueryConditions 表示适用所有通用模型的查询条件。不单独使用，用于组合于其他查询条件。
 type CommonQueryConditions struct {
-	IsDesc              bool
-	ResourceID          *string
-	IsNameExact         *bool // 名称是否为精确名称。`nil` 表示条件不启用。`true` 为精确名称，`false` 为部分名称（名称关键字）。该字段若不为 `nil` 则 `Name` 字段不可为 `nil`。
-	Name                *string
-	IsTimeExact         *bool // 时间是否为精确时间。`nil` 表示条件不启用。`true` 为精确时间，`false` 为时间范围。该字段若不为 `nil` 则相应的时间字段（精确时间字段或范围时间字段）不可为 `nil`。
-	Time                *time.Time
-	TimeAfterInclusive  *time.Time // 时间条件启用时，`TimeAfterInclusive` 和 `TimeBeforeExclusive` 不可全为 `nil`。
-	TimeBeforeExclusive *time.Time // 时间条件启用时，`TimeAfterInclusive` 和 `TimeBeforeExclusive` 不可全为 `nil`。
-	LastResourceID      *string    // 上一次查询最后的资源 ID
+	IsDesc              bool       `json:"isDesc"`
+	ResourceID          *string    `json:"resourceId"`
+	IsNameExact         *bool      `json:"isNameExact"` // 名称是否为精确名称。`nil` 表示条件不启用。`true` 为精确名称，`false` 为部分名称（名称关键字）。该字段若不为 `nil` 则 `Name` 字段不可为 `nil`。
+	Name                *string    `json:"name"`
+	IsTimeExact         *bool      `json:"isTimeExact"` // 时间是否为精确时间。`nil` 表示条件不启用。`true` 为精确时间，`false` 为时间范围。该字段若不为 `nil` 则相应的时间字段（精确时间字段或范围时间字段）不可为 `nil`。
+	Time                *time.Time `json:"time"`
+	TimeAfterInclusive  *time.Time `json:"timeAfterInclusive"`  // 时间条件启用时，`TimeAfterInclusive` 和 `TimeBeforeExclusive` 不可全为 `nil`。
+	TimeBeforeExclusive *time.Time `json:"timeBeforeExclusive"` // 时间条件启用时，`TimeAfterInclusive` 和 `TimeBeforeExclusive` 不可全为 `nil`。
+	LastResourceID      *string    `json:"lastResourceId"`      // 上一次查询最后的资源 ID
 }
 
 // DocumentQueryConditions 表示适用数字文档的查询条件。
 type DocumentQueryConditions struct {
-	CommonQueryConditions
-	DocumentType        *DocumentType
-	PrecedingDocumentID *string
-	HeadDocumentID      *string
-	EntityAssetID       *string
+	CommonQueryConditions `mapstructure:",squash"`
+	DocumentType          *DocumentType `json:"documentType"`
+	PrecedingDocumentID   *string       `json:"precedingDocumentId"`
+	HeadDocumentID        *string       `json:"headDocumentId"`
+	EntityAssetID         *string       `json:"entityAssetId"`
 }
 
 // EntityAssetQueryConditions 表示适用实体资产的查询条件。
 type EntityAssetQueryConditions struct {
-	CommonQueryConditions
-	DesignDocumentID *string
+	CommonQueryConditions `mapstructure:",squash"`
+	DesignDocumentID      *string `json:"designDocumentId"`
 }
 
 func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]interface{}, err error) {
@@ -222,6 +223,14 @@ func (c *DocumentQueryConditions) ToGormConditionedDB(db *gorm.DB) (tx *gorm.DB,
 	return
 }
 
+func (c *DocumentQueryConditions) ToScaleReadyStructure() interface{} {
+	return struct {
+		DocumentQueryConditions *DocumentQueryConditions
+	}{
+		DocumentQueryConditions: c,
+	}
+}
+
 func (c *EntityAssetQueryConditions) ToCouchDBConditions() (conditions map[string]interface{}, err error) {
 	conditions, err = c.CommonQueryConditions.ToCouchDBConditions()
 	if err != nil {
@@ -248,4 +257,12 @@ func (c *EntityAssetQueryConditions) ToGormConditionedDB(db *gorm.DB) (tx *gorm.
 	}
 
 	return
+}
+
+func (c *EntityAssetQueryConditions) ToScaleReadyStructure() interface{} {
+	return struct {
+		EntityAssetQueryConditions *EntityAssetQueryConditions
+	}{
+		EntityAssetQueryConditions: c,
+	}
 }

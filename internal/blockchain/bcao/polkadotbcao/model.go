@@ -66,3 +66,7 @@ type ExplainedModuleError struct {
 type contractQueryResultBase struct {
 	GasConsumed int `json:"gasConsumed"`
 }
+
+type IScaleReadyStructure interface {
+	ToScaleReadyStructure() interface{}
+}
