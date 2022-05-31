@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// A DocumentController contains a group name and a `DocumentService` instance. It also implements the interface `Controller`.
+// An AuthController contains a group name and an `AuthService` instance. It also implements the interface `Controller`.
 type AuthController struct {
 	GroupName string
 	AuthSvc   service.AuthServiceInterface

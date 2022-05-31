@@ -11,7 +11,7 @@ type KeySwitchTrigger struct {
 type KeySwitchResult struct {
 	KeySwitchSessionID string `json:"keySwitchSessionId"` // 密钥置换会话 ID
 	Share              string `json:"share"`              // 个人份额（[64]byte 的 Base64 编码）
-	ZKProof            string `json:"zkproof"`            // 零知识证明（[96]byte 的 Base64 编码），用于验证份额
+	ZKProof            string `json:"zkProof"`            // 零知识证明（[96]byte 的 Base64 编码），用于验证份额
 	KeySwitchPK        string `json:"keySwitchPk"`        // 份额生成者的密钥置换公钥（[64]byte 的 Base64 编码），用于验证份额
 }
 

@@ -7,6 +7,7 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/idutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/auth"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 	"github.com/pkg/errors"
@@ -31,25 +32,32 @@ func NewAuthBCAOPolkadotImpl(ctx *chaincodectx.PolkadotChaincodeCtx) *AuthBCAOPo
 func (o *AuthBCAOPolkadotImpl) CreateAuthRequest(authRequest *auth.AuthRequest, eventID ...string) (string, error) {
 	funcName := "createAuthRequest"
 
-	funcArgs := []interface{}{authRequest}
+	id, err := idutils.GenerateSnowflakeId()
+	if err != nil {
+		return "", errors.Wrap(err, "无法为访问授权申请生成 ID")
+	}
+
+	funcArgs := []interface{}{id, authRequest}
 	if len(eventID) != 0 {
 		funcArgs = append(funcArgs, eventID[0])
 	} else {
 		funcArgs = append(funcArgs, nil)
 	}
 
-	result, err := sendTx(o.ctx, o.client, funcName, funcArgs, true)
+	_, err = sendTx(o.ctx, o.client, funcName, funcArgs, true)
 	if err != nil {
 		return "", err
 	}
 
-	return result.TxHash, nil
+	return id, nil
 }
 
 func (o *AuthBCAOPolkadotImpl) CreateAuthResponse(authResponse *auth.AuthResponse, eventID ...string) (string, error) {
 	funcName := "createAuthResponse"
 
-	funcArgs := []interface{}{authResponse}
+	id := authResponse.AuthSessionID
+
+	funcArgs := []interface{}{id, authResponse}
 	if len(eventID) != 0 {
 		funcArgs = append(funcArgs, eventID[0])
 	} else {

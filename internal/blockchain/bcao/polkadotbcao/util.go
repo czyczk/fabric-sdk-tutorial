@@ -27,7 +27,7 @@ func fillGetQueryStringBase(ctx *chaincodectx.PolkadotChaincodeCtx, queryString 
 	queryString.Set("callerAddress", ctx.CallerAddress)
 }
 
-func sendTx(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcName string, funcArgs []interface{}, queryIfNoEvent bool) (*ContractTxSuccessResult, error) {
+func sendTx(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcName string, funcArgs []interface{}, queryIfNoEventOrReverted bool) (*ContractTxSuccessResult, error) {
 	// Prepare a POST form
 	endpoint := ctx.APIPrefix + "/contract/tx"
 	form := url.Values{}
@@ -71,11 +71,11 @@ func sendTx(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcNam
 			return nil, errors.Wrapf(err, "无法解析合约执行结果")
 		}
 
-		if txSuccessResult.ParsedContractEvents != nil || !queryIfNoEvent {
+		if txSuccessResult.ParsedContractEvents != nil || !queryIfNoEventOrReverted {
 			return txSuccessResult, nil
 		}
 
-		// No event. Perform a query to retrieve the error message.
+		// 200 + No event. Perform a query to retrieve the error message. (applicable for older versions of Substrate Contracts Node)
 		querySuccessResult, err := sendQuery(ctx, client, funcName, funcArgs, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "无法获取合约错误消息")
@@ -101,7 +101,26 @@ func sendTx(ctx *chaincodectx.PolkadotChaincodeCtx, client *http.Client, funcNam
 			return nil, fmt.Errorf("合约执行错误: %v", string(respBodyBytes))
 		}
 
-		return nil, fmt.Errorf("合约执行错误: %v", txErrorResult.ExplainedModuleError)
+		if queryIfNoEventOrReverted && txErrorResult.ExplainedModuleError != nil && txErrorResult.ExplainedModuleError.Type == "contracts.ContractReverted" {
+			// 500 + error type of "contracts.ContractReverted". Perform a query to retrieve the error message. (applicable for newer versions of Substrate Contracts Node)
+			querySuccessResult, err := sendQuery(ctx, client, funcName, funcArgs, true)
+			if err != nil {
+				return nil, errors.Wrapf(err, "无法获取合约错误消息")
+			}
+
+			// The error message is inside the output. The output is usually in the form of
+			// {
+			//   "err": "error message here"
+			// }
+			errMsg, err := unwrapErr(querySuccessResult.Output)
+			if err != nil {
+				return nil, errors.Wrapf(err, "无法获取合约错误消息")
+			}
+
+			return nil, fmt.Errorf(errMsg)
+		} else {
+			return nil, fmt.Errorf("合约执行错误: %v", txErrorResult.ExplainedModuleError)
+		}
 	} else {
 		return nil, fmt.Errorf("合约执行错误: %v", string(respBodyBytes))
 	}

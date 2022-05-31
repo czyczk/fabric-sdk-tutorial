@@ -7,6 +7,7 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/idutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/pkg/errors"
 )
@@ -30,19 +31,25 @@ func NewKeySwitchBCAOPolkadotImpl(ctx *chaincodectx.PolkadotChaincodeCtx) *KeySw
 func (o *KeySwitchBCAOPolkadotImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.KeySwitchTrigger, eventID ...string) (string, error) {
 	funcName := "createKeySwitchTrigger"
 
-	funcArgs := []interface{}{ksTrigger}
+	id, err := idutils.GenerateSnowflakeId()
+	if err != nil {
+		return "", errors.Wrap(err, "无法为密钥置换触发生成 ID")
+	}
+
+	// TODO: Retrieve and pass the department identity as the second param when the contract is ready for it.
+	funcArgs := []interface{}{id, nil, ksTrigger}
 	if len(eventID) != 0 {
 		funcArgs = append(funcArgs, eventID[0])
 	} else {
 		funcArgs = append(funcArgs, nil)
 	}
 
-	result, err := sendTx(o.ctx, o.client, funcName, funcArgs, true)
+	_, err = sendTx(o.ctx, o.client, funcName, funcArgs, true)
 	if err != nil {
 		return "", err
 	}
 
-	return result.TxHash, nil
+	return id, nil
 }
 
 func (o *KeySwitchBCAOPolkadotImpl) CreateKeySwitchResult(ksResult *keyswitch.KeySwitchResult) (string, error) {
@@ -79,7 +86,7 @@ func (o *KeySwitchBCAOPolkadotImpl) GetKeySwitchResult(query *keyswitch.KeySwitc
 }
 
 func (o *KeySwitchBCAOPolkadotImpl) ListKeySwitchResultsByID(ksSessionID string) ([]*keyswitch.KeySwitchResultStored, error) {
-	funcName := "listKeySwitchResultsByID"
+	funcName := "listKeySwitchResultsById"
 	funcArgs := []interface{}{ksSessionID}
 	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
 	if err != nil {

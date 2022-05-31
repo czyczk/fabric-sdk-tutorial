@@ -79,7 +79,7 @@ func DeserializeZKProof(proofBytes []byte) (*ZKProof, error) {
 	// Byte slice 内容是 ZKProof 中的 3 个 big.Int 的 .Bytes() 信息，各占长度 32。
 	// 将它们分 3 段装填入 3 个 big.Int 即可。
 	if len(proofBytes) != 96 {
-		return nil, fmt.Errorf("序列化的零知识证明长度不正确，应为 96 字节")
+		return nil, fmt.Errorf("序列化的零知识证明长度不正确，应为 96 字节，得到 %v 字节", len(proofBytes))
 	}
 
 	var c, r1, r2 big.Int

@@ -10,17 +10,17 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/idutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/sm2keyutils"
 	"github.com/XiaoYao-austin/ppks"
-	"github.com/bwmarrin/snowflake"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/tjfoc/gmsm/sm2"
 )
 
-// A EntityAssetController contains a group name and a `EntityService` instance. It also implements the interface `Controller`.
+// An EntityAssetController contains a group name and an `EntityService` instance. It also implements the interface `Controller`.
 type EntityAssetController struct {
 	GroupName      string
 	EntityAssetSvc service.EntityAssetServiceInterface
@@ -109,12 +109,11 @@ func (c *EntityAssetController) handleCreateAsset(ctx *gin.Context) {
 	}
 
 	// Generate an ID
-	sfNode, err := snowflake.NewNode(1)
+	id, err := idutils.GenerateSnowflakeId()
 	if err != nil {
-		ctx.AbortWithError(http.StatusInternalServerError, fmt.Errorf("无法生成 ID。"))
+		ctx.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
-	id := sfNode.Generate().String()
 
 	// A symmetric key should be generated to encrypt the resource if the resourse type is Encrypted (later used in the service function and returned as part of the result).
 	var key *ppks.CurvePoint

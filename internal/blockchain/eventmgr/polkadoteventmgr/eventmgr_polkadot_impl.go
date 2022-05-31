@@ -7,18 +7,26 @@ import (
 
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/chaincodectx"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/eventmgr"
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/idutils"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
 type PolkadotEventManager struct {
 	eventmgr.EventManagerBase
 	ctx            *chaincodectx.PolkadotChaincodeCtx
+	clientID       string
 	client         *http.Client
 	mapLock        sync.RWMutex
 	updateInterval time.Duration
 }
 
 func NewPolkadotEventManager(ctx *chaincodectx.PolkadotChaincodeCtx) *PolkadotEventManager {
+	clientID, err := idutils.GenerateSnowflakeId()
+	if err != nil {
+		panic(errors.Wrap(err, "无法为事件管理器生成 ID"))
+	}
+
 	client := &http.Client{
 		Timeout: 15 * time.Second,
 	}
@@ -28,6 +36,7 @@ func NewPolkadotEventManager(ctx *chaincodectx.PolkadotChaincodeCtx) *PolkadotEv
 			QuitChanMap: make(map[eventmgr.IEventRegistration]chan struct{}),
 		},
 		ctx:            ctx,
+		clientID:       clientID,
 		client:         client,
 		mapLock:        sync.RWMutex{},
 		updateInterval: 1000 * time.Millisecond,
@@ -41,9 +50,9 @@ func (m *PolkadotEventManager) RegisterEvent(eventID string) (eventmgr.IEventReg
 		eventID:         eventID,
 	}
 
-	err := registerPolkadotEvent(m.ctx, m.client, polkadotReg.contractAddress, polkadotReg.eventID)
+	err := registerPolkadotEvent(m.ctx, m.clientID, m.client, polkadotReg.contractAddress, polkadotReg.eventID)
 	if err != nil {
-		log.Error(err)
+		return nil, nil, err
 	}
 
 	notifier := make(chan eventmgr.IEvent)
@@ -56,7 +65,7 @@ func (m *PolkadotEventManager) RegisterEvent(eventID string) (eventmgr.IEventReg
 				close(notifier)
 				return
 			default:
-				polkadotEvents, err := releasePolkadotEvents(m.ctx, m.client, polkadotReg)
+				polkadotEvents, err := releasePolkadotEvents(m.ctx, m.clientID, m.client, polkadotReg)
 				if err != nil {
 					log.Error(err)
 				}
@@ -87,6 +96,12 @@ func (m *PolkadotEventManager) UnregisterEvent(reg eventmgr.IEventRegistration) 
 	quitChan := m.QuitChanMap[polkadotReg]
 	quitChan <- struct{}{}
 	m.mapLock.RUnlock()
+
+	// Send an HTTP request to remove the registration
+	err := unregisterPolkadotEvent(m.ctx, m.clientID, m.client, polkadotReg.contractAddress, polkadotReg.eventID)
+	if err != nil {
+		return err
+	}
 
 	// Now the quit chan entry is not useful. Close the quit chan and remove it from the map.
 	close(quitChan)

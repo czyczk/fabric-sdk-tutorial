@@ -4,8 +4,13 @@ organizations: # 这个网络中的参与组织
       BuiltInAlice:
         phrase: "//Alice"
         address: "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+  Org2:
+    users:
+      BuiltInBob:
+        phrase: "//Bob"
+        address: "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
 chaincodes:
   universalCc:
-    address: "5HiqYFzFDjS2Z5S6XcvTMbbYnTa9kxXMPkZecJiy1cnihxci"
+    address: "5GmY8S6wNAEvCu34AgdV6kCzh3rsPokM5pBm9HDtvmb7wwWu"
     abiPath: "blbc/metadata.json"
 apiPrefix: "http://localhost:8080"
