@@ -113,7 +113,7 @@ func (o *AuthBCAOPolkadotImpl) GetAuthResponse(authSessionID string) (*auth.Auth
 }
 
 func (o *AuthBCAOPolkadotImpl) ListPendingAuthSessionIDsByResourceCreator(pageSize int, bookmark string) (*query.IDsWithPagination, error) {
-	funcName := "listPendingAuthSessionIDsByResourceCreator"
+	funcName := "listPendingAuthSessionIdsByResourceCreator"
 	funcArgs := []interface{}{pageSize, bookmark}
 	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
 	if err != nil {
@@ -135,7 +135,7 @@ func (o *AuthBCAOPolkadotImpl) ListPendingAuthSessionIDsByResourceCreator(pageSi
 }
 
 func (o *AuthBCAOPolkadotImpl) ListAuthSessionIDsByRequestor(pageSize int, bookmark string, isLatestFirst bool) (*query.IDsWithPagination, error) {
-	funcName := "listAuthSessionIDsByRequestor"
+	funcName := "listAuthSessionIdsByRequestor"
 	funcArgs := []interface{}{pageSize, bookmark, isLatestFirst}
 	result, err := sendQuery(o.ctx, o.client, funcName, funcArgs, false)
 	if err != nil {
