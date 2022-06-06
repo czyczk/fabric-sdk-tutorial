@@ -1,7 +1,8 @@
 [submodule "ppks"]
 	path = ppks
-	url = https://gitee.com/czyczk/ppks
+	url = https://github.com/XiaoYao-austin/ppks
+	branch = main
 [submodule "blbc"]
 	path = blbc
-	url = https://gitee.com/czyczk/blbc
+	url = https://github.com/czyczk/blbc
 	branch = build
