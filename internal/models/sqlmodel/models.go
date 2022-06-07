@@ -116,22 +116,22 @@ func NewDocumentPropertiesFromModel(model *common.DocumentProperties, timeCreate
 
 	precedingDocumentID, err := parseSnowflakeStringToNullInt64(model.PrecedingDocumentID)
 	if err != nil {
-		return nil, errors.Wrap(err, errMsg)
+		return nil, errors.Wrapf(err, errMsg+": precedingDocumentID: %v", precedingDocumentID)
 	}
 
 	headDocumentID, err := parseSnowflakeStringToNullInt64(model.HeadDocumentID)
 	if err != nil {
-		return nil, errors.Wrap(err, errMsg)
+		return nil, errors.Wrapf(err, errMsg+": headDocumentID: %v", headDocumentID)
 	}
 
 	entityAssetID, err := parseSnowflakeStringToNullInt64(model.EntityAssetID)
 	if err != nil {
-		return nil, errors.Wrap(err, errMsg)
+		return nil, errors.Wrapf(err, errMsg+": entityAssetID: %v", entityAssetID)
 	}
 
 	id, err := parseSnowflakeStringToInt64(model.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, errMsg)
+		return nil, errors.Wrapf(err, errMsg+": id: %v", id)
 	}
 
 	ret := &DocumentProperties{
