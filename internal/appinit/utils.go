@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -12,7 +14,6 @@ import (
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/global"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/networkinfo"
-	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/errorcode"
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	errors "github.com/pkg/errors"
@@ -200,16 +201,71 @@ func configureChaincodes(chaincodes map[string]ChaincodeInfo) error {
 		} else if global.BlockchainType == blockchain.Polkadot {
 			var chaincodeInfo = chaincodeInfo.(*PolkadotChaincodeInfo)
 
+			httpClient := http.DefaultClient
+
+			abi, err := global.PolkadotNetworkConfig.GetChaincodeABI(ccID)
+			if err != nil {
+				return err
+			}
+
+			// Read the ONLY wasm file in the chaincode path.
+			// If there are multiple ones or none, return an error
+			var wasmFiles []string
+			err = filepath.WalkDir(chaincodeInfo.Path, func(path string, d os.DirEntry, err error) error {
+				if err != nil {
+					return err
+				}
+
+				if d.IsDir() {
+					return nil
+				}
+
+				if matched, err := filepath.Match("*.wasm", filepath.Base(path)); err != nil {
+					return err
+				} else if matched {
+					wasmFiles = append(wasmFiles, path)
+				}
+
+				return nil
+			})
+			if err != nil {
+				return errors.Wrapf(err, "无法遍历合约文件夹 '%v'", chaincodeInfo.Path)
+			}
+			if len(wasmFiles) != 1 {
+				return fmt.Errorf("合约文件夹 '%v' 中包含 0 个或多于 1 个 wasm 文件", chaincodeInfo.Path)
+			}
+
+			// Read the only wasm file
+			wasmBytes, err := ioutil.ReadFile(wasmFiles[0])
+			if err != nil {
+				return errors.Wrapf(err, "无法读取合约文件 '%v'", wasmFiles[0])
+			}
+
+			ctorFuncName := "default"
+			ctorArgsBytes := []byte{'['}
+			for i, arg := range chaincodeInfo.Instantiation.InitArgs {
+				ctorArgsBytes = append(ctorArgsBytes, []byte(arg)...)
+				if i < len(chaincodeInfo.Instantiation.InitArgs)-1 {
+					ctorArgsBytes = append(ctorArgsBytes, ',')
+				}
+			}
+			ctorArgsBytes = append(ctorArgsBytes, ']')
+
 			// Perform installations for the chaincode
 			for orgName, operatingIdentity := range chaincodeInfo.Installations {
 				// For each organization ($orgName), install the chaincode using the operating identity ($operatingIdentity)
-				// TODO: remove the following lines before implementing
-				fmt.Print(orgName, operatingIdentity)
-				return errorcode.ErrorNotImplemented
-			}
+				signerAddress, err := global.PolkadotNetworkConfig.GetUserAddress(orgName, operatingIdentity.UserID)
+				if err != nil {
+					return err
+				}
 
-			// Perform instantiation for the chaincode
-			// TODO
+				result, err := sendTxToInstantiateChaincode(global.PolkadotNetworkConfig.APIPrefix, httpClient, abi, wasmBytes, signerAddress, ctorFuncName, string(ctorArgsBytes))
+				if err != nil {
+					return errors.Wrap(err, "无法实例化 Polkadot 合约")
+				}
+
+				fmt.Printf("合约地址: %v\n", result.Address)
+			}
 		}
 	}
 
