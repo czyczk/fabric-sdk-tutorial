@@ -13,7 +13,7 @@ import (
 type PolkadotNetworkConfig struct {
 	Organizations map[string]PolkadotOrganization `yaml:"organizations"`
 	APIPrefix     string                          `yaml:"apiPrefix"`
-	Chaincodes    map[string]polkaodtChaincode    `yaml:"chaincodes"`
+	Chaincodes    map[string]polkadotChaincode    `yaml:"chaincodes"`
 }
 
 type PolkadotOrganization struct {
@@ -25,7 +25,7 @@ type PolkadotUser struct {
 	Address string `yaml:"address"`
 }
 
-type polkaodtChaincode struct {
+type polkadotChaincode struct {
 	Address string `yaml:"address"`
 	ABIPath string `yaml:"abiPath"`
 }
