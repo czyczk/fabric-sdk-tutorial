@@ -1,6 +1,7 @@
 package service
 
 import (
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
@@ -16,7 +17,7 @@ type EntityAssetServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateEntityAsset(asset *common.EntityAsset) (string, error)
+	CreateEntityAsset(asset *common.EntityAsset) (*bcao.TransactionCreationInfo, error)
 
 	// 创建加密的实体资产。
 	//
@@ -27,7 +28,7 @@ type EntityAssetServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateEncryptedEntityAsset(asset *common.EntityAsset, key *ppks.CurvePoint, policy string) (string, error)
+	CreateEncryptedEntityAsset(asset *common.EntityAsset, key *ppks.CurvePoint, policy string) (*bcao.TransactionCreationInfo, error)
 
 	// 获取实体资产的元数据。
 	//

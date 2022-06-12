@@ -23,10 +23,10 @@ func NewAuthBCAOFabricImpl(ctx *chaincodectx.FabricChaincodeCtx) *AuthBCAOFabric
 	}
 }
 
-func (o *AuthBCAOFabricImpl) CreateAuthRequest(authRequest *auth.AuthRequest, eventID ...string) (string, error) {
+func (o *AuthBCAOFabricImpl) CreateAuthRequest(authRequest *auth.AuthRequest, eventID ...string) (*bcao.TransactionCreationInfoWithManualID, error) {
 	authRequestBytes, err := json.Marshal(authRequest)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
+		return nil, errors.Wrap(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createAuthRequest"
@@ -38,16 +38,31 @@ func (o *AuthBCAOFabricImpl) CreateAuthRequest(authRequest *auth.AuthRequest, ev
 
 	resp, err := o.ctx.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", bcao.GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
 	}
+
+	// Get the block ID from the ledger client
+	txID := resp.TransactionID
+	blockHashAsHex, err := getBlockHashFromTxID(o.ctx.LedgerClient, txID)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
+	}
+
+	creationInfo := &bcao.TransactionCreationInfoWithManualID{
+		ManualID: string(txID),
+		TransactionCreationInfo: &bcao.TransactionCreationInfo{
+			TransactionID: string(txID),
+			BlockID:       blockHashAsHex,
+		},
+	}
+
+	return creationInfo, nil
 }
 
-func (o *AuthBCAOFabricImpl) CreateAuthResponse(authResponse *auth.AuthResponse, eventID ...string) (string, error) {
+func (o *AuthBCAOFabricImpl) CreateAuthResponse(authResponse *auth.AuthResponse, eventID ...string) (*bcao.TransactionCreationInfoWithManualID, error) {
 	authResponseBytes, err := json.Marshal(authResponse)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
+		return nil, errors.Wrap(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createAuthResponse"
@@ -59,10 +74,25 @@ func (o *AuthBCAOFabricImpl) CreateAuthResponse(authResponse *auth.AuthResponse,
 
 	resp, err := o.ctx.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", bcao.GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
 	}
+
+	// Get the block ID from the ledger client
+	txID := resp.TransactionID
+	blockHashAsHex, err := getBlockHashFromTxID(o.ctx.LedgerClient, txID)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
+	}
+
+	creationInfo := &bcao.TransactionCreationInfoWithManualID{
+		ManualID: string(txID),
+		TransactionCreationInfo: &bcao.TransactionCreationInfo{
+			TransactionID: string(txID),
+			BlockID:       blockHashAsHex,
+		},
+	}
+
+	return creationInfo, nil
 }
 
 func (o *AuthBCAOFabricImpl) GetAuthRequest(authSessionID string) (*auth.AuthRequestStored, error) {

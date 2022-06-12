@@ -20,10 +20,10 @@ func NewKeySwitchBCAOFabricImpl(ctx *chaincodectx.FabricChaincodeCtx) *KeySwitch
 	}
 }
 
-func (o *KeySwitchBCAOFabricImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.KeySwitchTrigger, eventID ...string) (string, error) {
+func (o *KeySwitchBCAOFabricImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.KeySwitchTrigger, eventID ...string) (*bcao.TransactionCreationInfoWithManualID, error) {
 	ksTriggerBytes, err := json.Marshal(ksTrigger)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
+		return nil, errors.Wrap(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createKeySwitchTrigger"
@@ -39,16 +39,31 @@ func (o *KeySwitchBCAOFabricImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.Ke
 
 	resp, err := o.ctx.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", bcao.GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
 	}
+
+	// Get the block ID from the ledger client
+	txID := resp.TransactionID
+	blockHashAsHex, err := getBlockHashFromTxID(o.ctx.LedgerClient, txID)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
+	}
+
+	creationInfo := &bcao.TransactionCreationInfoWithManualID{
+		ManualID: string(txID),
+		TransactionCreationInfo: &bcao.TransactionCreationInfo{
+			TransactionID: string(txID),
+			BlockID:       blockHashAsHex,
+		},
+	}
+
+	return creationInfo, nil
 }
 
-func (o *KeySwitchBCAOFabricImpl) CreateKeySwitchResult(ksResult *keyswitch.KeySwitchResult) (string, error) {
+func (o *KeySwitchBCAOFabricImpl) CreateKeySwitchResult(ksResult *keyswitch.KeySwitchResult) (*bcao.TransactionCreationInfo, error) {
 	keySwitchResultBytes, err := json.Marshal(ksResult)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
+		return nil, errors.Wrap(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createKeySwitchResult"
@@ -60,10 +75,22 @@ func (o *KeySwitchBCAOFabricImpl) CreateKeySwitchResult(ksResult *keyswitch.KeyS
 
 	resp, err := o.ctx.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", bcao.GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
 	}
+
+	// Get the block ID from the ledger client
+	txID := resp.TransactionID
+	blockHashAsHex, err := getBlockHashFromTxID(o.ctx.LedgerClient, txID)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
+	}
+
+	creationInfo := &bcao.TransactionCreationInfo{
+		TransactionID: string(txID),
+		BlockID:       blockHashAsHex,
+	}
+
+	return creationInfo, nil
 }
 
 func (o *KeySwitchBCAOFabricImpl) GetKeySwitchResult(query *keyswitch.KeySwitchResultQuery) (*keyswitch.KeySwitchResultStored, error) {

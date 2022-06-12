@@ -44,14 +44,12 @@ func (c *AuthController) handleCreateAuthRequest(ctx *gin.Context) {
 		return
 	}
 
-	txID, err := c.AuthSvc.CreateAuthRequest(resourceID, reason)
+	txCreationInfo, err := c.AuthSvc.CreateAuthRequest(resourceID, reason)
 
 	// Check error type and generate the corresponding response
 	// The symmetric key will be included if it's not empty
 	if err == nil {
-		info := TransactionIDInfo{
-			TransactionID: txID,
-		}
+		info := NewAuthSessionCreationInfoFromTransactionCreationInfo(txCreationInfo)
 		ctx.JSON(http.StatusOK, info)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
 		ctx.Writer.WriteHeader(http.StatusNotImplemented)
@@ -77,13 +75,11 @@ func (c *AuthController) handleCreateAuthResponse(ctx *gin.Context) {
 		return
 	}
 
-	txID, err := c.AuthSvc.CreateAuthResponse(authSessionID, resultBool)
+	txCreationInfo, err := c.AuthSvc.CreateAuthResponse(authSessionID, resultBool)
 	// Check error type and generate the corresponding response
 	// The symmetric key will be included if it's not empty
 	if err == nil {
-		info := TransactionIDInfo{
-			TransactionID: txID,
-		}
+		info := NewAuthSessionCreationInfoFromTransactionCreationInfo(txCreationInfo)
 		ctx.JSON(http.StatusOK, info)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {
 		ctx.Writer.WriteHeader(http.StatusNotImplemented)

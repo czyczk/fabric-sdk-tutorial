@@ -36,14 +36,14 @@ type EntityAssetService struct {
 //
 // 返回：
 //   交易 ID
-func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset) (string, error) {
+func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset) (*bcao.TransactionCreationInfo, error) {
 	if asset == nil {
-		return "", fmt.Errorf("资产对象不能为 nil")
+		return nil, fmt.Errorf("资产对象不能为 nil")
 	}
 
 	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
 	if strings.TrimSpace(asset.ID) == "" {
-		return "", fmt.Errorf("资产 ID 不能为空")
+		return nil, fmt.Errorf("资产 ID 不能为空")
 	}
 
 	// 将 struct 转成 map 后再序列化，以使得键按字典序排序。
@@ -52,12 +52,12 @@ func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset) (strin
 	assetAsMap := make(map[string]interface{})
 	err := mapstructure.Decode(asset, &assetAsMap)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化资产")
+		return nil, errors.Wrap(err, "无法序列化资产")
 	}
 
 	assetBytes, err := json.Marshal(assetAsMap)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化资产")
+		return nil, errors.Wrap(err, "无法序列化资产")
 	}
 
 	// 计算哈希，获取大小并准备扩展字段
@@ -80,8 +80,8 @@ func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset) (strin
 		Data:     base64.StdEncoding.EncodeToString(assetBytes),
 	}
 
-	txID, err := s.DataBCAO.CreatePlainData(&plainData)
-	return txID, err
+	txCreationInfo, err := s.DataBCAO.CreatePlainData(&plainData)
+	return txCreationInfo, err
 }
 
 // 创建加密的实体资产。
@@ -93,39 +93,39 @@ func (s *EntityAssetService) CreateEntityAsset(asset *common.EntityAsset) (strin
 //
 // 返回：
 //   交易 ID
-func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsset, key *ppks.CurvePoint, policy string) (string, error) {
+func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsset, key *ppks.CurvePoint, policy string) (*bcao.TransactionCreationInfo, error) {
 	if asset == nil {
-		return "", fmt.Errorf("资产不能为 nil")
+		return nil, fmt.Errorf("资产不能为 nil")
 	}
 
 	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
 	if strings.TrimSpace(asset.ID) == "" {
-		return "", fmt.Errorf("资产 ID 不能为空")
+		return nil, fmt.Errorf("资产 ID 不能为空")
 	}
 
 	assetBytes, err := json.Marshal(asset)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化资产")
+		return nil, errors.Wrap(err, "无法序列化资产")
 	}
 
 	// 用 key 加密 assetBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
 	encryptedAssetBytes, err := encryptDataWithTimer(assetBytes, key, "无法加密资产", "加密资产")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	collPubKeyInSM2 := collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密对称密钥")
+		return nil, errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
 	encryptedKeyBytes := cipherutils.SerializeCipherText(encryptedKey)
@@ -152,8 +152,8 @@ func (s *EntityAssetService) CreateEncryptedEntityAsset(asset *common.EntityAsse
 		Policy:   policy,
 	}
 
-	txID, err := s.DataBCAO.CreateEncryptedData(&encryptedData, encryptedResourceCreationEventName)
-	return txID, err
+	txCreationInfo, err := s.DataBCAO.CreateEncryptedData(&encryptedData, encryptedResourceCreationEventName)
+	return txCreationInfo, err
 }
 
 // 获取实体资产的元数据。

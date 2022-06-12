@@ -29,12 +29,12 @@ func NewAuthBCAOPolkadotImpl(ctx *chaincodectx.PolkadotChaincodeCtx) *AuthBCAOPo
 	}
 }
 
-func (o *AuthBCAOPolkadotImpl) CreateAuthRequest(authRequest *auth.AuthRequest, eventID ...string) (string, error) {
+func (o *AuthBCAOPolkadotImpl) CreateAuthRequest(authRequest *auth.AuthRequest, eventID ...string) (*bcao.TransactionCreationInfoWithManualID, error) {
 	funcName := "createAuthRequest"
 
 	id, err := idutils.GenerateSnowflakeId()
 	if err != nil {
-		return "", errors.Wrap(err, "无法为访问授权申请生成 ID")
+		return nil, errors.Wrap(err, "无法为访问授权申请生成 ID")
 	}
 
 	funcArgs := []interface{}{id, authRequest}
@@ -44,15 +44,23 @@ func (o *AuthBCAOPolkadotImpl) CreateAuthRequest(authRequest *auth.AuthRequest, 
 		funcArgs = append(funcArgs, nil)
 	}
 
-	_, err = sendTx(o.ctx, o.client, funcName, funcArgs, true)
+	result, err := sendTx(o.ctx, o.client, funcName, funcArgs, true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return id, nil
+	creationInfo := &bcao.TransactionCreationInfoWithManualID{
+		ManualID: id,
+		TransactionCreationInfo: &bcao.TransactionCreationInfo{
+			TransactionID: result.TxHash,
+			BlockID:       result.InBlockStatus.InBlock,
+		},
+	}
+
+	return creationInfo, nil
 }
 
-func (o *AuthBCAOPolkadotImpl) CreateAuthResponse(authResponse *auth.AuthResponse, eventID ...string) (string, error) {
+func (o *AuthBCAOPolkadotImpl) CreateAuthResponse(authResponse *auth.AuthResponse, eventID ...string) (*bcao.TransactionCreationInfoWithManualID, error) {
 	funcName := "createAuthResponse"
 
 	id := authResponse.AuthSessionID
@@ -66,10 +74,18 @@ func (o *AuthBCAOPolkadotImpl) CreateAuthResponse(authResponse *auth.AuthRespons
 
 	result, err := sendTx(o.ctx, o.client, funcName, funcArgs, true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return result.TxHash, nil
+	creationInfo := &bcao.TransactionCreationInfoWithManualID{
+		ManualID: id,
+		TransactionCreationInfo: &bcao.TransactionCreationInfo{
+			TransactionID: result.TxHash,
+			BlockID:       result.InBlockStatus.InBlock,
+		},
+	}
+
+	return creationInfo, nil
 }
 
 func (o *AuthBCAOPolkadotImpl) GetAuthRequest(authSessionID string) (*auth.AuthRequestStored, error) {

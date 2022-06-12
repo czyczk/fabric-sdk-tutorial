@@ -1,6 +1,7 @@
 package service
 
 import (
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/data"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
@@ -16,7 +17,7 @@ type DocumentServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateDocument(document *common.Document) (string, error)
+	CreateDocument(document *common.Document) (*bcao.TransactionCreationInfo, error)
 
 	// 创建加密数字文档
 	//
@@ -27,7 +28,7 @@ type DocumentServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateEncryptedDocument(document *common.Document, key *ppks.CurvePoint, policy string) (string, error)
+	CreateEncryptedDocument(document *common.Document, key *ppks.CurvePoint, policy string) (*bcao.TransactionCreationInfo, error)
 
 	// 创建链下加密数字文档
 	//
@@ -38,7 +39,7 @@ type DocumentServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateOffchainDocument(document *common.Document, key *ppks.CurvePoint, policy string) (string, error)
+	CreateOffchainDocument(document *common.Document, key *ppks.CurvePoint, policy string) (*bcao.TransactionCreationInfo, error)
 
 	// 获取数字文档的元数据
 	//

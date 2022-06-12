@@ -40,14 +40,12 @@ func (kc *KeySwitchController) handleCreateKeySwitchTrigger(c *gin.Context) {
 	// Extract and check common parameters
 	authSessionID := c.PostForm("authSessionId")
 
-	txID, err := kc.KeySwitchSvc.CreateKeySwitchTrigger(resourceID, authSessionID)
+	txCreationInfo, err := kc.KeySwitchSvc.CreateKeySwitchTrigger(resourceID, authSessionID)
 
 	// Check error type and generate the corresponding response
 	// The symmetric key will be included if it's not empty
 	if err == nil {
-		info := TransactionIDInfo{
-			TransactionID: txID,
-		}
+		info := NewKeySwitchSessionCreationInfoFromTransactionCreationInfo(txCreationInfo)
 		c.JSON(http.StatusOK, info)
 	} else if errors.Cause(err) == errorcode.ErrorForbidden {
 		c.Writer.WriteHeader(http.StatusForbidden)

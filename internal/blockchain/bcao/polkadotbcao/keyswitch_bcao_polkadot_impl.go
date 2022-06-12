@@ -28,12 +28,12 @@ func NewKeySwitchBCAOPolkadotImpl(ctx *chaincodectx.PolkadotChaincodeCtx) *KeySw
 	}
 }
 
-func (o *KeySwitchBCAOPolkadotImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.KeySwitchTrigger, eventID ...string) (string, error) {
+func (o *KeySwitchBCAOPolkadotImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.KeySwitchTrigger, eventID ...string) (*bcao.TransactionCreationInfoWithManualID, error) {
 	funcName := "createKeySwitchTrigger"
 
 	id, err := idutils.GenerateSnowflakeId()
 	if err != nil {
-		return "", errors.Wrap(err, "无法为密钥置换触发生成 ID")
+		return nil, errors.Wrap(err, "无法为密钥置换触发生成 ID")
 	}
 
 	// TODO: Retrieve and pass the department identity as the second param when the contract is ready for it.
@@ -44,25 +44,38 @@ func (o *KeySwitchBCAOPolkadotImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.
 		funcArgs = append(funcArgs, nil)
 	}
 
-	_, err = sendTx(o.ctx, o.client, funcName, funcArgs, true)
+	result, err := sendTx(o.ctx, o.client, funcName, funcArgs, true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return id, nil
+	creationInfo := &bcao.TransactionCreationInfoWithManualID{
+		ManualID: id,
+		TransactionCreationInfo: &bcao.TransactionCreationInfo{
+			TransactionID: result.TxHash,
+			BlockID:       result.InBlockStatus.InBlock,
+		},
+	}
+
+	return creationInfo, nil
 }
 
-func (o *KeySwitchBCAOPolkadotImpl) CreateKeySwitchResult(ksResult *keyswitch.KeySwitchResult) (string, error) {
+func (o *KeySwitchBCAOPolkadotImpl) CreateKeySwitchResult(ksResult *keyswitch.KeySwitchResult) (*bcao.TransactionCreationInfo, error) {
 	funcName := "createKeySwitchResult"
 
 	funcArgs := []interface{}{ksResult}
 
 	result, err := sendTx(o.ctx, o.client, funcName, funcArgs, true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return result.TxHash, nil
+	creationInfo := &bcao.TransactionCreationInfo{
+		TransactionID: result.TxHash,
+		BlockID:       result.InBlockStatus.InBlock,
+	}
+
+	return creationInfo, nil
 }
 
 func (o *KeySwitchBCAOPolkadotImpl) GetKeySwitchResult(query *keyswitch.KeySwitchResultQuery) (*keyswitch.KeySwitchResultStored, error) {

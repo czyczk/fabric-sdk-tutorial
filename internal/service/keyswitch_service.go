@@ -34,9 +34,9 @@ type KeySwitchService struct {
 //
 // 返回：
 //   交易 ID（亦即密钥置换会话 ID）
-func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSessionID string) (string, error) {
+func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSessionID string) (*bcao.TransactionCreationInfoWithManualID, error) {
 	if strings.TrimSpace(resourceID) == "" {
-		return "", fmt.Errorf("资源 ID 不能为空")
+		return nil, fmt.Errorf("资源 ID 不能为空")
 	}
 
 	// 将公钥序列化为定长字节切片
@@ -64,9 +64,9 @@ func (s *KeySwitchService) CreateKeySwitchTrigger(resourceID string, authSession
 //
 // 返回：
 //   交易 ID
-func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, share *ppks.CipherText, proof *cipherutils.ZKProof) (string, error) {
+func (s *KeySwitchService) CreateKeySwitchResult(keySwitchSessionID string, share *ppks.CipherText, proof *cipherutils.ZKProof) (*bcao.TransactionCreationInfo, error) {
 	if strings.TrimSpace(keySwitchSessionID) == "" {
-		return "", fmt.Errorf("密钥置换会话 ID 不能为空")
+		return nil, fmt.Errorf("密钥置换会话 ID 不能为空")
 	}
 
 	// Serialize the materials

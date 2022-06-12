@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/service"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/idutils"
@@ -142,21 +143,21 @@ func (c *EntityAssetController) handleCreateAsset(ctx *gin.Context) {
 	}
 
 	// Invoke the service function according to the resource type
-	var txID string
+	var txCreationInfo *bcao.TransactionCreationInfo
 	switch resourceType {
 	case data.Plain:
-		txID, err = c.EntityAssetSvc.CreateEntityAsset(asset)
+		txCreationInfo, err = c.EntityAssetSvc.CreateEntityAsset(asset)
 	case data.Encrypted:
-		txID, err = c.EntityAssetSvc.CreateEncryptedEntityAsset(asset, key, policy)
+		txCreationInfo, err = c.EntityAssetSvc.CreateEncryptedEntityAsset(asset, key, policy)
 	}
 
 	// Check error type and generate the corresponding response
 	// The symmetric key will be included if it's not empty
 	if err == nil {
 		info := ResourceCreationInfo{
-			ResourceID:           id,
-			TransactionID:        txID,
-			SymmetricKeyMaterial: string(keyPEM),
+			ResourceID:              id,
+			SymmetricKeyMaterial:    string(keyPEM),
+			TransactionCreationInfo: txCreationInfo,
 		}
 		ctx.JSON(http.StatusOK, info)
 	} else if errors.Cause(err) == errorcode.ErrorNotImplemented {

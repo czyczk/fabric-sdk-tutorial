@@ -7,9 +7,9 @@ import (
 )
 
 type IDataBCAO interface {
-	CreatePlainData(plainData *data.PlainData, eventID ...string) (string, error)
-	CreateEncryptedData(encryptedData *data.EncryptedData, eventID ...string) (string, error)
-	CreateOffchainData(offchainData *data.OffchainData, eventID ...string) (string, error)
+	CreatePlainData(plainData *data.PlainData, eventID ...string) (*TransactionCreationInfo, error)
+	CreateEncryptedData(encryptedData *data.EncryptedData, eventID ...string) (*TransactionCreationInfo, error)
+	CreateOffchainData(offchainData *data.OffchainData, eventID ...string) (*TransactionCreationInfo, error)
 	GetMetadata(resourceID string) (*data.ResMetadataStored, error)
 	GetData(resourceID string) ([]byte, error)
 	GetKey(resourceID string) ([]byte, error)

@@ -3,6 +3,7 @@ package service
 import (
 	"crypto"
 
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/utils/cipherutils"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/keyswitch"
 	"github.com/XiaoYao-austin/ppks"
@@ -19,7 +20,7 @@ type KeySwitchServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateKeySwitchTrigger(resourceID string, authSessionID string) (string, error)
+	CreateKeySwitchTrigger(resourceID string, authSessionID string) (*bcao.TransactionCreationInfoWithManualID, error)
 
 	// 创建密钥置换结果。
 	//
@@ -30,7 +31,7 @@ type KeySwitchServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateKeySwitchResult(keySwitchSessionID string, share *ppks.CipherText, proof *cipherutils.ZKProof) (string, error)
+	CreateKeySwitchResult(keySwitchSessionID string, share *ppks.CipherText, proof *cipherutils.ZKProof) (*bcao.TransactionCreationInfo, error)
 
 	// 验证所获得的份额。
 	//

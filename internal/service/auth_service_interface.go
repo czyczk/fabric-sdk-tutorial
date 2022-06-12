@@ -1,6 +1,7 @@
 package service
 
 import (
+	"gitee.com/czyczk/fabric-sdk-tutorial/internal/blockchain/bcao"
 	"gitee.com/czyczk/fabric-sdk-tutorial/internal/models/common"
 	"gitee.com/czyczk/fabric-sdk-tutorial/pkg/models/query"
 )
@@ -15,7 +16,7 @@ type AuthServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateAuthRequest(resourceID string, reason string) (string, error)
+	CreateAuthRequest(resourceID string, reason string) (*bcao.TransactionCreationInfoWithManualID, error)
 
 	// 创建访问权批复。
 	//
@@ -25,7 +26,7 @@ type AuthServiceInterface interface {
 	//
 	// 返回：
 	//   交易 ID
-	CreateAuthResponse(authSessionID string, result bool) (string, error)
+	CreateAuthResponse(authSessionID string, result bool) (*bcao.TransactionCreationInfoWithManualID, error)
 
 	// 获取访问权会话。
 	//

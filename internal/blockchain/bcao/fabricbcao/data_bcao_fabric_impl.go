@@ -26,10 +26,10 @@ func NewDataBCAOFabricImpl(ctx *chaincodectx.FabricChaincodeCtx) *DataBCAOFabric
 	}
 }
 
-func (o *DataBCAOFabricImpl) CreatePlainData(plainData *data.PlainData, eventID ...string) (string, error) {
+func (o *DataBCAOFabricImpl) CreatePlainData(plainData *data.PlainData, eventID ...string) (*bcao.TransactionCreationInfo, error) {
 	plainDataBytes, err := json.Marshal(plainData)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化链码参数")
+		return nil, errors.Wrap(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createPlainData"
@@ -45,16 +45,28 @@ func (o *DataBCAOFabricImpl) CreatePlainData(plainData *data.PlainData, eventID 
 
 	resp, err := o.ctx.ChannelClient.Execute(channelReq)
 	if err != nil {
-		return "", bcao.GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
 	}
+
+	// Get the block ID from the ledger client
+	txID := resp.TransactionID
+	blockHashAsHex, err := getBlockHashFromTxID(o.ctx.LedgerClient, txID)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
+	}
+
+	creationInfo := &bcao.TransactionCreationInfo{
+		TransactionID: string(txID),
+		BlockID:       blockHashAsHex,
+	}
+
+	return creationInfo, nil
 }
 
-func (o *DataBCAOFabricImpl) CreateEncryptedData(encryptedData *data.EncryptedData, eventID ...string) (string, error) {
+func (o *DataBCAOFabricImpl) CreateEncryptedData(encryptedData *data.EncryptedData, eventID ...string) (*bcao.TransactionCreationInfo, error) {
 	encryptedDataBytes, err := json.Marshal(encryptedData)
 	if err != nil {
-		return "", errors.Wrapf(err, "无法序列化链码参数")
+		return nil, errors.Wrapf(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createEncryptedData"
@@ -70,16 +82,28 @@ func (o *DataBCAOFabricImpl) CreateEncryptedData(encryptedData *data.EncryptedDa
 
 	resp, err := executeChannelRequestWithTimer(o.ctx.ChannelClient, &channelReq, "链上存储文档")
 	if err != nil {
-		return "", bcao.GetClassifiedError(chaincodeFcn, err)
-	} else {
-		return string(resp.TransactionID), nil
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
 	}
+
+	// Get the block ID from the ledger client
+	txID := resp.TransactionID
+	blockHashAsHex, err := getBlockHashFromTxID(o.ctx.LedgerClient, txID)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
+	}
+
+	creationInfo := &bcao.TransactionCreationInfo{
+		TransactionID: string(txID),
+		BlockID:       blockHashAsHex,
+	}
+
+	return creationInfo, nil
 }
 
-func (o *DataBCAOFabricImpl) CreateOffchainData(offchainData *data.OffchainData, eventID ...string) (string, error) {
+func (o *DataBCAOFabricImpl) CreateOffchainData(offchainData *data.OffchainData, eventID ...string) (*bcao.TransactionCreationInfo, error) {
 	offchainDataBytes, err := json.Marshal(offchainData)
 	if err != nil {
-		return "", errors.Wrapf(err, "无法序列化链码参数")
+		return nil, errors.Wrapf(err, "无法序列化链码参数")
 	}
 
 	chaincodeFcn := "createOffchainData"
@@ -95,10 +119,22 @@ func (o *DataBCAOFabricImpl) CreateOffchainData(offchainData *data.OffchainData,
 
 	resp, err := executeChannelRequestWithTimer(o.ctx.ChannelClient, &channelReq, "链上存储文档元数据与属性")
 	if err != nil {
-		return "", bcao.GetClassifiedError(chaincodeFcn, err)
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
 	}
 
-	return string(resp.TransactionID), nil
+	// Get the block ID from the ledger client
+	txID := resp.TransactionID
+	blockHashAsHex, err := getBlockHashFromTxID(o.ctx.LedgerClient, txID)
+	if err != nil {
+		return nil, bcao.GetClassifiedError(chaincodeFcn, err)
+	}
+
+	creationInfo := &bcao.TransactionCreationInfo{
+		TransactionID: string(txID),
+		BlockID:       blockHashAsHex,
+	}
+
+	return creationInfo, nil
 }
 
 func (o *DataBCAOFabricImpl) GetMetadata(resourceID string) (*data.ResMetadataStored, error) {

@@ -39,14 +39,14 @@ type DocumentService struct {
 //
 // 返回：
 //   交易 ID
-func (s *DocumentService) CreateDocument(document *common.Document) (string, error) {
+func (s *DocumentService) CreateDocument(document *common.Document) (*bcao.TransactionCreationInfo, error) {
 	if document == nil {
-		return "", fmt.Errorf("文档对象不能为 nil")
+		return nil, fmt.Errorf("文档对象不能为 nil")
 	}
 
 	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
 	if strings.TrimSpace(document.ID) == "" {
-		return "", fmt.Errorf("文档 ID 不能为空")
+		return nil, fmt.Errorf("文档 ID 不能为空")
 	}
 
 	// 将 struct 转成 map 后再序列化，以使得键按字典序排序。
@@ -55,12 +55,12 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 	documentAsMap := make(map[string]interface{})
 	err := mapstructure.Decode(document, &documentAsMap)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化文档")
+		return nil, errors.Wrap(err, "无法序列化文档")
 	}
 
 	documentBytes, err := json.Marshal(documentAsMap)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化文档")
+		return nil, errors.Wrap(err, "无法序列化文档")
 	}
 
 	// 计算哈希，获取大小并准备可公开的扩展字段
@@ -83,8 +83,8 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 		Data:     base64.StdEncoding.EncodeToString(documentBytes),
 	}
 
-	txID, err := s.DataBCAO.CreatePlainData(&plainData)
-	return txID, err
+	txCreationInfo, err := s.DataBCAO.CreatePlainData(&plainData)
+	return txCreationInfo, err
 }
 
 // CreateEncryptedDocument 创建加密数字文档。
@@ -96,47 +96,47 @@ func (s *DocumentService) CreateDocument(document *common.Document) (string, err
 //
 // 返回：
 //   交易 ID
-func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key *ppks.CurvePoint, policy string) (string, error) {
+func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key *ppks.CurvePoint, policy string) (*bcao.TransactionCreationInfo, error) {
 	if document == nil {
-		return "", fmt.Errorf("文档对象不能为 nil")
+		return nil, fmt.Errorf("文档对象不能为 nil")
 	}
 	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
 	if strings.TrimSpace(document.ID) == "" {
-		return "", fmt.Errorf("文档 ID 不能为空")
+		return nil, fmt.Errorf("文档 ID 不能为空")
 	}
 
 	documentBytes, err := json.Marshal(document)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化文档")
+		return nil, errors.Wrap(err, "无法序列化文档")
 	}
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化文档属性")
+		return nil, errors.Wrap(err, "无法序列化文档属性")
 	}
 
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
 	encryptedDocumentBytes, err := encryptDataWithTimer(documentBytes, key, "无法加密文档", "加密文档")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	encryptedDocumentPropertiesBytes, err := encryptDataWithTimer(documentPropertiesBytes, key, "无法加密文档属性", "加密文档属性")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	collPubKeyInSM2 := collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密对称密钥")
+		return nil, errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
 	encryptedKeyBytes := cipherutils.SerializeCipherText(encryptedKey)
@@ -163,8 +163,8 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 		Policy:   policy,
 	}
 
-	txID, err := s.DataBCAO.CreateEncryptedData(&encryptedData, encryptedResourceCreationEventName)
-	return txID, err
+	txCreationInfo, err := s.DataBCAO.CreateEncryptedData(&encryptedData, encryptedResourceCreationEventName)
+	return txCreationInfo, err
 }
 
 // CreateOffchainDocument 创建链下加密数字文档。
@@ -176,30 +176,30 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 //
 // 返回：
 //   交易 ID
-func (s *DocumentService) CreateOffchainDocument(document *common.Document, key *ppks.CurvePoint, policy string) (string, error) {
+func (s *DocumentService) CreateOffchainDocument(document *common.Document, key *ppks.CurvePoint, policy string) (*bcao.TransactionCreationInfo, error) {
 	if document == nil {
-		return "", fmt.Errorf("文档对象不能为 nil")
+		return nil, fmt.Errorf("文档对象不能为 nil")
 	}
 
 	// 检查 ID 是否为空。若上层忽略此项检查此项为空，将可能对链码层造成混乱。
 	if strings.TrimSpace(document.ID) == "" {
-		return "", fmt.Errorf("文档 ID 不能为空")
+		return nil, fmt.Errorf("文档 ID 不能为空")
 	}
 
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化文档属性")
+		return nil, errors.Wrap(err, "无法序列化文档属性")
 	}
 	documentBytes, err := json.Marshal(document)
 	if err != nil {
-		return "", errors.Wrap(err, "无法序列化文档")
+		return nil, errors.Wrap(err, "无法序列化文档")
 	}
 
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
 	// 使用由 key 导出的 256 位信息来创建 AES256 block
 	encryptedDocumentPropertiesBytes, err := encryptDataWithTimer(documentPropertiesBytes, key, "无法加密文档属性", "加密文档属性")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 提前准备扩展字段，以便回收 `document`
@@ -215,7 +215,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 
 	encryptedDocumentBytes, err := encryptDataWithTimer(documentBytes, key, "无法加密文档", "加密文档")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	documentBytes = nil
@@ -224,14 +224,14 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	// 获取集合公钥（当前实现为 SM2 公钥）
 	collPubKey, err := s.KeySwitchService.GetCollectiveAuthorityPublicKey()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	collPubKeyInSM2 := collPubKey.(*sm2.PublicKey)
 
 	// 用集合公钥加密 key
 	encryptedKey, err := ppks.PointEncrypt(collPubKeyInSM2, key)
 	if err != nil {
-		return "", errors.Wrap(err, "无法加密对称密钥")
+		return nil, errors.Wrap(err, "无法加密对称密钥")
 	}
 	// 序列化加密后的 key
 	encryptedKeyBytes := cipherutils.SerializeCipherText(encryptedKey)
@@ -247,7 +247,7 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 	// 将加密后的文档上传至 IPFS 网络
 	cid, err := uploadBytesToIPFSWithTimer(s.ServiceInfo.IPFSSh, encryptedDocumentBytes, "无法将加密后的文档上传至 IPFS 网络", "上传至 IPFS 网络")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	encryptedDocumentBytes = nil
@@ -261,8 +261,8 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		Policy:   policy,
 	}
 
-	txID, err := s.DataBCAO.CreateOffchainData(&offchainData, encryptedResourceCreationEventName)
-	return txID, err
+	txCreationInfo, err := s.DataBCAO.CreateOffchainData(&offchainData, encryptedResourceCreationEventName)
+	return txCreationInfo, err
 }
 
 // GetDocumentMetadata 获取数字文档的元数据。

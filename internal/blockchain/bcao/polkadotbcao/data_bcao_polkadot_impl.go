@@ -30,7 +30,7 @@ func NewDataBCAOPolkadotImpl(ctx *chaincodectx.PolkadotChaincodeCtx) *DataBCAOPo
 	}
 }
 
-func (o *DataBCAOPolkadotImpl) CreatePlainData(plainData *data.PlainData, eventID ...string) (string, error) {
+func (o *DataBCAOPolkadotImpl) CreatePlainData(plainData *data.PlainData, eventID ...string) (*bcao.TransactionCreationInfo, error) {
 	funcName := "createPlainData"
 
 	funcArgs := []interface{}{plainData}
@@ -42,13 +42,18 @@ func (o *DataBCAOPolkadotImpl) CreatePlainData(plainData *data.PlainData, eventI
 
 	result, err := sendTx(o.ctx, o.client, funcName, funcArgs, true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return result.TxHash, nil
+	txCreationInfo := &bcao.TransactionCreationInfo{
+		TransactionID: result.TxHash,
+		BlockID:       result.InBlockStatus.InBlock,
+	}
+
+	return txCreationInfo, nil
 }
 
-func (o *DataBCAOPolkadotImpl) CreateEncryptedData(encryptedData *data.EncryptedData, eventID ...string) (string, error) {
+func (o *DataBCAOPolkadotImpl) CreateEncryptedData(encryptedData *data.EncryptedData, eventID ...string) (*bcao.TransactionCreationInfo, error) {
 	funcName := "createEncryptedData"
 
 	funcArgs := []interface{}{encryptedData}
@@ -60,13 +65,18 @@ func (o *DataBCAOPolkadotImpl) CreateEncryptedData(encryptedData *data.Encrypted
 
 	result, err := sendTxWithTimer(o.ctx, o.client, funcName, funcArgs, true, "链上存储文档")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return result.TxHash, nil
+	txCreationInfo := &bcao.TransactionCreationInfo{
+		TransactionID: result.TxHash,
+		BlockID:       result.InBlockStatus.InBlock,
+	}
+
+	return txCreationInfo, nil
 }
 
-func (o *DataBCAOPolkadotImpl) CreateOffchainData(offchainData *data.OffchainData, eventID ...string) (string, error) {
+func (o *DataBCAOPolkadotImpl) CreateOffchainData(offchainData *data.OffchainData, eventID ...string) (*bcao.TransactionCreationInfo, error) {
 	funcName := "createOffchainData"
 
 	funcArgs := []interface{}{offchainData}
@@ -78,10 +88,15 @@ func (o *DataBCAOPolkadotImpl) CreateOffchainData(offchainData *data.OffchainDat
 
 	result, err := sendTxWithTimer(o.ctx, o.client, funcName, funcArgs, true, "链上存储文档元数据与属性")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return result.TxHash, nil
+	txCreationInfo := &bcao.TransactionCreationInfo{
+		TransactionID: result.TxHash,
+		BlockID:       result.InBlockStatus.InBlock,
+	}
+
+	return txCreationInfo, nil
 }
 
 func (o *DataBCAOPolkadotImpl) GetMetadata(resourceID string) (*data.ResMetadataStored, error) {

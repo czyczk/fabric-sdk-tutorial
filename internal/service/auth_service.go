@@ -25,7 +25,7 @@ type AuthService struct {
 //
 // 返回：
 //   交易 ID
-func (s *AuthService) CreateAuthRequest(resourceID string, reason string) (string, error) {
+func (s *AuthService) CreateAuthRequest(resourceID string, reason string) (*bcao.TransactionCreationInfoWithManualID, error) {
 	// 组装 Extensions 结构
 	extensions := make(map[string]interface{})
 	extensions["dataType"] = "authRequest"
@@ -50,10 +50,10 @@ func (s *AuthService) CreateAuthRequest(resourceID string, reason string) (strin
 //
 // 返回：
 //   交易 ID
-func (s *AuthService) CreateAuthResponse(authSessionID string, result bool) (string, error) {
+func (s *AuthService) CreateAuthResponse(authSessionID string, result bool) (*bcao.TransactionCreationInfoWithManualID, error) {
 	// Defensive check: authSessionID 不能为空
 	if strings.TrimSpace(authSessionID) == "" {
-		return "", fmt.Errorf("授权会话 ID 不能为空")
+		return nil, fmt.Errorf("授权会话 ID 不能为空")
 	}
 
 	// 组装 Extensions 结构
