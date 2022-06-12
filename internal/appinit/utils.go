@@ -17,6 +17,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fabsdk"
 	errors "github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 func ParseBlockchainType(blockchainTypeStr string) error {
@@ -200,6 +201,7 @@ func configureChaincodes(chaincodes map[string]ChaincodeInfo) error {
 			}
 		} else if global.BlockchainType == blockchain.Polkadot {
 			var chaincodeInfo = chaincodeInfo.(*PolkadotChaincodeInfo)
+			log.Printf("开始实例化 Polkadot 合约 '%v'...\n", chaincodeInfo.ID)
 
 			httpClient := http.DefaultClient
 
@@ -261,10 +263,13 @@ func configureChaincodes(chaincodes map[string]ChaincodeInfo) error {
 
 				result, err := sendTxToInstantiateChaincode(global.PolkadotNetworkConfig.APIPrefix, httpClient, abi, wasmBytes, signerAddress, ctorFuncName, string(ctorArgsBytes))
 				if err != nil {
-					return errors.Wrap(err, "无法实例化 Polkadot 合约")
+					return errors.Wrapf(err, "无法实例化 Polkadot 合约 '%v'", chaincodeInfo.ID)
 				}
 
-				fmt.Printf("合约地址: %v\n", result.Address)
+				log.Printf("已实例化 Polkadot 合约 '%v'。\n", chaincodeInfo.ID)
+				log.Printf("合约地址: %v\n", result.Address)
+				log.Printf("交易 ID: %v\n", result.TxExecutionResult.TxHash)
+				log.Printf("区块 ID: %v\n", result.InBlockStatus.InBlock)
 			}
 		}
 	}
