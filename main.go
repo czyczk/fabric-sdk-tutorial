@@ -409,6 +409,12 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 			KeySwitchService: keySwitchSvc,
 		}
 
+		// Instantiate a resource service
+		resourceSvc := &service.ResourceService{
+			ServiceInfo: universalCcServiceInfo,
+			DataBCAO:    dataBCAO,
+		}
+
 		// Instantiate an auth service
 		authSvc := &service.AuthService{
 			AuthBCAO: authBCAO,
@@ -478,6 +484,12 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 			EntityAssetSvc: entityAssetSvc,
 		}
 
+		// Instantiate a resource controller
+		resourceController := &controller.ResourceController{
+			GroupName:   "/",
+			ResourceSvc: resourceSvc,
+		}
+
 		// Instantiate an auth controller
 		authController := &controller.AuthController{
 			GroupName: "/auth",
@@ -507,6 +519,7 @@ func getServeFunc(blockchainTypeStr *string, configPath *string, blockchainConfi
 		_ = controller.RegisterHandlers(apiv1Group, screwController)
 		_ = controller.RegisterHandlers(apiv1Group, documentController)
 		_ = controller.RegisterHandlers(apiv1Group, entityAssetController)
+		_ = controller.RegisterHandlers(apiv1Group, resourceController)
 		_ = controller.RegisterHandlers(apiv1Group, authController)
 		_ = controller.RegisterHandlers(apiv1Group, keySwitchController)
 		_ = controller.RegisterHandlers(apiv1Group, identityController)
