@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  mariadb0:
+    container_name: mariadb0
+    image: mariadb:latest
+    ports:
+      - "3306:3306"
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: example
+      MARIADB_USER: fabricphone
+      MARIADB_PASSWORD: fabricphone
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
