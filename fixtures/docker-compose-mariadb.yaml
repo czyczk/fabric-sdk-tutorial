@@ -13,3 +13,29 @@ services:
       MARIADB_PASSWORD: fabricphone
     volumes:
       - ./sql:/docker-entrypoint-initdb.d
+
+  mariadb1:
+    container_name: mariadb1
+    image: mariadb:latest
+    ports:
+      - "3406:3306"
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: example
+      MARIADB_USER: fabricphone
+      MARIADB_PASSWORD: fabricphone
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+
+  mariadb2:
+    container_name: mariadb2
+    image: mariadb:latest
+    ports:
+      - "3506:3306"
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: example
+      MARIADB_USER: fabricphone
+      MARIADB_PASSWORD: fabricphone
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d

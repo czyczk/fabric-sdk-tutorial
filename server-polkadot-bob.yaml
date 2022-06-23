@@ -4,7 +4,7 @@ user:
 channels:
   - mychannel # not useful yet
 port: 8083
-localDBSourceName: "fabricphone:fabricphone@tcp(localhost:3306)/fabric_phone_u1o2?charset=utf8mb4&parseTime=True&loc=Local"
+localDBSourceName: "fabricphone:fabricphone@tcp(localhost:3506)/fabric_phone_u1o2?charset=utf8mb4&parseTime=True&loc=Local"
 ipfsAPI: "localhost:5201"
 isKeySwitchServer: true
 isRegulator: false
