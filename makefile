@@ -1,8 +1,9 @@
 export COMPOSE_PROJECT_NAME=lab805
 export DOCKER_FILES_PARAM=-f docker-compose.yaml -f docker-compose-mariadb.yaml -f docker-compose-couch.yaml -f docker-compose-ipfs.yaml
+export POLKADOT_DOCKER_FILES_PARAM=-f docker-compose-mariadb.yaml -f docker-compose-ipfs.yaml
 export IPFS_VERSION=v0.4.23
 
-.PHONY: all dev clean build env-up env-down run run-init run-serve
+.PHONY: all dev clean build env-up polkadot-env-up env-down run run-init run-serve
 
 all: clean build env-up run
 
@@ -19,6 +20,13 @@ env-up:
 	@cd fixtures && docker-compose ${DOCKER_FILES_PARAM} up --force-recreate -d
 	@sleep 3
 	@echo "Environment is up."
+
+polkadot-env-up:
+	@echo "Starting polkadot environment..."
+	@cd fixtures && rm -rf ./ipfs && cp -r ./ipfs-template ./ipfs
+	@cd fixtures && docker-compose ${POLKADOT_DOCKER_FILES_PARAM} up --force-recreate -d
+	@sleep 3
+	@echo "Polkadot environment is up."
 
 env-down:
 	@echo "Stopping environment..."
