@@ -3,7 +3,7 @@ version: '3.8'
 services:
   mariadb0:
     container_name: mariadb0
-    image: mariadb:latest
+    image: mariadb:${MARIADB_VERSION}
     ports:
       - "3306:3306"
     restart: always
@@ -16,7 +16,7 @@ services:
 
   mariadb1:
     container_name: mariadb1
-    image: mariadb:latest
+    image: mariadb:${MARIADB_VERSION}
     ports:
       - "3406:3306"
     restart: always
@@ -29,7 +29,7 @@ services:
 
   mariadb2:
     container_name: mariadb2
-    image: mariadb:latest
+    image: mariadb:${MARIADB_VERSION}
     ports:
       - "3506:3306"
     restart: always
