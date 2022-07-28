@@ -4,5 +4,5 @@
 	branch = main
 [submodule "blbc"]
 	path = blbc
-	url = https://github.com/czyczk/blbc
+	url = git@github.com:bit-substrate/blbc.git
 	branch = build
