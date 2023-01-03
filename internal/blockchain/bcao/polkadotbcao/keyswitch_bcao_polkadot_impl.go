@@ -36,8 +36,7 @@ func (o *KeySwitchBCAOPolkadotImpl) CreateKeySwitchTrigger(ksTrigger *keyswitch.
 		return nil, errors.Wrap(err, "无法为密钥置换触发生成 ID")
 	}
 
-	// TODO: Retrieve and pass the department identity as the second param when the contract is ready for it.
-	funcArgs := []interface{}{id, nil, ksTrigger}
+	funcArgs := []interface{}{id, ksTrigger}
 	if len(eventID) != 0 {
 		funcArgs = append(funcArgs, eventID[0])
 	} else {
