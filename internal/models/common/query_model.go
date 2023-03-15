@@ -28,17 +28,17 @@ type CommonQueryConditions struct {
 
 // DocumentQueryConditions 表示适用数字文档的查询条件。
 type DocumentQueryConditions struct {
-	CommonQueryConditions `mapstructure:",squash"`
-	DocumentType          *DocumentType `json:"documentType"`
-	PrecedingDocumentID   *string       `json:"precedingDocumentId"`
-	HeadDocumentID        *string       `json:"headDocumentId"`
-	EntityAssetID         *string       `json:"entityAssetId"`
+	CommonQueryConditions CommonQueryConditions `mapstructure:",squash"`
+	DocumentType          *DocumentType         `json:"documentType"`
+	PrecedingDocumentID   *string               `json:"precedingDocumentId"`
+	HeadDocumentID        *string               `json:"headDocumentId"`
+	EntityAssetID         *string               `json:"entityAssetId"`
 }
 
 // EntityAssetQueryConditions 表示适用实体资产的查询条件。
 type EntityAssetQueryConditions struct {
-	CommonQueryConditions `mapstructure:",squash"`
-	DesignDocumentID      *string `json:"designDocumentId"`
+	CommonQueryConditions CommonQueryConditions `mapstructure:",squash"`
+	DesignDocumentID      *string               `json:"designDocumentId"`
 }
 
 func (c *CommonQueryConditions) ToCouchDBConditions() (conditions map[string]interface{}, err error) {
