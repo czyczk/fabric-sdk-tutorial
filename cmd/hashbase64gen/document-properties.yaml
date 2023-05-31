@@ -1,0 +1,11 @@
+id: "1663729908091719680"
+name: "document.txt"
+documentType: "DesignDocument"
+precedingDocumentId: "123"
+headDocumentId: "123"
+entityAssetId: "123"
+isNamePublic: true
+isTypePublic: true
+isPrecedingDocumentIdPublic: true
+isHeadDocumentIdPublic: true
+isEntityAssetIdPublic: true
