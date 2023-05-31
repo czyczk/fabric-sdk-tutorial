@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"runtime"
 	"strings"
 
@@ -35,10 +35,12 @@ type DocumentService struct {
 // CreateDocument 创建数字文档。
 //
 // 参数：
-//   数字文档
+//
+//	数字文档
 //
 // 返回：
-//   交易 ID
+//
+//	交易 ID
 func (s *DocumentService) CreateDocument(document *common.Document) (*bcao.TransactionCreationInfo, error) {
 	if document == nil {
 		return nil, fmt.Errorf("文档对象不能为 nil")
@@ -90,12 +92,14 @@ func (s *DocumentService) CreateDocument(document *common.Document) (*bcao.Trans
 // CreateEncryptedDocument 创建加密数字文档。
 //
 // 参数：
-//   数字文档
-//   对称密钥（SM2 曲线上的点）
-//   访问策略
+//
+//	数字文档
+//	对称密钥（SM2 曲线上的点）
+//	访问策略
 //
 // 返回：
-//   交易 ID
+//
+//	交易 ID
 func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key *ppks.CurvePoint, policy string) (*bcao.TransactionCreationInfo, error) {
 	if document == nil {
 		return nil, fmt.Errorf("文档对象不能为 nil")
@@ -105,10 +109,20 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 		return nil, fmt.Errorf("文档 ID 不能为空")
 	}
 
-	documentBytes, err := json.Marshal(document)
+	// 将 struct 转成 map 后再序列化，以使得键按字典序排序。
+	// 因为在 CouchDB 中存储 JSON 序列化后的对象时，不会保存键的顺序，取出时键将以字典序排序。
+	// 若此时直接按 struct 序列化，保持原始键顺序的话，此时计算的哈希将与取出后的哈希不同。
+	documentAsMap := make(map[string]interface{})
+	err := mapstructure.Decode(document, &documentAsMap)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法序列化文档")
 	}
+
+	documentBytes, err := json.Marshal(documentAsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法序列化文档")
+	}
+
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法序列化文档属性")
@@ -170,12 +184,14 @@ func (s *DocumentService) CreateEncryptedDocument(document *common.Document, key
 // CreateOffchainDocument 创建链下加密数字文档。
 //
 // 参数：
-//   数字文档
-//   对称密钥（SM2 曲线上的点）
-//   访问策略
+//
+//	数字文档
+//	对称密钥（SM2 曲线上的点）
+//	访问策略
 //
 // 返回：
-//   交易 ID
+//
+//	交易 ID
 func (s *DocumentService) CreateOffchainDocument(document *common.Document, key *ppks.CurvePoint, policy string) (*bcao.TransactionCreationInfo, error) {
 	if document == nil {
 		return nil, fmt.Errorf("文档对象不能为 nil")
@@ -186,13 +202,23 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 		return nil, fmt.Errorf("文档 ID 不能为空")
 	}
 
+	// 将 struct 转成 map 后再序列化，以使得键按字典序排序。
+	// 因为在 CouchDB 中存储 JSON 序列化后的对象时，不会保存键的顺序，取出时键将以字典序排序。
+	// 若此时直接按 struct 序列化，保持原始键顺序的话，此时计算的哈希将与取出后的哈希不同。
+	documentAsMap := make(map[string]interface{})
+	err := mapstructure.Decode(document, &documentAsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法序列化文档")
+	}
+
+	documentBytes, err := json.Marshal(documentAsMap)
+	if err != nil {
+		return nil, errors.Wrap(err, "无法序列化文档")
+	}
+
 	documentPropertiesBytes, err := json.Marshal(document.DocumentProperties)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法序列化文档属性")
-	}
-	documentBytes, err := json.Marshal(document)
-	if err != nil {
-		return nil, errors.Wrap(err, "无法序列化文档")
 	}
 
 	// 用 key 加密 documentBytes 和 documentPropertiesBytes
@@ -268,10 +294,12 @@ func (s *DocumentService) CreateOffchainDocument(document *common.Document, key 
 // GetDocumentMetadata 获取数字文档的元数据。
 //
 // 参数：
-//   文档 ID
+//
+//	文档 ID
 //
 // 返回：
-//   元数据
+//
+//	元数据
 func (s *DocumentService) GetDocumentMetadata(id string) (*data.ResMetadataStored, error) {
 	return getResourceMetadata(id, s.DataBCAO)
 }
@@ -279,11 +307,13 @@ func (s *DocumentService) GetDocumentMetadata(id string) (*data.ResMetadataStore
 // GetDocument 获取明文数字文档，调用前应先获取元数据。
 //
 // 参数：
-//   文档 ID
-//   文档元数据
+//
+//	文档 ID
+//	文档元数据
 //
 // 返回：
-//   文档本体
+//
+//	文档本体
 func (s *DocumentService) GetDocument(id string, metadata *data.ResMetadataStored) (*common.Document, error) {
 	// 检查元数据中该资源类型是否为明文资源
 	if metadata.ResourceType != data.Plain {
@@ -315,13 +345,15 @@ func (s *DocumentService) GetDocument(id string, metadata *data.ResMetadataStore
 // GetEncryptedDocument 获取加密数字文档。提供密钥置换会话，函数将使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
 //
 // 参数：
-//   文档 ID
-//   密钥置换会话 ID
-//   预期的份额数量
-//   文档元数据
+//
+//	文档 ID
+//	密钥置换会话 ID
+//	预期的份额数量
+//	文档元数据
 //
 // 返回：
-//   解密后的文档
+//
+//	解密后的文档
 func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.Document, error) {
 	// 检查元数据中该资源类型是否为密文资源
 	if metadata.ResourceType != data.Encrypted {
@@ -407,13 +439,15 @@ func (s *DocumentService) GetEncryptedDocument(id string, keySwitchSessionID str
 // 获取链下加密数字文档。提供密钥置换会话，函数将从 IPFS 网络获得密文，使用密钥置换结果尝试进行解密后，返回明文。调用前应先获取元数据。
 //
 // 参数：
-//   文档 ID
-//   密钥置换会话 ID
-//   预期的份额数量
-//   文档元数据
+//
+//	文档 ID
+//	密钥置换会话 ID
+//	预期的份额数量
+//	文档元数据
 //
 // 返回：
-//   解密后的文档
+//
+//	解密后的文档
 func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.Document, error) {
 	// 检查元数据中该资源类型是否为链下加密资源
 	if metadata.ResourceType != data.Offchain {
@@ -440,7 +474,7 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 	if err != nil {
 		return nil, errors.Wrap(err, "无法从 IPFS 网络获取数字文档")
 	}
-	encryptedDocumentBytes, err := ioutil.ReadAll(reader)
+	encryptedDocumentBytes, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, errors.Wrap(err, "无法从 IPFS 网络获取数字文档")
 	}
@@ -510,13 +544,15 @@ func (s *DocumentService) GetOffchainDocument(id string, keySwitchSessionID stri
 // GetEncryptedDocumentProperties 获取加密与链下加密数字文档的加密属性部分，并使用密钥置换结果尝试进行解密。调用前应先获取元数据。
 //
 // 参数：
-//   文档 ID
-//   密钥置换会话 ID
-//   预期的份额数量
-//   文档元数据
+//
+//	文档 ID
+//	密钥置换会话 ID
+//	预期的份额数量
+//	文档元数据
 //
 // 返回：
-//   解密后的文档属性
+//
+//	解密后的文档属性
 func (s *DocumentService) GetEncryptedDocumentProperties(id string, keySwitchSessionID string, numSharesExpected int, metadata *data.ResMetadataStored) (*common.DocumentProperties, error) {
 	// 检查该文档是否为 Encrypted 或 Offchain 资源
 	if metadata.ResourceType != data.Encrypted && metadata.ResourceType != data.Offchain {
@@ -590,11 +626,13 @@ func (s *DocumentService) GetEncryptedDocumentProperties(id string, keySwitchSes
 // GetDecryptedDocumentFromDB 从数据库中获取经解密的数字文档。返回解密后的明文。调用前应先获取元数据。
 //
 // 参数：
-//   文档 ID
-//   文档元数据
+//
+//	文档 ID
+//	文档元数据
 //
 // 返回：
-//   解密后的文档
+//
+//	解密后的文档
 func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.ResMetadataStored) (*common.Document, error) {
 	// 检查元数据中该资源类型是否为密文资源
 	if metadata.ResourceType != data.Encrypted && metadata.ResourceType != data.Offchain {
@@ -652,11 +690,13 @@ func (s *DocumentService) GetDecryptedDocumentFromDB(id string, metadata *data.R
 // GetDecryptedDocumentPropertiesFromDB 从数据库中获取经解密的数字文档的属性部分。返回解密后的属性明文。调用前应先获取元数据。
 //
 // 参数：
-//   文档 ID
-//   文档元数据
+//
+//	文档 ID
+//	文档元数据
 //
 // 返回：
-//   解密后的文档属性
+//
+//	解密后的文档属性
 func (s *DocumentService) GetDecryptedDocumentPropertiesFromDB(id string, metadata *data.ResMetadataStored) (*common.DocumentProperties, error) {
 	// 检查元数据中该资源类型是否为密文资源
 	if metadata.ResourceType != data.Encrypted && metadata.ResourceType != data.Offchain {
@@ -679,12 +719,14 @@ func (s *DocumentService) GetDecryptedDocumentPropertiesFromDB(id string, metada
 // ListDocumentIDsByCreator 获取所有调用者创建的数字文档的资源 ID。
 //
 // 参数：
-//   倒序排列
-//   分页大小
-//   分页书签
+//
+//	倒序排列
+//	分页大小
+//	分页书签
 //
 // 返回：
-//   带分页的资源 ID 列表
+//
+//	带分页的资源 ID 列表
 func (s *DocumentService) ListDocumentIDsByCreator(isDesc bool, pageSize int, bookmark string) (*query.IDsWithPagination, error) {
 	// 调用 listResourceIDsByCreator 拿到一个 ID 列表
 	return s.DataBCAO.ListResourceIDsByCreator(common.DocumentDataType, isDesc, pageSize, bookmark)
@@ -693,11 +735,13 @@ func (s *DocumentService) ListDocumentIDsByCreator(isDesc bool, pageSize int, bo
 // ListDocumentIDsByConditions 获取满足所提供的搜索条件的数字文档的资源 ID。
 //
 // 参数：
-//   搜索条件
-//   分页大小
+//
+//	搜索条件
+//	分页大小
 //
 // 返回：
-//   带分页的资源 ID 列表
+//
+//	带分页的资源 ID 列表
 func (s *DocumentService) ListDocumentIDsByConditions(conditions *common.DocumentQueryConditions, pageSize int) (*query.IDsWithPagination, error) {
 	// 从两处获取资源 ID。
 	// 第一是调用链码从链上获取，这部分的结果包括 明文资源以及所查寻属性为公开的那部分资源 中符合条件的条目；
